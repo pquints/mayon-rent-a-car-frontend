@@ -122,6 +122,24 @@ const saveUsers = (users) => {
     fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf8');
 };
 
+const isHashedPassword = (value) => {
+    return typeof value === 'string' && /^\$2[aby]\$.{56}$/.test(value);
+};
+
+const verifyPassword = async (plainPassword, storedPassword, user, users) => {
+    if (isHashedPassword(storedPassword)) {
+        return await bcrypt.compare(plainPassword, storedPassword);
+    }
+
+    const isMatch = plainPassword === storedPassword;
+    if (isMatch && user && users) {
+        user.password = await bcrypt.hash(plainPassword, 10);
+        saveUsers(users);
+        if (DEBUG) console.log(`Migrated plaintext password to bcrypt for user ${user.username}`);
+    }
+    return isMatch;
+};
+
 // ========================================================
 // VEHICLE MANAGEMENT FUNCTIONS
 // ========================================================
@@ -358,7 +376,7 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
             return res.status(401).json({ success: false, error: "Invalid username or password" });
         }
 
-        const passwordMatch = await bcrypt.compare(password, user.password);
+        const passwordMatch = await verifyPassword(password, user.password, user, users);
         if (!passwordMatch) {
             return res.status(401).json({ success: false, error: "Invalid username or password" });
         }

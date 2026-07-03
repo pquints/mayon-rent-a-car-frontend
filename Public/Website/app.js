@@ -111,6 +111,30 @@ document.addEventListener('DOMContentLoaded', () => {
         return isValid;
     }
 
+    function attachFieldRecoveryListeners() {
+        const formFields = bookingForm.querySelectorAll('input[required], select[required], textarea[required]');
+
+        formFields.forEach(field => {
+            field.addEventListener('input', () => {
+                if (field.value.trim()) {
+                    field.style.borderColor = '#cbd5e1';
+                }
+            });
+
+            field.addEventListener('change', () => {
+                if (field.value.trim()) {
+                    field.style.borderColor = '#cbd5e1';
+                }
+            });
+        });
+    }
+
+    function setSubmitLoading(isLoading) {
+        if (!submitBtn) return;
+        submitBtn.disabled = isLoading;
+        submitBtn.textContent = isLoading ? 'Sending...' : 'Submit Booking Request';
+    }
+
     // Step 2 Radio logic updates
     function handleRentalTypeChange() {
         if (!typeWithDriver || !typeSelfDrive) return;
@@ -187,6 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // PINAGSAMANG SUBMIT AT BACKEND CONNECTION LOGIC
     // ==========================================
     if (bookingForm) {
+        attachFieldRecoveryListeners();
+
         bookingForm.addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -217,6 +243,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
+                setSubmitLoading(true);
+
                 // Ipadala ang payload data sa Express Backend Endpoint mo
                 const response = await fetch('http://localhost:3000/api/bookings', {
                     method: 'POST',
@@ -238,6 +266,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error('Error submitting to backend:', error);
                 alert('Hindi makakonekta sa server. Siguraduhing umaandar ang iyong `node server.js` sa Port 3000.');
+            } finally {
+                setSubmitLoading(false);
             }
         });
     }

@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", function() {
         authToken = token;
         showDashboardView();
         initializeDashboard();
+        restoreAdminView();
         updateUserDisplay();
     } catch (error) {
         console.error("Error parsing user data:", error);
@@ -35,11 +36,54 @@ function showLoginView() {
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
     }
+
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordField = document.getElementById('loginPassword');
+    const usernameField = document.getElementById('loginUsername');
+    const errorDiv = document.getElementById('loginError');
+    if (togglePassword && passwordField) {
+        togglePassword.addEventListener('click', () => {
+            const isPassword = passwordField.type === 'password';
+            passwordField.type = isPassword ? 'text' : 'password';
+            togglePassword.textContent = isPassword ? 'Hide' : 'Show';
+        });
+    }
+
+    const clearLoginError = () => {
+        if (errorDiv && errorDiv.style.display === 'block') {
+            errorDiv.style.display = 'none';
+        }
+    };
+
+    if (passwordField) {
+        passwordField.addEventListener('input', clearLoginError);
+    }
+    if (usernameField) {
+        usernameField.addEventListener('input', clearLoginError);
+    }
 }
 
 function showDashboardView() {
     document.getElementById('loginView').style.display = 'none';
     document.getElementById('dashboardContainer').style.display = 'flex';
+}
+
+function restoreAdminView() {
+    const savedView = localStorage.getItem('adminActiveView');
+    if (!savedView || savedView === 'dashboard') {
+        showView('dashboard');
+        return;
+    }
+
+    if (savedView === 'userManagement') {
+        showView('userManagement');
+        loadUsers();
+    } else if (savedView === 'vehicleManagement') {
+        showView('vehicleManagement');
+        loadVehicles();
+    } else {
+        showView('dashboard');
+    }
 }
 
 async function handleLogin(e) {
@@ -59,8 +103,10 @@ async function handleLogin(e) {
         const data = await response.json();
         
         if (!response.ok) {
-            errorDiv.textContent = data.error || 'Login failed';
+            const message = data.error || 'Login failed';
+            errorDiv.textContent = message;
             errorDiv.style.display = 'block';
+            showNotificationToast(message, 'error');
             return;
         }
         
@@ -79,8 +125,10 @@ async function handleLogin(e) {
         showUserManagementIfAdmin();
     } catch (error) {
         console.error("Login error:", error);
-        errorDiv.textContent = 'Network error. Please try again.';
+        const message = 'Network error. Please try again.';
+        errorDiv.textContent = message;
         errorDiv.style.display = 'block';
+        showNotificationToast(message, 'error');
     }
 }
 
@@ -256,6 +304,7 @@ function renderStatusPills(statuses) {
         pill.addEventListener('click', () => {
             if (activeStatus === status.id) return;
             activeStatus = status.id;
+            currentPage = 1;
             
             document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
             pill.classList.add('active');
@@ -281,7 +330,7 @@ async function fetchBookings() {
         if (!response.ok) throw new Error('Failed to fetch bookings');
         
         const bookings = await response.json();
-        renderTable(bookings);
+        renderTable(bookings, currentPage);
     } catch (error) {
         console.error("Error fetching bookings:", error);
         if (tableBody) {
@@ -293,8 +342,11 @@ async function fetchBookings() {
 // ========================================================
 // 4. GRID TABLE VIEW DISPLAY LAYOUT
 // ========================================================
-function renderTable(bookingsList, page = 1) {
+function renderTable(bookingsList, page = currentPage) {
     currentBookingsList = bookingsList;
+
+    const totalPages = Math.max(1, Math.ceil((bookingsList?.length || 0) / ITEMS_PER_PAGE));
+    page = Math.min(Math.max(page, 1), totalPages);
     currentPage = page;
 
     const tableBody = document.getElementById('tableBody');
@@ -311,8 +363,6 @@ function renderTable(bookingsList, page = 1) {
         return;
     }
 
-    // Calculate pagination
-    const totalPages = Math.ceil(bookingsList.length / ITEMS_PER_PAGE);
     const startIndex = (page - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     const paginatedList = bookingsList.slice(startIndex, endIndex);
@@ -1992,6 +2042,8 @@ function toggleReturnScheduleVisibility(rentalType) {
 // ========================================================
 
 function showView(viewType) {
+    localStorage.setItem('adminActiveView', viewType);
+
     document.getElementById('mainDashboardView').style.display = viewType === 'dashboard' ? 'block' : 'none';
     document.getElementById('fullPageDetailsView').style.display = viewType === 'details' ? 'block' : 'none';
     document.getElementById('userManagementView').style.display = viewType === 'userManagement' ? 'block' : 'none';
@@ -2018,6 +2070,7 @@ async function loadUsers() {
         
         const data = await response.json();
         renderUsersTable(data.users);
+        showView('userManagement');
     } catch (error) {
         console.error("Error loading users:", error);
         alert('Failed to load users');
@@ -2078,6 +2131,7 @@ async function deleteUser(userId, username) {
         if (!response.ok) throw new Error('Failed to delete user');
         
         alert('User deleted successfully');
+        showView('userManagement');
         loadUsers();
     } catch (error) {
         console.error("Error deleting user:", error);
