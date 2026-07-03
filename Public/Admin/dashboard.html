@@ -420,6 +420,88 @@
                     <button id="fpSaveBtn" style="background-color: #10b981; color: white; border: none; padding: 14px 35px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: background 0.2s;">Save Work Changes</button>
                 </div>
             </div>
+            <!-- VEHICLE EDIT FULL PAGE VIEW -->
+            <div id="vehicleEditView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+                <form id="vehicleForm" onsubmit="handleSaveVehicle(event)">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h2 id="vehicleModalTitle" style="margin:0; color:#0F172A;">Vehicle</h2>
+                        <div>
+                            <button id="vehicleCancelBtn" type="button" class="btn-secondary" style="margin-right:10px;" onclick="closeVehicleModal(); return false;">Cancel</button>
+                            <button id="vehicleSaveBtn" type="submit" class="btn-primary">Save Vehicle</button>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Plate Number</label>
+                            <input type="text" id="vehiclePlate" placeholder="e.g. AAA-0001" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Make</label>
+                            <input type="text" id="vehicleMake" placeholder="e.g. Toyota" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Model</label>
+                            <input type="text" id="vehicleModel" placeholder="e.g. Innova" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Year</label>
+                            <input type="number" id="vehicleYear" placeholder="2024" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Daily Rate</label>
+                            <input type="number" id="vehicleDailyRate" placeholder="1000" required min="0" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Type</label>
+                            <select id="vehicleType" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
+                                <option value="">-- Select Type --</option>
+                                <option value="Sedan">Sedan</option>
+                                <option value="SUV">SUV</option>
+                                <option value="MPV">MPV</option>
+                                <option value="Electric MPV">Electric MPV</option>
+                                <option value="Van">Van</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Color</label>
+                            <input type="text" id="vehicleColor" placeholder="e.g. White" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Seats</label>
+                            <input type="number" id="vehicleSeats" placeholder="5" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Transmission</label>
+                            <select id="vehicleTransmission" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
+                                <option value="">-- Select --</option>
+                                <option value="Manual">Manual</option>
+                                <option value="Automatic">Automatic</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Fuel Type</label>
+                            <select id="vehicleFuelType" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
+                                <option value="">-- Select --</option>
+                                <option value="Gasoline">Gasoline</option>
+                                <option value="Diesel">Diesel</option>
+                                <option value="Electric">Electric</option>
+                                <option value="Hybrid">Hybrid</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Status</label>
+                            <select id="vehicleStatus" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
+                                <option value="">-- Select --</option>
+                                <option value="Available">Available</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Rented">Rented</option>
+                            </select>
+                        </div>
+                    </div>
+                    <input type="hidden" id="vehicleEditId">
+                </form>
+            </div>
         </main>
     </div>
 
@@ -508,89 +590,6 @@
                 </div>
             </form>
         </div>
-    </div>
-    
-    <!-- VEHICLE EDIT FULL PAGE VIEW -->
-    <div id="vehicleEditView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-        <form id="vehicleForm" onsubmit="handleSaveVehicle(event)">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <h2 id="vehicleModalTitle" style="margin:0; color:#0F172A;">Vehicle</h2>
-                <div>
-                    <button id="vehicleCancelBtn" type="button" class="btn-secondary" style="margin-right:10px;">Cancel</button>
-                    <button id="vehicleSaveBtn" type="submit" class="btn-primary">Save Vehicle</button>
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Plate Number</label>
-                    <input type="text" id="vehiclePlate" placeholder="e.g. AAA-0001" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Make</label>
-                    <input type="text" id="vehicleMake" placeholder="e.g. Toyota" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Model</label>
-                    <input type="text" id="vehicleModel" placeholder="e.g. Innova" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Year</label>
-                    <input type="number" id="vehicleYear" placeholder="2024" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Daily Rate</label>
-                    <input type="number" id="vehicleDailyRate" placeholder="1000" required min="0" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Type</label>
-                    <select id="vehicleType" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
-                        <option value="">-- Select Type --</option>
-                        <option value="Sedan">Sedan</option>
-                        <option value="SUV">SUV</option>
-                        <option value="MPV">MPV</option>
-                        <option value="Electric MPV">Electric MPV</option>
-                        <option value="Van">Van</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Color</label>
-                    <input type="text" id="vehicleColor" placeholder="e.g. White" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Seats</label>
-                    <input type="number" id="vehicleSeats" placeholder="5" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Transmission</label>
-                    <select id="vehicleTransmission" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
-                        <option value="">-- Select --</option>
-                        <option value="Manual">Manual</option>
-                        <option value="Automatic">Automatic</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Fuel Type</label>
-                    <select id="vehicleFuelType" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
-                        <option value="">-- Select --</option>
-                        <option value="Gasoline">Gasoline</option>
-                        <option value="Diesel">Diesel</option>
-                        <option value="Electric">Electric</option>
-                        <option value="Hybrid">Hybrid</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Status</label>
-                    <select id="vehicleStatus" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
-                        <option value="">-- Select --</option>
-                        <option value="Available">Available</option>
-                        <option value="Maintenance">Maintenance</option>
-                        <option value="Rented">Rented</option>
-                    </select>
-                </div>
-            </div>
-            <input type="hidden" id="vehicleEditId">
-        </form>
     </div>
     
     <div id="quickQuoteDrawer" style="display: none; width: 100%; background: #ffffff; border-top: 2px dashed #cbd5e1; margin-top: 20px; padding-top: 20px; box-sizing: border-box;">

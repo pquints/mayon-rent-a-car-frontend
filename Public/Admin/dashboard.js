@@ -2138,17 +2138,20 @@ function toggleReturnScheduleVisibility(rentalType) {
 function showView(viewType) {
     localStorage.setItem('adminActiveView', viewType);
 
-    document.getElementById('mainDashboardView').style.display = viewType === 'dashboard' ? 'block' : 'none';
-    document.getElementById('fullPageDetailsView').style.display = viewType === 'details' ? 'block' : 'none';
-    document.getElementById('userManagementView').style.display = viewType === 'userManagement' ? 'block' : 'none';
-    document.getElementById('vehicleManagementView').style.display = viewType === 'vehicleManagement' ? 'block' : 'none';
-    document.getElementById('accountSettingsView').style.display = viewType === 'accountSettings' ? 'block' : 'none';
-
+    const mainDashboardView = document.getElementById('mainDashboardView');
+    const fullPageDetailsView = document.getElementById('fullPageDetailsView');
+    const userManagementView = document.getElementById('userManagementView');
+    const vehicleManagementView = document.getElementById('vehicleManagementView');
+    const accountSettingsView = document.getElementById('accountSettingsView');
     const vehicleEditView = document.getElementById('vehicleEditView');
-    if (viewType !== 'vehicleManagement' && vehicleEditView) {
-        vehicleEditView.style.display = 'none';
-    }
-    
+
+    if (mainDashboardView) mainDashboardView.style.display = viewType === 'dashboard' ? 'block' : 'none';
+    if (fullPageDetailsView) fullPageDetailsView.style.display = viewType === 'details' ? 'block' : 'none';
+    if (userManagementView) userManagementView.style.display = viewType === 'userManagement' ? 'block' : 'none';
+    if (vehicleManagementView) vehicleManagementView.style.display = viewType === 'vehicleManagement' ? 'block' : 'none';
+    if (accountSettingsView) accountSettingsView.style.display = viewType === 'accountSettings' ? 'block' : 'none';
+    if (vehicleEditView) vehicleEditView.style.display = viewType === 'vehicleEdit' ? 'block' : 'none';
+
     // Update nav items
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     if (viewType === 'dashboard') {
@@ -2157,7 +2160,7 @@ function showView(viewType) {
     } else if (viewType === 'userManagement') {
         const item = getNavItemByIcon('fa-users');
         if (item) item.classList.add('active');
-    } else if (viewType === 'vehicleManagement') {
+    } else if (viewType === 'vehicleManagement' || viewType === 'vehicleEdit') {
         const item = getNavItemByIcon('fa-car');
         if (item) item.classList.add('active');
     } else if (viewType === 'accountSettings') {
@@ -2472,9 +2475,10 @@ function renderVehiclesTable(vehicles) {
 }
 
 function openAddVehicleModal() {
+    showView('vehicleEdit');
+
     const view = document.getElementById('vehicleEditView');
     if (view) {
-        view.style.display = 'block';
         view.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -2492,8 +2496,20 @@ function openAddVehicleModal() {
 }
 
 function closeVehicleModal() {
-    const view = document.getElementById('vehicleEditView');
-    if (view) view.style.display = 'none';
+    const form = document.getElementById('vehicleForm');
+    if (form) {
+        form.reset();
+        form.dataset.mode = 'create';
+    }
+
+    const title = document.getElementById('vehicleModalTitle');
+    if (title) title.textContent = 'Vehicle';
+
+    const editId = document.getElementById('vehicleEditId');
+    if (editId) editId.value = '';
+
+    showView('vehicleManagement');
+    loadVehicles();
 }
 
 async function handleSaveVehicle(e) {
@@ -2567,9 +2583,10 @@ async function editVehicle(vehicleId) {
             return;
         }
         
+        showView('vehicleEdit');
+
         const view = document.getElementById('vehicleEditView');
         if (view) {
-            view.style.display = 'block';
             view.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
@@ -2627,8 +2644,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // hook full-page vehicle view buttons
     const vehicleCancelBtn = document.getElementById('vehicleCancelBtn');
     if (vehicleCancelBtn) vehicleCancelBtn.addEventListener('click', function() {
-        const view = document.getElementById('vehicleEditView');
-        if (view) view.style.display = 'none';
+        showView('vehicleManagement');
+        loadVehicles();
     });
 
     const vehicleSaveBtn = document.getElementById('vehicleSaveBtn');
