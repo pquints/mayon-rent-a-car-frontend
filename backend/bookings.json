@@ -418,5 +418,25 @@
     "itinerary": "Pilar",
     "status": "Open",
     "created_at": "2026-07-02T19:00:43.393Z"
+  },
+  {
+    "ref": "MRAC-4VN7H",
+    "name": "Smoke Test Client",
+    "contact_no": "09171234567",
+    "email": "smoke@example.com",
+    "area": "legazpi",
+    "rentalType": "with-driver",
+    "serviceOption": "Airport Transfer",
+    "vehicleType": "Sedan",
+    "passengers": 2,
+    "pickup_date": "2026-07-04",
+    "pickup_time": "09:00",
+    "pickup_address": "Test Address",
+    "return_date": "—",
+    "return_time": "—",
+    "return_address": "—",
+    "itinerary": "Test itinerary",
+    "status": "Quoted",
+    "created_at": "2026-07-03T14:21:42.640Z"
   }
 ]

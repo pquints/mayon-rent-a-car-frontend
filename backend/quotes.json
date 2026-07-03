@@ -312,5 +312,19 @@
     },
     "savedAt": "2026-07-02T15:33:38.547Z",
     "savedBy": "piolo"
+  },
+  {
+    "id": "QUOTE-1783088502645",
+    "bookingRef": "MRAC-4VN7H",
+    "totalAmount": "₱1234.00",
+    "rentalType": "with-driver",
+    "quoteData": {
+      "breakdownDetails": {
+        "unitBase": 1234,
+        "driverDays": 1
+      }
+    },
+    "savedAt": "2026-07-03T14:21:42.645Z",
+    "savedBy": "admin"
   }
 ]

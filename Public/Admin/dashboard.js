@@ -177,6 +177,7 @@ function ensureAuth() {
     if (!token) {
         showNotificationToast('Missing authentication. Please login again.', 'error');
         showLoginView();
+        setTimeout(() => document.getElementById('loginUsername')?.focus(), 120);
         return false;
     }
     try {
@@ -184,11 +185,13 @@ function ensureAuth() {
         if (payload.exp && payload.exp * 1000 < Date.now()) {
             showNotificationToast('Session expired. Please login again.', 'warning');
             showLoginView();
+            setTimeout(() => document.getElementById('loginUsername')?.focus(), 120);
             return false;
         }
     } catch (e) {
         showNotificationToast('Invalid auth token. Please login again.', 'error');
         showLoginView();
+        setTimeout(() => document.getElementById('loginUsername')?.focus(), 120);
         return false;
     }
     return true;
@@ -1319,9 +1322,7 @@ async function sendQuotationEmail() {
         // Fetch the quote data to include in email
         const quoteResponse = await fetch(`${API_URL}/quotes/${currentQuotingRef}`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-            }
+            headers: getAuthHeaders()
         });
         
         let quoteData = null;
@@ -1335,10 +1336,7 @@ async function sendQuotationEmail() {
         // Send email via API
         const emailResponse = await fetch(`${API_URL}/send-quotation-email`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken') || authToken || ''}`
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({
                 bookingRef: currentQuotingRef,
                 clientEmail: clientEmail,
@@ -1399,10 +1397,7 @@ async function saveQuoteToServer(showNotification = true, keepViewOpen = false) 
     try {
         const response = await fetch(`${API_URL}/quotes`, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken') || authToken || ''}`
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({
                 bookingRef: currentQuotingRef,
                 totalAmount,
@@ -1422,10 +1417,7 @@ async function saveQuoteToServer(showNotification = true, keepViewOpen = false) 
             try {
                 const statusUpdateResponse = await fetch(`${API_URL}/bookings/${currentQuotingRef}`, {
                     method: 'PUT',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                    },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({ status: 'Quoted' })
                 });
                 
@@ -1486,10 +1478,7 @@ async function handleStatusChange() {
         // First, save the status change to the backend
         const updateResponse = await fetch(`${API_URL}/bookings/${bookingRef}`, {
             method: 'PUT',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ status: status })
         });
         
@@ -1504,9 +1493,7 @@ async function handleStatusChange() {
             try {
                 await fetch(`${API_URL}/quotes/${bookingRef}`, {
                     method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                    }
+                    headers: getAuthHeaders()
                 });
                 const savedQuoteSection = document.getElementById("savedQuoteSection");
                 const savedQuoteAmount = document.getElementById("savedQuoteAmount");
@@ -1537,9 +1524,7 @@ async function getQuoteFromServer() {
     try {
         const response = await fetch(`${API_URL}/quotes/${currentQuotingRef}`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-            }
+            headers: getAuthHeaders()
         });
 
         const result = await response.json();
@@ -1596,9 +1581,7 @@ async function executeQuoteAction(actionType) {
             try {
                 const quoteResponse = await fetch(`${API_URL}/quotes/${refNum}`, {
                     method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                    }
+                    headers: getAuthHeaders()
                 });
                 if (quoteResponse.ok) {
                     const quoteResult = await quoteResponse.json();
