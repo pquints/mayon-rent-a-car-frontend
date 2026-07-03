@@ -10,16 +10,6 @@
     "last_login": "2026-07-03T16:02:27.812Z"
   },
   {
-    "id": "USR-DRIVER1",
-    "username": "driver1",
-    "password": "$2b$10$p.mQiA22fnYKaNi/GplRWu3YRD7cwCo7HGrukRcSuQvJ7cB7eP9A6",
-    "email": "driver1@mayonrentacar.com",
-    "fullname": "John Driver",
-    "role": "driver",
-    "created_at": "2026-06-30T15:50:29.111Z",
-    "last_login": "Never"
-  },
-  {
     "id": "USR-DRIVER2",
     "username": "driver2",
     "password": "$2b$10$p.mQiA22fnYKaNi/GplRWu3YRD7cwCo7HGrukRcSuQvJ7cB7eP9A6",
@@ -32,7 +22,7 @@
   {
     "id": "USR-1782924789497",
     "username": "piolo",
-    "password": "$2b$10$weWCEdgWNxFOsX5LoUW1y.Kj8YHx6ifqn8PfqjXQ6bi2.fCSXkZWe",
+    "password": "ikepio1315",
     "email": "pioloquintans@gmail.com",
     "fullname": "Piolo Quintans",
     "role": "admin",
