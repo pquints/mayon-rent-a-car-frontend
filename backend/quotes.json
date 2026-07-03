@@ -1,0 +1,316 @@
+[
+  {
+    "id": "QUOTE-1782932295976",
+    "bookingRef": "MRAC-D9M4R",
+    "totalAmount": "₱0.00",
+    "rentalType": "with-driver",
+    "quoteData": {
+      "vehicleType": "MPV",
+      "pickDate": "2026-07-10",
+      "pickTime": "06:00",
+      "returnDate": "",
+      "returnTime": "",
+      "rentalType": "with-driver",
+      "quantity": 1,
+      "breakdownDetails": {
+        "distance": 0,
+        "fuelPrice": 0,
+        "consumption": 1,
+        "unitBase": 0,
+        "driverDays": 1,
+        "overtime": 0,
+        "driverOtHours": 0,
+        "tollFees": 0,
+        "parkingFees": 0,
+        "driverFee": 0,
+        "meals": 0,
+        "lodging": 0,
+        "misc": 0
+      },
+      "inclusionsList": [],
+      "exclusionsList": []
+    },
+    "savedAt": "2026-07-01T18:58:15.976Z",
+    "savedBy": "piolo"
+  },
+  {
+    "id": "QUOTE-1782932305517",
+    "bookingRef": "MRAC-F3X1W",
+    "totalAmount": "₱0.00",
+    "rentalType": "with-driver",
+    "quoteData": {
+      "vehicleType": "Sedan",
+      "pickDate": "2026-07-11",
+      "pickTime": "09:30",
+      "returnDate": "",
+      "returnTime": "",
+      "rentalType": "with-driver",
+      "quantity": 1,
+      "breakdownDetails": {
+        "distance": 0,
+        "fuelPrice": 0,
+        "consumption": 1,
+        "unitBase": 0,
+        "driverDays": 1,
+        "overtime": 0,
+        "driverOtHours": 0,
+        "tollFees": 0,
+        "parkingFees": 0,
+        "driverFee": 0,
+        "meals": 0,
+        "lodging": 0,
+        "misc": 0
+      },
+      "inclusionsList": [],
+      "exclusionsList": []
+    },
+    "savedAt": "2026-07-01T18:58:25.517Z",
+    "savedBy": "piolo"
+  },
+  {
+    "id": "QUOTE-1782932315030",
+    "bookingRef": "MRAC-I4A6B",
+    "totalAmount": "₱0.00",
+    "rentalType": "self-drive",
+    "quoteData": {
+      "vehicleType": "Sedan",
+      "pickDate": "2026-08-01",
+      "pickTime": "15:30",
+      "returnDate": "2026-08-03",
+      "returnTime": "15:30",
+      "rentalType": "self-drive",
+      "quantity": 1,
+      "breakdownDetails": {
+        "unitBase": 0,
+        "days": 1,
+        "overtime": 0,
+        "selfOtHours": 0,
+        "delivery": 0,
+        "return": 0,
+        "childSeat": 0
+      },
+      "inclusionsList": [],
+      "exclusionsList": []
+    },
+    "savedAt": "2026-07-01T18:58:35.030Z",
+    "savedBy": "piolo"
+  },
+  {
+    "id": "QUOTE-1782932410246",
+    "bookingRef": "MRAC-L2G9H",
+    "totalAmount": "₱0.00",
+    "rentalType": "with-driver",
+    "quoteData": {
+      "vehicleType": "Sedan",
+      "pickDate": "2026-07-09",
+      "pickTime": "05:30",
+      "returnDate": "",
+      "returnTime": "",
+      "rentalType": "with-driver",
+      "quantity": 1,
+      "breakdownDetails": {
+        "distance": 0,
+        "fuelPrice": 0,
+        "consumption": 1,
+        "unitBase": 0,
+        "driverDays": 1,
+        "overtime": 0,
+        "driverOtHours": 0,
+        "tollFees": 0,
+        "parkingFees": 0,
+        "driverFee": 0,
+        "meals": 0,
+        "lodging": 0,
+        "misc": 0
+      },
+      "inclusionsList": [],
+      "exclusionsList": []
+    },
+    "savedAt": "2026-07-01T19:00:10.246Z",
+    "savedBy": "piolo"
+  },
+  {
+    "id": "QUOTE-1782932422627",
+    "bookingRef": "MRAC-NCC1Y",
+    "totalAmount": "₱0.00",
+    "rentalType": "with-driver",
+    "quoteData": {
+      "vehicleType": "Sedan",
+      "pickDate": "2026-07-16",
+      "pickTime": "08:30",
+      "returnDate": "",
+      "returnTime": "",
+      "rentalType": "with-driver",
+      "quantity": 1,
+      "breakdownDetails": {
+        "distance": 0,
+        "fuelPrice": 0,
+        "consumption": 1,
+        "unitBase": 0,
+        "driverDays": 1,
+        "overtime": 0,
+        "driverOtHours": 0,
+        "tollFees": 0,
+        "parkingFees": 0,
+        "driverFee": 0,
+        "meals": 0,
+        "lodging": 0,
+        "misc": 0
+      },
+      "inclusionsList": [],
+      "exclusionsList": []
+    },
+    "savedAt": "2026-07-01T19:00:22.627Z",
+    "savedBy": "piolo"
+  },
+  {
+    "id": "QUOTE-1782990831798",
+    "bookingRef": "MRAC-A2K8P",
+    "totalAmount": "₱757.00",
+    "rentalType": "with-driver",
+    "quoteData": {
+      "vehicleType": "Sedan",
+      "pickDate": "2026-07-05",
+      "pickTime": "14:00",
+      "returnDate": "",
+      "returnTime": "",
+      "rentalType": "with-driver",
+      "quantity": 1,
+      "breakdownDetails": {
+        "distance": 0,
+        "fuelPrice": 0,
+        "consumption": 1,
+        "unitBase": 750,
+        "driverDays": 1,
+        "overtime": 1,
+        "driverOtHours": 1,
+        "tollFees": 1,
+        "parkingFees": 1,
+        "driverFee": 1,
+        "meals": 1,
+        "lodging": 1,
+        "misc": 1
+      },
+      "inclusionsList": [
+        "Fuel",
+        "Toll Fees",
+        "Lodging"
+      ],
+      "exclusionsList": [
+        "Parking",
+        "Driver's Meal"
+      ]
+    },
+    "savedAt": "2026-07-02T11:13:51.799Z",
+    "savedBy": "piolo"
+  },
+  {
+    "id": "QUOTE-1783001441372",
+    "bookingRef": "MRAC-5MQMO",
+    "totalAmount": "₱3900.00",
+    "rentalType": "with-driver",
+    "quoteData": {
+      "vehicleType": "MPV",
+      "serviceOption": "5-hours",
+      "pickDate": "2026-07-16",
+      "pickTime": "17:30",
+      "returnDate": "",
+      "returnTime": "",
+      "pickupAddress": "Bicol International Airport",
+      "returnAddress": "—",
+      "itinerary": "Tabaco",
+      "rentalType": "with-driver",
+      "quantity": 1,
+      "breakdownDetails": {
+        "distance": 0,
+        "fuelPrice": 0,
+        "consumption": 1,
+        "unitBase": 3000,
+        "driverDays": 1,
+        "overtime": 150,
+        "driverOtHours": 2,
+        "tollFees": 100,
+        "parkingFees": 100,
+        "driverFee": 100,
+        "meals": 100,
+        "lodging": 100,
+        "misc": 100
+      },
+      "inclusionsList": [
+        "Fuel",
+        "Parking",
+        "Driver's Meal"
+      ],
+      "exclusionsList": [
+        "Toll Fees",
+        "Lodging"
+      ]
+    },
+    "savedAt": "2026-07-02T14:10:41.372Z",
+    "savedBy": "piolo"
+  },
+  {
+    "id": "QUOTE-1783004743673",
+    "bookingRef": "MRAC-F8OQR",
+    "totalAmount": "₱9100.00",
+    "rentalType": "self-drive",
+    "quoteData": {
+      "vehicleType": "Sedan",
+      "serviceOption": "—",
+      "pickDate": "2026-08-02",
+      "pickTime": "10:00",
+      "returnDate": "2026-08-05",
+      "returnTime": "16:00",
+      "pickupAddress": "Bicol International Airport",
+      "returnAddress": "tabaco",
+      "itinerary": "albay",
+      "rentalType": "self-drive",
+      "quantity": 1,
+      "breakdownDetails": {
+        "unitBase": 2500,
+        "days": 3,
+        "overtime": 100,
+        "selfOtHours": 6,
+        "delivery": 0,
+        "return": 1000,
+        "childSeat": 0
+      },
+      "inclusionsList": [],
+      "exclusionsList": []
+    },
+    "savedAt": "2026-07-02T15:05:43.674Z",
+    "savedBy": "piolo"
+  },
+  {
+    "id": "QUOTE-1783006418547",
+    "bookingRef": "MRAC-P7132",
+    "totalAmount": "₱14100.00",
+    "rentalType": "self-drive",
+    "quoteData": {
+      "vehicleType": "Sedan",
+      "serviceOption": "—",
+      "pickDate": "2026-07-08",
+      "pickTime": "12:00",
+      "returnDate": "2026-07-13",
+      "returnTime": "17:30",
+      "pickupAddress": "DRP",
+      "returnAddress": "Tabaco",
+      "itinerary": "Albay",
+      "rentalType": "self-drive",
+      "quantity": 1,
+      "breakdownDetails": {
+        "unitBase": 2500,
+        "days": 5,
+        "overtime": 100,
+        "selfOtHours": 6,
+        "delivery": 0,
+        "return": 1000,
+        "childSeat": 0
+      },
+      "inclusionsList": [],
+      "exclusionsList": []
+    },
+    "savedAt": "2026-07-02T15:33:38.547Z",
+    "savedBy": "piolo"
+  }
+]

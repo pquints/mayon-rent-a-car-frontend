@@ -1,0 +1,52 @@
+[
+  {
+    "id": "USR-ADMIN",
+    "username": "admin",
+    "password": "$2b$10$p.mQiA22fnYKaNi/GplRWu3YRD7cwCo7HGrukRcSuQvJ7cB7eP9A6",
+    "email": "admin@mayonrentacar.com",
+    "fullname": "Administrator",
+    "role": "admin",
+    "created_at": "2026-06-30T15:50:29.111Z",
+    "last_login": "2026-07-02T19:08:51.015Z"
+  },
+  {
+    "id": "USR-DRIVER1",
+    "username": "driver1",
+    "password": "$2b$10$p.mQiA22fnYKaNi/GplRWu3YRD7cwCo7HGrukRcSuQvJ7cB7eP9A6",
+    "email": "driver1@mayonrentacar.com",
+    "fullname": "John Driver",
+    "role": "driver",
+    "created_at": "2026-06-30T15:50:29.111Z",
+    "last_login": "Never"
+  },
+  {
+    "id": "USR-DRIVER2",
+    "username": "driver2",
+    "password": "$2b$10$p.mQiA22fnYKaNi/GplRWu3YRD7cwCo7HGrukRcSuQvJ7cB7eP9A6",
+    "email": "maria@mayonrentacar.com",
+    "fullname": "Maria Santos",
+    "role": "driver",
+    "created_at": "2026-06-30T15:50:29.111Z",
+    "last_login": "Never"
+  },
+  {
+    "id": "USR-1782924789497",
+    "username": "piolo",
+    "password": "$2b$10$weWCEdgWNxFOsX5LoUW1y.Kj8YHx6ifqn8PfqjXQ6bi2.fCSXkZWe",
+    "email": "pioloquintans@gmail.com",
+    "fullname": "Piolo Quintans",
+    "role": "admin",
+    "created_at": "2026-07-01T16:53:09.497Z",
+    "last_login": "2026-07-01T16:53:27.530Z"
+  },
+  {
+    "id": "USR-1783019331093",
+    "username": "testuser99",
+    "password": "$2b$10$wdHEZ0eKw1G9obnTHoIlDucwcqTGaW1EMdoNBhcGeI.NUZmG6C7A.",
+    "email": "test@test.com",
+    "fullname": "Test User",
+    "role": "driver",
+    "created_at": "2026-07-02T19:08:51.093Z",
+    "last_login": null
+  }
+]
