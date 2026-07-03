@@ -165,9 +165,10 @@ function setupUserManagementNavigation() {
 }
 
 function getAuthHeaders() {
+    const token = localStorage.getItem('authToken') || authToken || '';
     return {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        'Authorization': `Bearer ${token}`
     };
 }
 
@@ -1313,7 +1314,7 @@ async function sendQuotationEmail() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                'Authorization': `Bearer ${localStorage.getItem('authToken') || authToken || ''}`
             },
             body: JSON.stringify({
                 bookingRef: currentQuotingRef,
@@ -1376,7 +1377,7 @@ async function saveQuoteToServer(showNotification = true, keepViewOpen = false) 
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                'Authorization': `Bearer ${localStorage.getItem('authToken') || authToken || ''}`
             },
             body: JSON.stringify({
                 bookingRef: currentQuotingRef,

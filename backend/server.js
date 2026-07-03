@@ -164,14 +164,17 @@ const saveQuotes = (quotes) => {
 
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization;
+    if (DEBUG) console.log('[AUTH] authorization header:', authHeader);
+    const token = authHeader?.split(' ')[1];
     if (!token) return res.status(401).json({ success: false, error: "No token provided" });
-    
+
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
         next();
     } catch (err) {
+        if (DEBUG) console.warn('[AUTH] token verify error:', err && err.message);
         res.status(401).json({ success: false, error: "Invalid token" });
     }
 };
