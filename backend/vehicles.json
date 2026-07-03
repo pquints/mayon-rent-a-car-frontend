@@ -48,22 +48,6 @@
     "lastMaintenance": "2026-07-03T19:14:57.408Z"
   },
   {
-    "id": "VEH-007",
-    "plate": "CDE-5678",
-    "make": "Honda",
-    "model": "BR-V",
-    "year": 2024,
-    "type": "MPV",
-    "color": "Silver",
-    "seats": 7,
-    "transmission": "Automatic",
-    "fuelType": "Gasoline",
-    "status": "Available",
-    "dailyRate": 1800,
-    "created_at": "2026-07-04T10:00:00.000Z",
-    "lastMaintenance": "2026-07-04T10:00:00.000Z"
-  },
-  {
     "id": "VEH-008",
     "plate": "FGR-9012",
     "make": "Mitsubishi",
@@ -126,5 +110,21 @@
     "dailyRate": 3200,
     "created_at": "2026-07-04T10:00:00.000Z",
     "lastMaintenance": "2026-07-04T10:00:00.000Z"
+  },
+  {
+    "id": "VEH-009",
+    "plate": "AUTO-TEST-002",
+    "make": "Test",
+    "model": "Car",
+    "year": 2024,
+    "type": "Sedan",
+    "color": "White",
+    "seats": 4,
+    "transmission": "Automatic",
+    "fuelType": "Gasoline",
+    "status": "Available",
+    "dailyRate": 1000,
+    "created_at": "2026-07-03T19:53:09.070Z",
+    "lastMaintenance": "2026-07-03T19:53:09.070Z"
   }
 ]

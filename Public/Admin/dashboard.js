@@ -219,6 +219,29 @@ function setupUserManagementNavigation() {
     }
 }
 
+function decodeJwtPayload(token) {
+    if (typeof token !== 'string') return null;
+
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padding = (4 - (base64.length % 4)) % 4;
+    if (padding) base64 += '='.repeat(padding);
+
+    try {
+        const normalized = typeof atob === 'function'
+            ? atob(base64)
+            : Buffer.from(base64, 'base64').toString('binary');
+        const decoded = decodeURIComponent(
+            normalized.split('').map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`).join('')
+        );
+        return JSON.parse(decoded);
+    } catch (e) {
+        return null;
+    }
+}
+
 function getAuthHeaders() {
     const token = localStorage.getItem('authToken') || authToken || '';
     return {
@@ -236,7 +259,10 @@ function ensureAuth() {
         return false;
     }
     try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = decodeJwtPayload(token);
+        if (!payload) {
+            throw new Error('Unable to decode token');
+        }
         if (payload.exp && payload.exp * 1000 < Date.now()) {
             showNotificationToast('Session expired. Please login again.', 'warning');
             showLoginView();
@@ -2117,6 +2143,11 @@ function showView(viewType) {
     document.getElementById('userManagementView').style.display = viewType === 'userManagement' ? 'block' : 'none';
     document.getElementById('vehicleManagementView').style.display = viewType === 'vehicleManagement' ? 'block' : 'none';
     document.getElementById('accountSettingsView').style.display = viewType === 'accountSettings' ? 'block' : 'none';
+
+    const vehicleEditView = document.getElementById('vehicleEditView');
+    if (viewType !== 'vehicleManagement' && vehicleEditView) {
+        vehicleEditView.style.display = 'none';
+    }
     
     // Update nav items
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -2433,23 +2464,31 @@ function renderVehiclesTable(vehicles) {
                 </span>
             </td>
             <td style="padding: 12px; text-align: center;">
-                <button type="button" onclick="editVehicle('${vehicle.id}')" title="Edit" style="background: none; border: none; color: #06B6D4; cursor: pointer; font-size: 1.1rem; margin: 0 5px;"><i class="fa-solid fa-pencil"></i></button>
-                <button type="button" onclick="deleteVehicle('${vehicle.id}', '${vehicle.plate}')" title="Delete" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; margin: 0 5px;"><i class="fa-solid fa-trash"></i></button>
+                <button type="button" onclick="window.editVehicle('${vehicle.id}'); return false;" title="Edit" style="background: none; border: none; color: #06B6D4; cursor: pointer; font-size: 1.1rem; margin: 0 5px;"><i class="fa-solid fa-pencil"></i></button>
+                <button type="button" onclick="window.deleteVehicle('${vehicle.id}', '${vehicle.plate}'); return false;" title="Delete" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; margin: 0 5px;"><i class="fa-solid fa-trash"></i></button>
             </td>
         </tr>
     `).join('');
 }
 
 function openAddVehicleModal() {
-    // show full-page vehicle edit view for creating a new vehicle
     const view = document.getElementById('vehicleEditView');
-    if (view) view.style.display = 'block';
+    if (view) {
+        view.style.display = 'block';
+        view.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     const title = document.getElementById('vehicleModalTitle');
     if (title) title.textContent = 'Add New Vehicle';
+
     const editId = document.getElementById('vehicleEditId');
     if (editId) editId.value = '';
+
     const form = document.getElementById('vehicleForm');
-    if (form) form.reset();
+    if (form) {
+        form.reset();
+        form.dataset.mode = 'create';
+    }
 }
 
 function closeVehicleModal() {
@@ -2458,7 +2497,7 @@ function closeVehicleModal() {
 }
 
 async function handleSaveVehicle(e) {
-    e.preventDefault();
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
     if (!ensureAuth()) return;
 
     const form = document.getElementById('vehicleForm');
@@ -2518,6 +2557,8 @@ async function editVehicle(vehicleId) {
             headers: getAuthHeaders()
         });
         
+        if (!response.ok) throw new Error('Failed to load vehicles');
+
         const data = await response.json();
         const vehicle = data.vehicles.find(v => v.id === vehicleId);
         
@@ -2526,12 +2567,19 @@ async function editVehicle(vehicleId) {
             return;
         }
         
-        // Populate form
-        // populate fields for full-page edit view
         const view = document.getElementById('vehicleEditView');
-        if (view) view.style.display = 'block';
+        if (view) {
+            view.style.display = 'block';
+            view.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
         const title = document.getElementById('vehicleModalTitle');
         if (title) title.textContent = 'Edit Vehicle';
+
+        const form = document.getElementById('vehicleForm');
+        if (form) {
+            form.dataset.mode = 'edit';
+        }
 
         document.getElementById('vehicleEditId').value = vehicle.id;
         document.getElementById('vehiclePlate').value = vehicle.plate;
