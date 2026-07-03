@@ -205,51 +205,6 @@
     "savedBy": "piolo"
   },
   {
-    "id": "QUOTE-1783001441372",
-    "bookingRef": "MRAC-5MQMO",
-    "totalAmount": "₱3900.00",
-    "rentalType": "with-driver",
-    "quoteData": {
-      "vehicleType": "MPV",
-      "serviceOption": "5-hours",
-      "pickDate": "2026-07-16",
-      "pickTime": "17:30",
-      "returnDate": "",
-      "returnTime": "",
-      "pickupAddress": "Bicol International Airport",
-      "returnAddress": "—",
-      "itinerary": "Tabaco",
-      "rentalType": "with-driver",
-      "quantity": 1,
-      "breakdownDetails": {
-        "distance": 0,
-        "fuelPrice": 0,
-        "consumption": 1,
-        "unitBase": 3000,
-        "driverDays": 1,
-        "overtime": 150,
-        "driverOtHours": 2,
-        "tollFees": 100,
-        "parkingFees": 100,
-        "driverFee": 100,
-        "meals": 100,
-        "lodging": 100,
-        "misc": 100
-      },
-      "inclusionsList": [
-        "Fuel",
-        "Parking",
-        "Driver's Meal"
-      ],
-      "exclusionsList": [
-        "Toll Fees",
-        "Lodging"
-      ]
-    },
-    "savedAt": "2026-07-02T14:10:41.372Z",
-    "savedBy": "piolo"
-  },
-  {
     "id": "QUOTE-1783004743673",
     "bookingRef": "MRAC-F8OQR",
     "totalAmount": "₱9100.00",

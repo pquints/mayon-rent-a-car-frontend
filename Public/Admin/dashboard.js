@@ -625,8 +625,19 @@ async function deleteBooking(ref) {
 
             if (response.ok && result.success) {
                 alert(`Booking ${ref} successfully deleted!`);
+                // Refresh counts
                 fetchStatusCounts();
-                fetchBookings();
+
+                // Remove locally from current lists and re-render while preserving current page/view
+                if (currentFilteredList && currentFilteredList.length) {
+                    currentFilteredList = currentFilteredList.filter(b => b.ref !== ref);
+                    // Re-render filtered table preserving currentPage
+                    renderTableFiltered(currentFilteredList);
+                } else {
+                    currentBookingsList = currentBookingsList.filter(b => b.ref !== ref);
+                    // Re-render bookings for current status and page
+                    renderTable(currentBookingsList, currentPage);
+                }
             } else {
                 alert('Hindi nabura: ' + (result.error || 'Server rejected the request.'));
             }
@@ -875,9 +886,52 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
             alert(refFlag === "NEW_BOOKING_FLAG" ? "New booking created successfully!" : "Changes saved successfully!");
             document.getElementById("fullPageDetailsView").style.display = "none";
             document.getElementById("mainDashboardView").style.display = "block";
-            
+
+            // Refresh counts
             fetchStatusCounts();
-            fetchBookings();
+
+            // Update local lists with the saved booking returned from server
+            const savedBooking = result.booking;
+            if (savedBooking) {
+                // Update or insert into currentBookingsList
+                const idx = currentBookingsList.findIndex(b => b.ref === savedBooking.ref);
+                if (idx !== -1) {
+                    currentBookingsList[idx] = savedBooking;
+                } else {
+                    // New booking: add to the beginning so it appears on top if current filters allow
+                    currentBookingsList.unshift(savedBooking);
+                }
+
+                // If filters are active, recompute filtered list and re-render while preserving currentPage
+                const searchQuery = (document.getElementById("searchBar")?.value || '').toLowerCase().trim();
+                const serviceQuery = document.getElementById("filterService")?.value || '';
+                const typeQuery = document.getElementById("filterType")?.value || '';
+                const areaQuery = document.getElementById("filterArea")?.value || '';
+
+                const filtersActive = searchQuery || serviceQuery || typeQuery || areaQuery;
+
+                if (filtersActive) {
+                    const recomputed = currentBookingsList.filter(booking => {
+                        const matchSearch = (booking.ref || '').toLowerCase().includes(searchQuery) || (booking.name || '').toLowerCase().includes(searchQuery) || (booking.email || '').toLowerCase().includes(searchQuery) || (booking.vehicleType || '').toLowerCase().includes(searchQuery);
+                        const matchService = !serviceQuery || booking.serviceOption === serviceQuery;
+                        let bookingRentalType = (booking.rentalType || '').toLowerCase().replace(/\s+/g, '-');
+                        const matchType = !typeQuery || bookingRentalType === typeQuery;
+                        const bookingArea = (booking.area || '').toLowerCase().trim();
+                        const selectedArea = areaQuery.toLowerCase().trim();
+                        const matchArea = !areaQuery || bookingArea === selectedArea;
+                        return matchSearch && matchService && matchType && matchArea;
+                    });
+
+                    currentFilteredList = recomputed;
+                    renderTableFiltered(currentFilteredList);
+                } else {
+                    // No active filters — render bookings list preserving the current page
+                    renderTable(currentBookingsList, currentPage);
+                }
+            } else {
+                // Fallback: refetch if server didn't return booking data
+                fetchBookings();
+            }
         } else {
             alert("Failed to save: " + (result.error || "Server rejected."));
         }
@@ -988,12 +1042,13 @@ function filterCurrentBookings() {
         return matchSearch && matchService && matchType && matchArea;
     });
 
+    // When user actively filters, reset to page 1. Other calls (like delete) will preserve currentPage.
+    currentPage = 1;
     renderTableFiltered(filteredList);
 }
 
 function renderTableFiltered(filteredList) {
     currentFilteredList = filteredList; // Store filtered list for pagination
-    currentPage = 1; // Reset to page 1 when filtering
     
     const tableBody = document.getElementById('tableBody');
     if (!tableBody) return;

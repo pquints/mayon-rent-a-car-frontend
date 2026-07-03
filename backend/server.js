@@ -57,8 +57,24 @@ const loginLimiter = rateLimit({
     message: { success: false, error: isProduction ? 'Too many login attempts. Please wait 15 minutes.' : 'Too many login attempts. Please wait a moment and try again.' }
 });
 
-// Apply general limiter to all /api routes
-app.use('/api', generalLimiter);
+// Apply general limiter to all /api routes but exempt specific admin endpoints (e.g. login)
+// This keeps customer-facing protections while allowing admin/workflow endpoints to avoid accidental blocks.
+app.use('/api', (req, res, next) => {
+    // Paths to exempt from the general limiter (server-side pathnames under /api)
+    const exemptPaths = [
+        '/users/login', // admin login endpoint
+        '/users', // user management (POST/PUT/DELETE) performed by admins
+        '/vehicles', // admin vehicle management
+        '/bookings', // admin booking management (list, edit, delete)
+        '/quotes' // admin quotes management
+    ];
+
+    const matchedExempt = exemptPaths.some(p => req.path.startsWith(p));
+    if (matchedExempt) return next();
+
+    // Otherwise apply general limiter
+    return generalLimiter(req, res, next);
+});
 
 const FILE_PATH = './bookings.json';
 const USERS_FILE_PATH = './users.json';
