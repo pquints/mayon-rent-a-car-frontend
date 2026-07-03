@@ -13,6 +13,7 @@ app.use(cors());
 app.use(express.json());
 
 const DEBUG = process.env.DEBUG === 'true';
+const isProduction = process.env.NODE_ENV === 'production';
 
 // Polyfill fetch for Node versions that don't have global fetch (use node-fetch v2 for CommonJS)
 if (typeof fetch === 'undefined') {
@@ -47,13 +48,13 @@ const bookingLimiter = rateLimit({
     message: { success: false, error: 'Too many booking requests. Please wait 15 minutes before trying again.' }
 });
 
-// Login — max 10 attempts per 15 min per IP (brute force protection)
+// Login — max 10 attempts per 15 min per IP in production; higher limit in development
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 10,
+    max: isProduction ? 10 : 1000,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, error: 'Too many login attempts. Please wait 15 minutes.' }
+    message: { success: false, error: isProduction ? 'Too many login attempts. Please wait 15 minutes.' : 'Too many login attempts. Please wait a moment and try again.' }
 });
 
 // Apply general limiter to all /api routes

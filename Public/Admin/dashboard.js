@@ -28,12 +28,18 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 });
 
+function getNavItemByIcon(iconClass) {
+    const navItems = document.querySelectorAll('.nav-item');
+    return Array.from(navItems).find(item => item.querySelector(`i.${iconClass}`));
+}
+
 function showLoginView() {
     document.getElementById('loginView').style.display = 'flex';
     document.getElementById('dashboardContainer').style.display = 'none';
     
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
+        loginForm.removeEventListener('submit', handleLogin);
         loginForm.addEventListener('submit', handleLogin);
     }
 
@@ -110,19 +116,20 @@ async function handleLogin(e) {
             return;
         }
         
-        // Store auth credentials
+        // Store auth credentials and show the dashboard directly
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('currentUser', JSON.stringify(data.user));
+        localStorage.setItem('adminActiveView', 'dashboard');
         currentUser = data.user;
         authToken = data.token;
-        
-        // Clear form and show dashboard
-        errorDiv.style.display = 'none';
-        document.getElementById('loginForm').reset();
-        showDashboardView();
-        initializeDashboard();
+
         updateUserDisplay();
+        showDashboardView();
+        showView('dashboard');
         showUserManagementIfAdmin();
+        initializeDashboard();
+        showNotificationToast('Login successful!', 'success');
+        return;
     } catch (error) {
         console.error("Login error:", error);
         const message = 'Network error. Please try again.';
@@ -171,8 +178,8 @@ function updateUserDisplay() {
 
 
 function showUserManagementIfAdmin() {
-    const usersNavItem = document.querySelector('.nav-item:has(i.fa-users)');
-    const vehiclesNavItem = document.querySelector('.nav-item:has(i.fa-car)');
+    const usersNavItem = getNavItemByIcon('fa-users');
+    const vehiclesNavItem = getNavItemByIcon('fa-car');
     if (currentUser && currentUser.role === 'admin') {
         if (usersNavItem) usersNavItem.style.display = 'block';
         if (vehiclesNavItem) vehiclesNavItem.style.display = 'block';
@@ -184,9 +191,9 @@ function showUserManagementIfAdmin() {
 }
 
 function setupUserManagementNavigation() {
-    const usersNavItem = document.querySelector('.nav-item:has(i.fa-users)');
-    const dashboardNavItem = document.querySelector('.nav-item:has(i.fa-chart-line)');
-    const vehiclesNavItem = document.querySelector('.nav-item:has(i.fa-car)');
+    const usersNavItem = getNavItemByIcon('fa-users');
+    const dashboardNavItem = getNavItemByIcon('fa-chart-line');
+    const vehiclesNavItem = getNavItemByIcon('fa-car');
     
     if (dashboardNavItem) {
         dashboardNavItem.onclick = (e) => {
@@ -2052,11 +2059,14 @@ function showView(viewType) {
     // Update nav items
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     if (viewType === 'dashboard') {
-        document.querySelector('.nav-item:has(i.fa-chart-line)').classList.add('active');
+        const item = getNavItemByIcon('fa-chart-line');
+        if (item) item.classList.add('active');
     } else if (viewType === 'userManagement') {
-        document.querySelector('.nav-item:has(i.fa-users)')?.classList.add('active');
+        const item = getNavItemByIcon('fa-users');
+        if (item) item.classList.add('active');
     } else if (viewType === 'vehicleManagement') {
-        document.querySelector('.nav-item:has(i.fa-car)')?.classList.add('active');
+        const item = getNavItemByIcon('fa-car');
+        if (item) item.classList.add('active');
     }
 }
 

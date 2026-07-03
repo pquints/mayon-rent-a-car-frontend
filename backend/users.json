@@ -12,12 +12,12 @@
   {
     "id": "USR-1782924789497",
     "username": "piolo",
-    "password": "ikepio1315",
+    "password": "$2b$10$ihWjP0LOnIrNaCaC/b624.7XpjFpX38PLwBSPWpVUwvTW8Xwzy4BW",
     "email": "pioloquintans@gmail.com",
     "fullname": "Piolo Quintans",
     "role": "admin",
     "created_at": "2026-07-01T16:53:09.497Z",
-    "last_login": "2026-07-03T14:24:22.792Z"
+    "last_login": "2026-07-03T17:13:43.936Z"
   },
   {
     "id": "USR-1783019331093",
