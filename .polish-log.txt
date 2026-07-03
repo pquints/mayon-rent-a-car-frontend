@@ -1,0 +1,6 @@
+Polish changes applied:
+- Added Google Fonts (Poppins) to website pages
+- Introduced CSS variables and base font-family in Public/Website/styles.css
+- Improved button styles, hero typography, and spacing
+- Added smooth scrolling and mobile menu close on link click in app.js
+- Committed all changes to branch feat/cleanup-logs
