@@ -172,6 +172,28 @@ function getAuthHeaders() {
     };
 }
 
+function ensureAuth() {
+    const token = localStorage.getItem('authToken') || authToken || '';
+    if (!token) {
+        showNotificationToast('Missing authentication. Please login again.', 'error');
+        showLoginView();
+        return false;
+    }
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+            showNotificationToast('Session expired. Please login again.', 'warning');
+            showLoginView();
+            return false;
+        }
+    } catch (e) {
+        showNotificationToast('Invalid auth token. Please login again.', 'error');
+        showLoginView();
+        return false;
+    }
+    return true;
+}
+
 const API_URL = 'http://127.0.0.1:3000/api';
 let activeStatus = 'open';
 let currentBookingsList = [];
@@ -1277,6 +1299,7 @@ function collectCompleteQuoteData() {
 // SEND QUOTATION EMAIL FUNCTION
 // ========================================================
 async function sendQuotationEmail() {
+    if (!ensureAuth()) return false;
     if (!currentQuotingRef) {
         showNotificationToast("No booking reference found", "error");
         return false;
@@ -1346,6 +1369,7 @@ async function sendQuotationEmail() {
 // SAVE QUOTE FUNCTION
 // ========================================================
 async function saveQuoteToServer(showNotification = true, keepViewOpen = false) {
+    if (!ensureAuth()) return false;
     
     if (!currentQuotingRef) {
         if (showNotification) alert("No booking reference found");
@@ -2087,6 +2111,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function handleSaveUser(e) {
     e.preventDefault();
+    if (!ensureAuth()) return;
     
     const username = document.getElementById('uUsername').value;
     const fullname = document.getElementById('uFullname').value;
@@ -2243,6 +2268,7 @@ function closeVehicleModal() {
 
 async function handleSaveVehicle(e) {
     e.preventDefault();
+    if (!ensureAuth()) return;
     
     const vehicleId = document.getElementById('vehicleEditId').value;
     const plate = document.getElementById('vehiclePlate').value;
