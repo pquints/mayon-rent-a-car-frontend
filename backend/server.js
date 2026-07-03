@@ -493,7 +493,7 @@ app.post('/api/users', verifyToken, verifyAdmin, async (req, res) => {
 app.put('/api/users/:id', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { fullname, email, role, password } = req.body;
+        const { fullname, email, role, password, mobile } = req.body;
 
         const users = getUsers();
         const userIndex = users.findIndex(u => u.id === id);
@@ -504,6 +504,7 @@ app.put('/api/users/:id', verifyToken, verifyAdmin, async (req, res) => {
 
         if (fullname) users[userIndex].fullname = fullname;
         if (email) users[userIndex].email = email;
+        if (typeof mobile !== 'undefined') users[userIndex].mobile = mobile;
         if (role && ['admin', 'driver'].includes(role)) users[userIndex].role = role;
         if (password) users[userIndex].password = await bcrypt.hash(password, 10);
 

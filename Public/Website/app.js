@@ -183,6 +183,36 @@ document.addEventListener('DOMContentLoaded', () => {
         typeWithDriver.addEventListener('change', handleRentalTypeChange);
     }
 
+    // Dynamic min attributes for date inputs: prevent selecting past dates
+    const pickupDateInput = document.getElementsByName('pickup_date')[0];
+    const returnDateInput = document.getElementById('return_date');
+
+    if (pickupDateInput) {
+        const ngayon = new Date();
+        const taon = ngayon.getFullYear();
+        const buwan = String(ngayon.getMonth() + 1).padStart(2, '0');
+        const araw = String(ngayon.getDate()).padStart(2, '0');
+        const formatNaPetsa = `${taon}-${buwan}-${araw}`;
+
+        // Set pickup min to today
+        pickupDateInput.min = formatNaPetsa;
+
+        // If there's already a pickup value, ensure return min follows it
+        if (returnDateInput && pickupDateInput.value) {
+            returnDateInput.min = pickupDateInput.value;
+        }
+
+        // When pickup changes, update return.min and clear invalid return date
+        pickupDateInput.addEventListener('change', function() {
+            if (returnDateInput) {
+                returnDateInput.min = this.value;
+                if (returnDateInput.value && returnDateInput.value < this.value) {
+                    returnDateInput.value = '';
+                }
+            }
+        });
+    }
+
     if (nextBtn) {
         nextBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -221,13 +251,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // Client-side date validations: pickup must be >= today; return (for self-drive) must be >= pickup
+            const pickupField = document.getElementsByName('pickup_date')[0];
+            const returnField = document.getElementById('return_date');
+            const selectedRentalTypeRadio = document.querySelector('input[name="rental_type"]:checked');
+            const rentalTypeValue = selectedRentalTypeRadio ? selectedRentalTypeRadio.value : '';
+
+            if (pickupField) {
+                const pickupVal = pickupField.value;
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const pickupDateObj = pickupVal ? new Date(pickupVal) : null;
+
+                if (!pickupVal || !pickupDateObj || isNaN(pickupDateObj.getTime())) {
+                    alert('Pakilagay ang tamang Pick-up date.');
+                    pickupField.style.borderColor = '#ef4444';
+                    return;
+                }
+                pickupDateObj.setHours(0,0,0,0);
+                if (pickupDateObj < today) {
+                    alert('Pick-up date must be today or a future date.');
+                    pickupField.style.borderColor = '#ef4444';
+                    return;
+                }
+
+                if (rentalTypeValue === 'self-drive' && returnField) {
+                    const returnVal = returnField.value;
+                    const returnDateObj = returnVal ? new Date(returnVal) : null;
+                    if (!returnVal || !returnDateObj || isNaN(returnDateObj.getTime())) {
+                        alert('Para sa Self-Drive, pakilagay ang tamang Return date.');
+                        returnField.style.borderColor = '#ef4444';
+                        return;
+                    }
+                    returnDateObj.setHours(0,0,0,0);
+                    if (returnDateObj < pickupDateObj) {
+                        alert('Return date cannot be earlier than Pick-up date.');
+                        returnField.style.borderColor = '#ef4444';
+                        return;
+                    }
+                }
+            }
+
             // Execute reCAPTCHA v3 before submitting
             let recaptchaToken = '';
             try {
-                recaptchaToken = await grecaptcha.execute('YOUR_RECAPTCHA_SITE_KEY', { action: 'submit_booking' });
-                document.getElementById('recaptchaToken').value = recaptchaToken;
+                const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_SITE_KEY';
+                if (typeof grecaptcha !== 'undefined' && RECAPTCHA_SITE_KEY && RECAPTCHA_SITE_KEY !== 'YOUR_RECAPTCHA_SITE_KEY') {
+                    recaptchaToken = await grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submit_booking' });
+                    document.getElementById('recaptchaToken').value = recaptchaToken;
+                } else {
+                    if (DEBUG) console.log('reCAPTCHA skipped (no valid site key or grecaptcha not loaded)');
+                }
             } catch (err) {
-                console.warn('reCAPTCHA not available:', err);
+                console.warn('reCAPTCHA execution failed:', err);
             }
 
             const formData = new FormData(this);
@@ -240,6 +316,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 bookingData.serviceOption = bookingData.driver_service || '';
             } else {
                 bookingData.serviceOption = '—';
+            }
+
+            // Normalize vehicle field name to backend expected `vehicleType` (frontend uses `vehicle_type`)
+            if (!bookingData.vehicleType) {
+                if (bookingData.vehicle_type) bookingData.vehicleType = bookingData.vehicle_type;
+                else if (bookingData.vehicle) bookingData.vehicleType = bookingData.vehicle;
             }
 
             try {

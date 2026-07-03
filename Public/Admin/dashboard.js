@@ -892,7 +892,7 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
 
             // Update local lists with the saved booking returned from server
             const savedBooking = result.booking;
-            if (savedBooking) {
+                if (savedBooking) {
                 // Update or insert into currentBookingsList
                 const idx = currentBookingsList.findIndex(b => b.ref === savedBooking.ref);
                 if (idx !== -1) {
@@ -901,6 +901,12 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
                     // New booking: add to the beginning so it appears on top if current filters allow
                     currentBookingsList.unshift(savedBooking);
                 }
+
+                    // If new booking was just created, update currentQuotingRef so PDF/downloads use the real ref
+                    if (refFlag === "NEW_BOOKING_FLAG") {
+                        currentQuotingRef = savedBooking.ref;
+                        if (DEBUG) console.log('Updated currentQuotingRef to', currentQuotingRef);
+                    }
 
                 // If filters are active, recompute filtered list and re-render while preserving currentPage
                 const searchQuery = (document.getElementById("searchBar")?.value || '').toLowerCase().trim();
@@ -2110,6 +2116,7 @@ function showView(viewType) {
     document.getElementById('fullPageDetailsView').style.display = viewType === 'details' ? 'block' : 'none';
     document.getElementById('userManagementView').style.display = viewType === 'userManagement' ? 'block' : 'none';
     document.getElementById('vehicleManagementView').style.display = viewType === 'vehicleManagement' ? 'block' : 'none';
+    document.getElementById('accountSettingsView').style.display = viewType === 'accountSettings' ? 'block' : 'none';
     
     // Update nav items
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -2122,6 +2129,82 @@ function showView(viewType) {
     } else if (viewType === 'vehicleManagement') {
         const item = getNavItemByIcon('fa-car');
         if (item) item.classList.add('active');
+    } else if (viewType === 'accountSettings') {
+        const item = getNavItemByIcon('fa-user-gear');
+        if (item) item.classList.add('active');
+        // Load account details into the form
+        loadAccountSettings();
+    }
+}
+
+function loadAccountSettings() {
+    // Populate fields from currentUser
+    const fullname = (currentUser && currentUser.fullname) ? currentUser.fullname : '';
+    const parts = fullname.split(' ');
+    const first = parts.shift() || '';
+    const last = parts.join(' ') || '';
+
+    document.getElementById('accFirstName').value = first;
+    document.getElementById('accLastName').value = last;
+    document.getElementById('accEmail').value = (currentUser && currentUser.email) ? currentUser.email : '';
+    document.getElementById('accMobile').value = (currentUser && currentUser.mobile) ? currentUser.mobile : '';
+    document.getElementById('accPassword').value = '';
+    document.getElementById('accPasswordConfirm').value = '';
+    document.getElementById('accFormError').style.display = 'none';
+
+    // Attach handlers
+    document.getElementById('accCancelBtn').onclick = () => { showView('dashboard'); };
+    document.getElementById('accSaveBtn').onclick = saveAccountSettings;
+}
+
+async function saveAccountSettings() {
+    const first = document.getElementById('accFirstName').value.trim();
+    const last = document.getElementById('accLastName').value.trim();
+    const email = document.getElementById('accEmail').value.trim();
+    const mobile = document.getElementById('accMobile').value.trim();
+    const pwd = document.getElementById('accPassword').value;
+    const pwdConfirm = document.getElementById('accPasswordConfirm').value;
+    const errDiv = document.getElementById('accFormError');
+
+    errDiv.style.display = 'none';
+
+    if (!first) { errDiv.textContent = 'First name is required.'; errDiv.style.display = 'block'; return; }
+    if (!email || !email.includes('@')) { errDiv.textContent = 'Please provide a valid email.'; errDiv.style.display = 'block'; return; }
+    if (pwd && pwd.length < 6) { errDiv.textContent = 'Password must be at least 6 characters.'; errDiv.style.display = 'block'; return; }
+    if (pwd && pwd !== pwdConfirm) { errDiv.textContent = 'Passwords do not match.'; errDiv.style.display = 'block'; return; }
+
+    const fullname = last ? `${first} ${last}` : first;
+
+    const payload = { fullname, email, mobile };
+    if (pwd) payload.password = pwd;
+
+    try {
+        const response = await fetch(`${API_URL}/users/${currentUser.id}`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            errDiv.textContent = result.error || 'Failed to update account.';
+            errDiv.style.display = 'block';
+            return;
+        }
+
+        // Update local currentUser and localStorage
+        currentUser.fullname = result.user.fullname;
+        currentUser.email = result.user.email;
+        currentUser.mobile = mobile || currentUser.mobile;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+        showNotificationToast('Account updated successfully', 'success');
+        showView('dashboard');
+        updateUserDisplay();
+    } catch (err) {
+        console.error('Error saving account settings:', err);
+        errDiv.textContent = 'Network error while saving.';
+        errDiv.style.display = 'block';
     }
 }
 
@@ -2358,28 +2441,40 @@ function renderVehiclesTable(vehicles) {
 }
 
 function openAddVehicleModal() {
-    document.getElementById('vehicleModalTitle').textContent = 'Add New Vehicle';
-    document.getElementById('vehicleEditId').value = '';
-    document.getElementById('vehicleForm').reset();
-    document.getElementById('vehicleModal').style.display = 'flex';
+    // show full-page vehicle edit view for creating a new vehicle
+    const view = document.getElementById('vehicleEditView');
+    if (view) view.style.display = 'block';
+    const title = document.getElementById('vehicleModalTitle');
+    if (title) title.textContent = 'Add New Vehicle';
+    const editId = document.getElementById('vehicleEditId');
+    if (editId) editId.value = '';
+    const form = document.getElementById('vehicleForm');
+    if (form) form.reset();
 }
 
 function closeVehicleModal() {
-    document.getElementById('vehicleModal').style.display = 'none';
+    const view = document.getElementById('vehicleEditView');
+    if (view) view.style.display = 'none';
 }
 
 async function handleSaveVehicle(e) {
     e.preventDefault();
     if (!ensureAuth()) return;
+
+    const form = document.getElementById('vehicleForm');
+    if (form && typeof form.reportValidity === 'function' && !form.reportValidity()) {
+        return;
+    }
     
     const vehicleId = document.getElementById('vehicleEditId').value;
-    const plate = document.getElementById('vehiclePlate').value;
-    const make = document.getElementById('vehicleMake').value;
-    const model = document.getElementById('vehicleModel').value;
-    const year = document.getElementById('vehicleYear').value;
+    const plate = document.getElementById('vehiclePlate').value.trim();
+    const make = document.getElementById('vehicleMake').value.trim();
+    const model = document.getElementById('vehicleModel').value.trim();
+    const year = Number(document.getElementById('vehicleYear').value);
+    const dailyRate = Number(document.getElementById('vehicleDailyRate').value);
     const type = document.getElementById('vehicleType').value;
-    const color = document.getElementById('vehicleColor').value;
-    const seats = document.getElementById('vehicleSeats').value;
+    const color = document.getElementById('vehicleColor').value.trim();
+    const seats = Number(document.getElementById('vehicleSeats').value);
     const transmission = document.getElementById('vehicleTransmission').value;
     const fuelType = document.getElementById('vehicleFuelType').value;
     const status = document.getElementById('vehicleStatus').value;
@@ -2392,7 +2487,7 @@ async function handleSaveVehicle(e) {
             method,
             headers: getAuthHeaders(),
             body: JSON.stringify({
-                plate, make, model, year, type, color, seats, transmission, fuelType, status
+                plate, make, model, year, dailyRate, type, color, seats, transmission, fuelType, status
             })
         });
         
@@ -2404,7 +2499,12 @@ async function handleSaveVehicle(e) {
         }
         
         alert(vehicleId ? 'Vehicle updated successfully' : 'Vehicle added successfully');
-        closeVehicleModal();
+        // close modal or hide full-page view if present
+        if (typeof closeVehicleModal === 'function') {
+            try { closeVehicleModal(); } catch(e){}
+        }
+        const view = document.getElementById('vehicleEditView');
+        if (view) view.style.display = 'none';
         loadVehicles();
     } catch (error) {
         console.error("Error saving vehicle:", error);
@@ -2427,20 +2527,24 @@ async function editVehicle(vehicleId) {
         }
         
         // Populate form
-        document.getElementById('vehicleModalTitle').textContent = 'Edit Vehicle';
+        // populate fields for full-page edit view
+        const view = document.getElementById('vehicleEditView');
+        if (view) view.style.display = 'block';
+        const title = document.getElementById('vehicleModalTitle');
+        if (title) title.textContent = 'Edit Vehicle';
+
         document.getElementById('vehicleEditId').value = vehicle.id;
         document.getElementById('vehiclePlate').value = vehicle.plate;
         document.getElementById('vehicleMake').value = vehicle.make;
         document.getElementById('vehicleModel').value = vehicle.model;
         document.getElementById('vehicleYear').value = vehicle.year;
+        document.getElementById('vehicleDailyRate').value = vehicle.dailyRate || '';
         document.getElementById('vehicleType').value = vehicle.type;
         document.getElementById('vehicleColor').value = vehicle.color;
         document.getElementById('vehicleSeats').value = vehicle.seats;
         document.getElementById('vehicleTransmission').value = vehicle.transmission;
         document.getElementById('vehicleFuelType').value = vehicle.fuelType;
         document.getElementById('vehicleStatus').value = vehicle.status;
-        
-        document.getElementById('vehicleModal').style.display = 'flex';
     } catch (error) {
         console.error("Error loading vehicle:", error);
         alert('Failed to load vehicle details');
@@ -2470,5 +2574,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const vehicleForm = document.getElementById('vehicleForm');
     if (vehicleForm) {
         vehicleForm.addEventListener('submit', handleSaveVehicle);
+    }
+
+    // hook full-page vehicle view buttons
+    const vehicleCancelBtn = document.getElementById('vehicleCancelBtn');
+    if (vehicleCancelBtn) vehicleCancelBtn.addEventListener('click', function() {
+        const view = document.getElementById('vehicleEditView');
+        if (view) view.style.display = 'none';
+    });
+
+    const vehicleSaveBtn = document.getElementById('vehicleSaveBtn');
+    if (vehicleSaveBtn) {
+        vehicleSaveBtn.addEventListener('click', () => {
+            const form = document.getElementById('vehicleForm');
+            if (!form) return;
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+        });
     }
 });

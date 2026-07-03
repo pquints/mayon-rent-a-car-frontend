@@ -10,10 +10,9 @@
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="styles.css" />
         <meta name="theme-color" content="#178ca4">
-        <!-- Google reCAPTCHA v3 -->
-        <!-- Replace YOUR_RECAPTCHA_SITE_KEY with your actual site key when deploying -->
-        <script src="https://www.google.com/recaptcha/api.js?render=YOUR_RECAPTCHA_SITE_KEY"></script>
-        <style>.grecaptcha-badge { visibility: hidden; }</style>
+        <!-- Google reCAPTCHA v3 (disabled for local/dev). Replace with your site key when deploying -->
+        <!-- <script src="https://www.google.com/recaptcha/api.js?render=YOUR_RECAPTCHA_SITE_KEY"></script>
+        <style>.grecaptcha-badge { visibility: hidden; }</style> -->
     </head>
     <body>
         <!-- BAGONG DAGDAG: Top Bar para sa Contacts at Socials -->
@@ -119,8 +118,8 @@
                             <label for="driver-service">Service Option *</label>
                             <select id="driver-service" name="driver_service">
                                 <option value="" disabled selected>-- Select Service --</option>
-                                <option value="one-way">One-Way Transfer</option>
-                                <option value="one-way">Airport Transfer</option>
+                                <option value="One-way Service">One-way Service</option>
+                                <option value="Airport Transfer">Airport Transfer</option>
                                 <option value="5-hours">5 Hours Service</option>
                                 <option value="10-hours">10 Hours Service</option>
                             </select>
