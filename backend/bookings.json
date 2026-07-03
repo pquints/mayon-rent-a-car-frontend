@@ -416,7 +416,7 @@
     "return_time": "16:40",
     "return_address": "Naga",
     "itinerary": "Pilar",
-    "status": "Open",
+    "status": "Quoted",
     "created_at": "2026-07-02T19:00:43.393Z"
   },
   {
@@ -456,7 +456,7 @@
     "return_time": "17:30",
     "return_address": "Tabaco",
     "itinerary": "Albay",
-    "status": "Open",
+    "status": "Quoted",
     "created_at": "2026-07-03T15:54:55.611Z"
   }
 ]

@@ -378,5 +378,69 @@
     },
     "savedAt": "2026-07-03T14:35:56.559Z",
     "savedBy": "piolo"
+  },
+  {
+    "id": "QUOTE-1783094735598",
+    "bookingRef": "MRAC-DD7F5",
+    "totalAmount": "₱0.00",
+    "rentalType": "self-drive",
+    "quoteData": {
+      "vehicleType": "Sedan",
+      "serviceOption": "—",
+      "pickDate": "2026-07-05",
+      "pickTime": "10:20",
+      "returnDate": "0006-07-10",
+      "returnTime": "17:30",
+      "pickupAddress": "Bicol International Airport",
+      "returnAddress": "Tabaco",
+      "itinerary": "Albay",
+      "rentalType": "self-drive",
+      "quantity": 1,
+      "breakdownDetails": {
+        "unitBase": 0,
+        "days": 1,
+        "overtime": 0,
+        "selfOtHours": 0,
+        "delivery": 0,
+        "return": 0,
+        "childSeat": 0
+      },
+      "inclusionsList": [],
+      "exclusionsList": []
+    },
+    "savedAt": "2026-07-03T16:05:35.598Z",
+    "savedBy": "admin"
+  },
+  {
+    "id": "QUOTE-1783095057866",
+    "bookingRef": "MRAC-QSCUP",
+    "totalAmount": "₱15100.00",
+    "rentalType": "self-drive",
+    "quoteData": {
+      "vehicleType": "Sedan",
+      "serviceOption": "—",
+      "pickDate": "2026-07-10",
+      "pickTime": "10:30",
+      "returnDate": "2026-07-15",
+      "returnTime": "16:40",
+      "pickupAddress": "Bicol International Airport",
+      "returnAddress": "Naga",
+      "itinerary": "Pilar",
+      "rentalType": "self-drive",
+      "quantity": 1,
+      "breakdownDetails": {
+        "unitBase": 2500,
+        "days": 5,
+        "overtime": 100,
+        "selfOtHours": 6,
+        "delivery": 0,
+        "return": 2000,
+        "childSeat": 0
+      },
+      "inclusionsList": [],
+      "exclusionsList": []
+    },
+    "savedAt": "2026-07-03T16:10:57.866Z",
+    "savedBy": "admin"
   }
 ]
