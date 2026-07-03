@@ -143,6 +143,11 @@ body {
     color: #1a1a1a;
 }
 
+.navbar__links.active {
+    color: #178ca4;
+    font-weight: 700;
+}
+
 /* DESKTOP BUTTONS CONTAINER */
 .navbar__btn {
     display: flex;

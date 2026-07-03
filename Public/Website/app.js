@@ -276,3 +276,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// --- NAV HIGHLIGHT (active link) ---
+document.addEventListener('DOMContentLoaded', () => {
+    const navLinks = document.querySelectorAll('.navbar__links');
+    const current = window.location.pathname.split('/').pop() || 'index.html';
+    navLinks.forEach(link => {
+        const href = link.getAttribute('href') || '';
+        if (href === current || (href === 'index.html' && current === '')) {
+            link.classList.add('active');
+        }
+        // Also support anchors (e.g., #partner)
+        if (href.startsWith('#') && window.location.hash === href) {
+            link.classList.add('active');
+        }
+    });
+});
