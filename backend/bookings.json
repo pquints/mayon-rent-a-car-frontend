@@ -376,7 +376,7 @@
     "return_time": "22:00",
     "return_address": "Sorsogon CIty",
     "itinerary": "Sorsogon",
-    "status": "Open",
+    "status": "Quoted",
     "created_at": "2026-07-02T17:17:33.774Z"
   },
   {
@@ -396,7 +396,7 @@
     "return_time": "—",
     "return_address": "—",
     "itinerary": "NAGA",
-    "status": "Open",
+    "status": "Quoted",
     "created_at": "2026-07-02T17:18:55.301Z"
   },
   {

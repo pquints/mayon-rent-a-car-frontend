@@ -326,5 +326,57 @@
     },
     "savedAt": "2026-07-03T14:21:42.645Z",
     "savedBy": "admin"
+  },
+  {
+    "id": "QUOTE-1783089330805",
+    "bookingRef": "MRAC-97Z8N",
+    "totalAmount": "₱1234.00",
+    "rentalType": "with-driver",
+    "quoteData": {
+      "breakdownDetails": {
+        "unitBase": 1234,
+        "driverDays": 1
+      }
+    },
+    "savedAt": "2026-07-03T14:35:30.805Z",
+    "savedBy": "admin"
+  },
+  {
+    "id": "QUOTE-1783089356559",
+    "bookingRef": "MRAC-KCFTP",
+    "totalAmount": "₱0.00",
+    "rentalType": "with-driver",
+    "quoteData": {
+      "vehicleType": "Sedan",
+      "serviceOption": "10-hours",
+      "pickDate": "2026-07-06",
+      "pickTime": "07:00",
+      "returnDate": "",
+      "returnTime": "",
+      "pickupAddress": "SM Legazpi City",
+      "returnAddress": "—",
+      "itinerary": "NAGA",
+      "rentalType": "with-driver",
+      "quantity": 1,
+      "breakdownDetails": {
+        "distance": 0,
+        "fuelPrice": 0,
+        "consumption": 1,
+        "unitBase": 0,
+        "driverDays": 1,
+        "overtime": 0,
+        "driverOtHours": 0,
+        "tollFees": 0,
+        "parkingFees": 0,
+        "driverFee": 0,
+        "meals": 0,
+        "lodging": 0,
+        "misc": 0
+      },
+      "inclusionsList": [],
+      "exclusionsList": []
+    },
+    "savedAt": "2026-07-03T14:35:56.559Z",
+    "savedBy": "piolo"
   }
 ]
