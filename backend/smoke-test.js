@@ -15,32 +15,37 @@ async function run() {
     const token = jwt.sign({ id: 'USR-ADMIN', username: 'admin', role: 'admin', email: 'admin@mayonrentacar.com' }, JWT_SECRET, { expiresIn: '24h' });
     console.log('Using token:', token.substring(0, 20) + '...');
 
-    // 1) create booking (public endpoint)
-    const bookingRes = await fetch(`${API}/bookings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_name: 'Smoke Test Client',
-        contact_no: '09171234567',
-        email: 'smoke@example.com',
-        area: 'legazpi',
-        rentalType: 'with-driver',
-        serviceOption: 'Airport Transfer',
-        vehicleType: 'Sedan',
-        passengers: 2,
-        pickup_date: '2026-07-04',
-        pickup_time: '09:00',
-        pickup_address: 'Test Address',
-        itinerary: 'Test itinerary'
-      })
-    });
-    const bookingJson = await bookingRes.json();
-    console.log('Create booking response:', bookingJson);
-
-    const bookingRef = bookingJson.booking?.ref || bookingJson.ref || bookingJson.booking?.ref;
+    // 1) determine bookingRef: use BOOKING_REF env to avoid rate limits, otherwise create booking
+    let bookingRef = process.env.BOOKING_REF;
     if (!bookingRef) {
-      console.error('Failed to create booking, aborting smoke test.');
-      return;
+      const bookingRes = await fetch(`${API}/bookings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_name: 'Smoke Test Client',
+          contact_no: '09171234567',
+          email: 'smoke@example.com',
+          area: 'legazpi',
+          rentalType: 'with-driver',
+          serviceOption: 'Airport Transfer',
+          vehicleType: 'Sedan',
+          passengers: 2,
+          pickup_date: '2026-07-04',
+          pickup_time: '09:00',
+          pickup_address: 'Test Address',
+          itinerary: 'Test itinerary'
+        })
+      });
+      const bookingJson = await bookingRes.json();
+      console.log('Create booking response:', bookingJson);
+
+      bookingRef = bookingJson.booking?.ref || bookingJson.ref || bookingJson.booking?.ref;
+      if (!bookingRef) {
+        console.error('Failed to create booking, aborting smoke test.');
+        return;
+      }
+    } else {
+      console.log('Using existing bookingRef from BOOKING_REF:', bookingRef);
     }
 
     // 2) save quote (admin)
