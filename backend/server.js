@@ -580,7 +580,7 @@ app.post('/api/vehicles', verifyToken, verifyAdmin, (req, res) => {
 
         // Create new vehicle
         const newVehicle = {
-            id: `VEH-${String(vehicles.length + 1).padStart(3, '0')}`,
+            id: `VEH-${Date.now()}`,
             plate,
             make,
             model,

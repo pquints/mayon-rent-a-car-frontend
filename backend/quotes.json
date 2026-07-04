@@ -411,5 +411,37 @@
     },
     "savedAt": "2026-07-03T20:31:00.871Z",
     "savedBy": "admin"
+  },
+  {
+    "id": "QUOTE-1783139303428",
+    "bookingRef": "MRAC-ODO5Y",
+    "totalAmount": "₱19000.00",
+    "rentalType": "self-drive",
+    "quoteData": {
+      "vehicleType": "MPV",
+      "serviceOption": "—",
+      "pickDate": "2026-07-14",
+      "pickTime": "11:00",
+      "returnDate": "2026-07-21",
+      "returnTime": "17:30",
+      "pickupAddress": "Bicol International Airport",
+      "returnAddress": "Tabaco CIty",
+      "itinerary": "Albay",
+      "rentalType": "self-drive",
+      "quantity": 1,
+      "breakdownDetails": {
+        "unitBase": 3000,
+        "days": 6,
+        "overtime": 0,
+        "selfOtHours": 0,
+        "delivery": 0,
+        "return": 1000,
+        "childSeat": 0
+      },
+      "inclusionsList": [],
+      "exclusionsList": []
+    },
+    "savedAt": "2026-07-04T04:28:23.429Z",
+    "savedBy": "piolo@mrac"
   }
 ]

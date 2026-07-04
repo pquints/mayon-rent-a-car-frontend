@@ -279,11 +279,61 @@ function ensureAuth() {
 }
 
 const API_URL = 'http://127.0.0.1:3000/api';
-let activeStatus = 'open';
+let activeStatus = localStorage.getItem('adminBookingStatus') || 'open';
 let currentBookingsList = [];
 let currentFilteredList = []; // Track filtered results for pagination
 let currentPage = 1;
 const ITEMS_PER_PAGE = 10;
+
+function persistBookingStatus(statusId) {
+    activeStatus = statusId || 'open';
+    try {
+        localStorage.setItem('adminBookingStatus', activeStatus);
+    } catch (error) {
+        console.warn('Unable to persist booking status:', error);
+    }
+    return activeStatus;
+}
+
+function getBookingFilterState() {
+    return {
+        searchQuery: (document.getElementById('searchBar')?.value || '').toLowerCase().trim(),
+        serviceQuery: document.getElementById('filterService')?.value || '',
+        typeQuery: document.getElementById('filterType')?.value || '',
+        areaQuery: document.getElementById('filterArea')?.value || ''
+    };
+}
+
+function applyBookingFilters(bookingsList = currentBookingsList) {
+    const { searchQuery, serviceQuery, typeQuery, areaQuery } = getBookingFilterState();
+    const filtersActive = Boolean(searchQuery || serviceQuery || typeQuery || areaQuery);
+
+    if (!filtersActive) {
+        currentFilteredList = [];
+        renderTable(bookingsList, currentPage);
+        return;
+    }
+
+    const filteredList = (bookingsList || []).filter(booking => {
+        const matchSearch =
+            (booking.ref || '').toLowerCase().includes(searchQuery) ||
+            (booking.name || '').toLowerCase().includes(searchQuery) ||
+            (booking.email || '').toLowerCase().includes(searchQuery) ||
+            (booking.vehicleType || '').toLowerCase().includes(searchQuery);
+
+        const matchService = !serviceQuery || booking.serviceOption === serviceQuery;
+        const bookingRentalType = (booking.rentalType || '').toLowerCase().replace(/\s+/g, '-');
+        const matchType = !typeQuery || bookingRentalType === typeQuery;
+        const bookingArea = (booking.area || '').toLowerCase().trim();
+        const selectedArea = areaQuery.toLowerCase().trim();
+        const matchArea = !areaQuery || bookingArea === selectedArea;
+
+        return matchSearch && matchService && matchType && matchArea;
+    });
+
+    currentFilteredList = filteredList;
+    renderTableFiltered(filteredList);
+}
 
 // ========================================================
 // 1. METRICS ENGINE: KUKUNIN ANG MGA BILANG MULA SA SERVER
@@ -336,7 +386,7 @@ function renderStatusPills(statuses) {
 
         pill.addEventListener('click', () => {
             if (activeStatus === status.id) return;
-            activeStatus = status.id;
+            persistBookingStatus(status.id);
             currentPage = 1;
             
             document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
@@ -363,7 +413,8 @@ async function fetchBookings() {
         if (!response.ok) throw new Error('Failed to fetch bookings');
         
         const bookings = await response.json();
-        renderTable(bookings, currentPage);
+        currentBookingsList = Array.isArray(bookings) ? bookings : [];
+        applyBookingFilters(currentBookingsList);
     } catch (error) {
         console.error("Error fetching bookings:", error);
         if (tableBody) {
@@ -651,19 +702,8 @@ async function deleteBooking(ref) {
 
             if (response.ok && result.success) {
                 alert(`Booking ${ref} successfully deleted!`);
-                // Refresh counts
                 fetchStatusCounts();
-
-                // Remove locally from current lists and re-render while preserving current page/view
-                if (currentFilteredList && currentFilteredList.length) {
-                    currentFilteredList = currentFilteredList.filter(b => b.ref !== ref);
-                    // Re-render filtered table preserving currentPage
-                    renderTableFiltered(currentFilteredList);
-                } else {
-                    currentBookingsList = currentBookingsList.filter(b => b.ref !== ref);
-                    // Re-render bookings for current status and page
-                    renderTable(currentBookingsList, currentPage);
-                }
+                await fetchBookings();
             } else {
                 alert('Hindi nabura: ' + (result.error || 'Server rejected the request.'));
             }
@@ -1050,33 +1090,8 @@ document.addEventListener("DOMContentLoaded", () => {
 // ENGINE: MAGASING AT MAG-FILTER NG MGA BOOKINGS SA SCREEN
 // ========================================================
 function filterCurrentBookings() {
-    const searchQuery = document.getElementById("searchBar").value.toLowerCase().trim();
-    const serviceQuery = document.getElementById("filterService").value;
-    const typeQuery = document.getElementById("filterType").value;
-    const areaQuery = document.getElementById("filterArea").value;
-
-    const filteredList = currentBookingsList.filter(booking => { 
-        const matchSearch = 
-            (booking.ref || '').toLowerCase().includes(searchQuery) || 
-            (booking.name || '').toLowerCase().includes(searchQuery) || 
-            (booking.email || '').toLowerCase().includes(searchQuery) || 
-            (booking.vehicleType || '').toLowerCase().includes(searchQuery); 
-
-        const matchService = !serviceQuery || booking.serviceOption === serviceQuery; 
-
-        let bookingRentalType = (booking.rentalType || '').toLowerCase().replace(/\s+/g, '-'); 
-        const matchType = !typeQuery || bookingRentalType === typeQuery; 
-
-        const bookingArea = (booking.area || '').toLowerCase().trim(); 
-        const selectedArea = areaQuery.toLowerCase().trim();
-        const matchArea = !areaQuery || bookingArea === selectedArea;
-
-        return matchSearch && matchService && matchType && matchArea;
-    });
-
-    // When user actively filters, reset to page 1. Other calls (like delete) will preserve currentPage.
     currentPage = 1;
-    renderTableFiltered(filteredList);
+    applyBookingFilters(currentBookingsList);
 }
 
 function renderTableFiltered(filteredList) {
@@ -2374,7 +2389,7 @@ async function handleSaveUser(e) {
 
 function initializeDashboard() {
     fetchStatusCounts();
-    fetchBookings('open');
+    fetchBookings();
     showUserManagementIfAdmin();
     
     // Setup sidebar toggle
