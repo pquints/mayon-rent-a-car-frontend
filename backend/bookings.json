@@ -1,25 +1,5 @@
 [
   {
-    "ref": "MRAC-I4A6B",
-    "name": "Miguel Torres",
-    "contact_no": "09890123456",
-    "email": "miguel.torres@email.com",
-    "area": "daraga",
-    "rentalType": "self-drive",
-    "serviceOption": "—",
-    "vehicleType": "Sedan",
-    "passengers": "—",
-    "pickup_date": "2026-08-01",
-    "pickup_time": "15:30",
-    "pickup_address": "Daraga Church",
-    "return_date": "2026-08-03",
-    "return_time": "15:30",
-    "return_address": "Daraga Church",
-    "itinerary": "Weekend getaway to Mt. Mayon, Lake Bato",
-    "status": "Quoted",
-    "created_at": "2026-06-24T12:45:00.000Z"
-  },
-  {
     "ref": "MRAC-K6E8F",
     "name": "Antonio Perez",
     "contact_no": "09112345678",
