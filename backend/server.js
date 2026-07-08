@@ -759,7 +759,7 @@ app.delete('/api/quotes/:bookingRef', verifyToken, verifyAdmin, (req, res) => {
     }
 });
 
-// Send Quotation Email Endpoint
+// Send Quotation Email Endpoint (Resend Version)
 app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { bookingRef, clientEmail, clientName, quoteData } = req.body;
@@ -769,7 +769,6 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         }
 
         // quoteData from frontend is the full quoteRecord: { totalAmount, rentalType, quoteData: {...}, ... }
-        // The detail fields live inside quoteData.quoteData (same as PDF generator: savedQuoteData = quoteResult.quote.quoteData)
         const totalAmount = quoteData?.totalAmount || 'N/A';
         const rentalType  = quoteData?.rentalType  || 'unknown';
         const qd          = quoteData?.quoteData   || {};   // flat detail object
@@ -780,7 +779,7 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         const pickupAddress = qd.pickupAddress || '—';
         const returnAddress = qd.returnAddress || '—';
 
-        // Format dates & times (same raw values as PDF uses)
+        // Format dates & times
         const rawPickDate = qd.pickDate   || '';
         const rawPickTime = qd.pickTime   || '';
         const rawRetDate  = qd.returnDate || '';
@@ -794,7 +793,7 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         const fmtRetDate  = fmtDate(rawRetDate);
         const fmtRetTime  = fmtTime(rawRetTime);
 
-        // ── Cost breakdown rows (same calculation logic as PDF generator) ──────
+        // ── Cost breakdown rows ──────────────────────────────────────────────
         const bd  = qd.breakdownDetails || {};
         const row = (label, value) => value > 0
             ? `<tr><td style="padding:8px 12px;color:#475569;border-bottom:1px solid #f1f5f9;">${label}</td><td style="padding:8px 12px;text-align:right;font-weight:600;color:#1e293b;border-bottom:1px solid #f1f5f9;">₱${value.toFixed(2)}</td></tr>`
@@ -826,7 +825,7 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
             breakdownRows += row('Child Seat Fee', bd.childSeat || 0);
         }
 
-        // ── Inclusions / Exclusions (with-driver only) ───────────────────────
+        // ── Inclusions / Exclusions ──────────────────────────────────────────
         const inclusions  = qd.inclusionsList  || [];
         const exclusions  = qd.exclusionsList  || [];
         let incExcSection = '';
@@ -852,24 +851,21 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
                 </div>`;
         }
 
-        // ── Service Option row (with-driver only) ────────────────────────────
+        // ── Conditional rows & sections ──────────────────────────────────────
         const serviceRow = rentalType === 'with-driver' ? `
             <tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Service Option</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${serviceOption}</td></tr>` : '';
 
-        // ── Return schedule + location (self-drive only) ─────────────────────
         const returnScheduleRow = rentalType === 'self-drive' ? `
             <tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Return Date &amp; Time</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${fmtRetDate} at ${fmtRetTime}</td></tr>` : '';
         const returnLocationRow = rentalType === 'self-drive' ? `
             <tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Return Location</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${returnAddress}</td></tr>` : '';
 
-        // ── Itinerary section ────────────────────────────────────────────────
         const itinerarySection = itinerary ? `
             <div style="margin-bottom:20px;">
                 <div style="font-size:11px;text-transform:uppercase;font-weight:700;color:#0f172a;letter-spacing:0.5px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;margin-bottom:10px;">&#128506; Destination / Itinerary</div>
                 <div style="background:#f8fafc;border-left:3px solid #2563eb;padding:12px 16px;border-radius:0 6px 6px 0;font-size:13px;color:#334155;line-height:1.6;">${itinerary}</div>
             </div>` : '';
 
-        // ── Build final HTML template (100% inline styles — Gmail strips <style> blocks) ──
         if (DEBUG) console.log(`[EMAIL DEBUG] rentalType=${rentalType}, vehicleType=${vehicleType}, pickDate=${rawPickDate}, qd keys=${Object.keys(qd).join(',')}`);
 
         const htmlTemplate = `<!DOCTYPE html>
@@ -945,7 +941,7 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
 
     <!-- CTA -->
     <div style="text-align:center;margin:24px 0 16px;">
-      <a href="mailto:pioloquintans@gmail.com?subject=Quotation%20${bookingRef}%20-%20Ready%20to%20Book" style="background:linear-gradient(135deg,#1d4ed8,#1e3a8a);color:#ffffff;padding:13px 32px;text-decoration:none;border-radius:6px;font-weight:700;font-size:14px;display:inline-block;">&#10003; Reply to Confirm Booking</a>
+      <a href="mailto:mayonrentacar@gmail.com?subject=Quotation%20${bookingRef}%20-%20Ready%20to%20Book" style="background:linear-gradient(135deg,#1d4ed8,#1e3a8a);color:#ffffff;padding:13px 32px;text-decoration:none;border-radius:6px;font-weight:700;font-size:14px;display:inline-block;">&#10003; Reply to Confirm Booking</a>
     </div>
 
     <!-- Next Steps -->
@@ -960,7 +956,7 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
   <!-- Footer -->
   <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 24px;text-align:center;font-size:12px;color:#94a3b8;">
     <strong style="color:#475569;">MAYON RENT A CAR</strong><br>
-    <span style="display:block;margin-top:6px;">&#128231; pioloquintans@gmail.com &nbsp;|&nbsp; &#127760; Bicol Region</span>
+    <span style="display:block;margin-top:6px;">&#128231; mayonrentacar@gmail.com &nbsp;|&nbsp; &#127760; Bicol Region</span>
     <span style="display:block;margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px;">&copy; 2026 Mayon Rent a Car. All rights reserved.</span>
   </div>
 
@@ -968,25 +964,26 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
 </div>
 </body></html>`;
         
-        // Send email
-        if (DEBUG) console.log(`[EMAIL] Attempting to send quotation to ${clientEmail} for booking ${bookingRef}`);
-        if (DEBUG) console.log(`[EMAIL DEBUG] HTML size: ${htmlTemplate.length} bytes, breakdownRows length: ${breakdownRows.length}`);
+        if (DEBUG) console.log(`[EMAIL] Attempting to send quotation via RESEND to ${clientEmail} for booking ${bookingRef}`);
         
-        const mailOptions = {
-            from: `"Mayon Rent a Car" <${process.env.GMAIL_USER}>`,
-            replyTo: `"Mayon Rent a Car" <${process.env.GMAIL_USER}>`,
-            to: clientEmail,
+        // ── GINAMIT NA SI RESEND IMBIS NA NODEMAILER ──────────────────────────
+        const { data, error } = await resend.emails.send({
+            from: 'Mayon Rent a Car <no-reply@mayonrentacar.com.ph>', // Verified Resend domain!
+            to: [clientEmail],
             subject: `Quotation for Your Car Rental Booking [${bookingRef}]`,
+            replyTo: 'mayonrentacar@gmail.com',                      // Kapag nag-reply si client, rekta sa normal gmail niyo!
             html: htmlTemplate,
             headers: {
                 'X-Mailer': 'Mayon Rent a Car Booking System',
                 'Precedence': 'bulk'
             }
-        };
+        });
+
+        if (error) {
+            throw new Error(error.message);
+        }
         
-        await transporter.sendMail(mailOptions);
-        
-        if (DEBUG) console.log(`[EMAIL] ✅ Email sent successfully to ${clientEmail}`);
+        if (DEBUG) console.log(`[EMAIL] ✅ Email sent successfully via Resend. ID: ${data.id}`);
         
         res.json({ 
             success: true, 
@@ -997,9 +994,6 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         
     } catch (error) {
         console.error("❌ Email send error:", error.message);
-        console.error("Full error:", error);
         res.status(500).json({ success: false, error: "Failed to send email: " + error.message });
     }
 });
-
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
