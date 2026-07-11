@@ -278,7 +278,7 @@ function ensureAuth() {
     return true;
 }
 
-const API_URL = 'http://127.0.0.1:3000/api';
+const API_URL = '/api';
 let activeStatus = localStorage.getItem('adminBookingStatus') || 'open';
 let currentBookingsList = [];
 let currentFilteredList = []; // Track filtered results for pagination

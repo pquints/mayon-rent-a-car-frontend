@@ -2,4 +2,5 @@
 > backend@1.0.0 start
 > node server.js
 
-Server running on http://localhost:3000
+◇ injected env (5) from .env // tip: ⌘ override existing { override: true }
+✅ Email transporter ready! Gmail connection verified.

@@ -6,6 +6,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
+const { Resend } = require('resend');
+const resend = new Resend('re_J6Ew6keQ_GjjH5KZ3oYKAubsgtVASmL3j');
 const app = express();
 const PORT = 3000;
 

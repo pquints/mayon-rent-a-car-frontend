@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setSubmitLoading(true);
 
                 // Ipadala ang payload data sa Express Backend Endpoint mo
-                const response = await fetch('http://localhost:3000/api/bookings', {
+                const response = await fetch('https://mayonrentacar.com.ph/api/bookings', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -425,3 +425,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// test update vercel production triggers
