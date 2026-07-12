@@ -1,3 +1,9 @@
 {
-  "cleanUrls": true
-}
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "http://146.190.93.244/api/:path*"
+    }
+  ]
+}git add .
