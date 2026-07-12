@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
+const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
@@ -78,10 +79,10 @@ app.use('/api', (req, res, next) => {
     return generalLimiter(req, res, next);
 });
 
-const FILE_PATH = './bookings.json';
-const USERS_FILE_PATH = './users.json';
-const VEHICLES_FILE_PATH = './vehicles.json';
-const QUOTES_FILE_PATH = './quotes.json';
+const FILE_PATH = path.join(__dirname, 'bookings.json');
+const USERS_FILE_PATH = path.join(__dirname, 'users.json');
+const VEHICLES_FILE_PATH = path.join(__dirname, 'vehicles.json');
+const QUOTES_FILE_PATH = path.join(__dirname, 'quotes.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // ========================================================
@@ -998,4 +999,8 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         console.error("❌ Email send error:", error.message);
         res.status(500).json({ success: false, error: "Failed to send email: " + error.message });
     }
+});
+
+app.listen(PORT, () => {
+    console.log(`Server running on http://127.0.0.1:${PORT}`);
 });

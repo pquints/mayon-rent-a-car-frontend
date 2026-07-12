@@ -2,12 +2,12 @@
   {
     "id": "USR-1782924789497",
     "username": "piolo",
-    "password": "$2b$10$ihWjP0LOnIrNaCaC/b624.7XpjFpX38PLwBSPWpVUwvTW8Xwzy4BW",
+    "password": "$2b$10$qQNQhPU5.nfhinTznCmpYuEzv2lydu5.ftU4y1HV6S8q1KVSFYpRC",
     "email": "pioloquintans@gmail.com",
     "fullname": "Piolo Quintans",
     "role": "admin",
     "created_at": "2026-07-01T16:53:09.497Z",
-    "last_login": "2026-07-04T12:49:37.562Z"
+    "last_login": "2026-07-12T14:44:52.592Z"
   },
   {
     "id": "USR-1783019331093",
@@ -27,12 +27,12 @@
     "fullname": "Smoke User",
     "role": "driver",
     "created_at": "2026-07-03T14:21:45.237Z",
-    "last_login": null
+    "last_login": "2026-07-12T14:37:46.949Z"
   },
   {
     "id": "USR-1783099702963",
     "username": "piolo@mrac",
-    "password": "$2b$10$XGSOgQGiD4H8CTcFB7zT8uq3uv1UToCeylDERRchv8GbR3TTDctlC",
+    "password": "$2b$10$qQNQhPU5.nfhinTznCmpYuEzv2lydu5.ftU4y1HV6S8q1KVSFYpRC",
     "email": "ikeyquintans@gmail.com",
     "fullname": "piolo",
     "role": "admin",

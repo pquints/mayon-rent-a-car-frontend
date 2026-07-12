@@ -4,6 +4,7 @@
 const DEBUG = localStorage.getItem('DEBUG') === 'true';
 let currentUser = null;
 let authToken = null;
+const API_BASE_CANDIDATES = resolveApiBaseCandidates();
 
 // Check authentication on page load
 document.addEventListener("DOMContentLoaded", function() {
@@ -95,18 +96,27 @@ function restoreAdminView() {
 async function handleLogin(e) {
     e.preventDefault();
     
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
     const errorDiv = document.getElementById('loginError');
+
+    if (!username || !password) {
+        const message = 'Username and password required';
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        return;
+    }
     
     try {
-        const response = await fetch(`${API_URL}/users/login`, {
+        const { response, data, parseError } = await requestWithFallback('/users/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
-        
-        const data = await response.json();
+
+        if (parseError) {
+            throw parseError;
+        }
         
         if (!response.ok) {
             const message = data.error || 'Login failed';
@@ -132,11 +142,67 @@ async function handleLogin(e) {
         return;
     } catch (error) {
         console.error("Login error:", error);
-        const message = 'Network error. Please try again.';
+        const isLocalHost = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+        const message = isLocalHost
+            ? 'Network error. Start backend: cd backend && npm start'
+            : 'Network error. Please try again.';
         errorDiv.textContent = message;
         errorDiv.style.display = 'block';
         showNotificationToast(message, 'error');
     }
+}
+
+function resolveApiBaseCandidates() {
+    const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    if (isLocalHost) {
+        // In local development, force direct backend targets to avoid hitting production credentials/data.
+        return ['http://127.0.0.1:3000/api', 'http://localhost:3000/api', '/api'];
+    }
+
+    // In deployed environments, use same-origin rewrite first, then production direct fallback.
+    return ['/api', 'https://mayonrentacar.com.ph/api'];
+}
+
+async function requestWithFallback(path, options = {}) {
+    let lastError = null;
+
+    for (const base of API_BASE_CANDIDATES) {
+        try {
+            const response = await fetch(`${base}${path}`, options);
+            const contentType = response.headers.get('content-type') || '';
+
+            if (!contentType.includes('application/json')) {
+                const responseText = await response.text();
+                throw new Error(`Unexpected response from ${base}${path}: ${responseText.slice(0, 120)}`);
+            }
+
+            const data = await response.json();
+
+            // If endpoint exists and validated credentials fail, return immediately.
+            if (!response.ok && response.status !== 404) {
+                return { response, data, base };
+            }
+
+            if (response.ok) {
+                if (API_URL !== base) {
+                    API_URL = base;
+                }
+                return { response, data, base };
+            }
+        } catch (error) {
+            lastError = error;
+            if (DEBUG) {
+                console.warn(`[AUTH] failed login request via ${base}${path}:`, error.message);
+            }
+        }
+    }
+
+    return {
+        response: { ok: false, status: 503 },
+        data: { error: 'Login service is currently unavailable. Please try again in a moment.' },
+        parseError: lastError
+    };
 }
 
 function toggleAccountMenu() {
@@ -278,7 +344,7 @@ function ensureAuth() {
     return true;
 }
 
-const API_URL = '/api';
+let API_URL = API_BASE_CANDIDATES[0];
 let activeStatus = localStorage.getItem('adminBookingStatus') || 'open';
 let currentBookingsList = [];
 let currentFilteredList = []; // Track filtered results for pagination
