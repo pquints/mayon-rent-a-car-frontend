@@ -161,7 +161,7 @@ function resolveApiBaseCandidates() {
     }
 
     // In deployed environments, use same-origin rewrite first, then production direct fallback.
-    return ['/api', 'https://mayonrentacar.com.ph/api'];
+    return ['/api', 'https://api.mayonrentacar.com.ph/api'];
 }
 
 async function requestWithFallback(path, options = {}) {
@@ -203,6 +203,37 @@ async function requestWithFallback(path, options = {}) {
         data: { error: 'Login service is currently unavailable. Please try again in a moment.' },
         parseError: lastError
     };
+}
+
+async function requestJson(path, options = {}) {
+    let lastError = null;
+
+    for (const base of API_BASE_CANDIDATES) {
+        try {
+            const response = await fetch(`${base}${path}`, options);
+            const contentType = response.headers.get('content-type') || '';
+
+            if (!contentType.includes('application/json')) {
+                const responseText = await response.text();
+                throw new Error(`Unexpected response from ${base}${path}: ${responseText.slice(0, 120)}`);
+            }
+
+            const data = await response.json();
+
+            if (API_URL !== base) {
+                API_URL = base;
+            }
+
+            return { response, data, base };
+        } catch (error) {
+            lastError = error;
+            if (DEBUG) {
+                console.warn(`[API] request failed via ${base}${path}:`, error.message);
+            }
+        }
+    }
+
+    throw lastError || new Error(`Request failed for ${path}`);
 }
 
 function toggleAccountMenu() {
@@ -2324,14 +2355,14 @@ async function saveAccountSettings() {
 }
 
 async function loadUsers() {
+    if (!ensureAuth()) return;
+
     try {
-        const response = await fetch(`${API_URL}/users`, {
+        const { response, data } = await requestJson('/users', {
             headers: getAuthHeaders()
         });
-        
-        if (!response.ok) throw new Error('Failed to load users');
-        
-        const data = await response.json();
+
+        if (!response.ok) throw new Error(data.error || 'Failed to load users');
         renderUsersTable(data.users);
         showView('userManagement');
     } catch (error) {
@@ -2384,14 +2415,15 @@ function editUser(userId) {
 
 async function deleteUser(userId, username) {
     if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
+    if (!ensureAuth()) return;
     
     try {
-        const response = await fetch(`${API_URL}/users/${userId}`, {
+        const { response, data } = await requestJson(`/users/${userId}`, {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
-        
-        if (!response.ok) throw new Error('Failed to delete user');
+
+        if (!response.ok) throw new Error(data.error || 'Failed to delete user');
         
         alert('User deleted successfully');
         showView('userManagement');
@@ -2422,20 +2454,18 @@ async function handleSaveUser(e) {
     const userId = document.getElementById('userForm').dataset.userId;
     
     try {
-        const url = userId ? `${API_URL}/users/${userId}` : `${API_URL}/users`;
         const method = userId ? 'PUT' : 'POST';
+        const path = userId ? `/users/${userId}` : '/users';
         
         const body = userId 
             ? { fullname, email, role, ...(password && { password }) }
             : { username, fullname, email, password, role };
         
-        const response = await fetch(url, {
+        const { response, data } = await requestJson(path, {
             method,
             headers: getAuthHeaders(),
             body: JSON.stringify(body)
         });
-        
-        const data = await response.json();
         
         if (!response.ok) {
             errorDiv.textContent = data.error || 'Failed to save user';
@@ -2516,14 +2546,14 @@ document.addEventListener('DOMContentLoaded', function() {
 // ========================================================
 
 async function loadVehicles() {
+    if (!ensureAuth()) return;
+
     try {
-        const response = await fetch(`${API_URL}/vehicles`, {
+        const { response, data } = await requestJson('/vehicles', {
             headers: getAuthHeaders()
         });
-        
-        if (!response.ok) throw new Error('Failed to load vehicles');
-        
-        const data = await response.json();
+
+        if (!response.ok) throw new Error(data.error || 'Failed to load vehicles');
         renderVehiclesTable(data.vehicles);
     } catch (error) {
         console.error("Error loading vehicles:", error);
@@ -2616,18 +2646,16 @@ async function handleSaveVehicle(e) {
     const status = document.getElementById('vehicleStatus').value;
     
     try {
-        const url = vehicleId ? `${API_URL}/vehicles/${vehicleId}` : `${API_URL}/vehicles`;
         const method = vehicleId ? 'PUT' : 'POST';
+        const path = vehicleId ? `/vehicles/${vehicleId}` : '/vehicles';
         
-        const response = await fetch(url, {
+        const { response, data } = await requestJson(path, {
             method,
             headers: getAuthHeaders(),
             body: JSON.stringify({
                 plate, make, model, year, dailyRate, type, color, seats, transmission, fuelType, status
             })
         });
-        
-        const data = await response.json();
         
         if (!response.ok) {
             alert(data.error || 'Failed to save vehicle');
@@ -2650,13 +2678,11 @@ async function handleSaveVehicle(e) {
 
 async function editVehicle(vehicleId) {
     try {
-        const response = await fetch(`${API_URL}/vehicles`, {
+        const { response, data } = await requestJson('/vehicles', {
             headers: getAuthHeaders()
         });
-        
-        if (!response.ok) throw new Error('Failed to load vehicles');
 
-        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to load vehicles');
         const vehicle = data.vehicles.find(v => v.id === vehicleId);
         
         if (!vehicle) {
@@ -2699,14 +2725,15 @@ async function editVehicle(vehicleId) {
 
 async function deleteVehicle(vehicleId, plate) {
     if (!confirm(`Are you sure you want to delete vehicle "${plate}"?`)) return;
+    if (!ensureAuth()) return;
     
     try {
-        const response = await fetch(`${API_URL}/vehicles/${vehicleId}`, {
+        const { response, data } = await requestJson(`/vehicles/${vehicleId}`, {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
-        
-        if (!response.ok) throw new Error('Failed to delete vehicle');
+
+        if (!response.ok) throw new Error(data.error || 'Failed to delete vehicle');
         
         alert('Vehicle deleted successfully');
         loadVehicles();
