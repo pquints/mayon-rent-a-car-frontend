@@ -8,7 +8,6 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
 const { Resend } = require('resend');
-const resend = new Resend('re_J6Ew6keQ_GjjH5KZ3oYKAubsgtVASmL3j');
 const app = express();
 const PORT = 3000;
 
@@ -17,6 +16,8 @@ app.use(express.json());
 
 const DEBUG = process.env.DEBUG === 'true';
 const isProduction = process.env.NODE_ENV === 'production';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
 // Polyfill fetch for Node versions that don't have global fetch (use node-fetch v2 for CommonJS)
 if (typeof fetch === 'undefined') {
@@ -765,6 +766,10 @@ app.delete('/api/quotes/:bookingRef', verifyToken, verifyAdmin, (req, res) => {
 // Send Quotation Email Endpoint (Resend Version)
 app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res) => {
     try {
+        if (!resend) {
+            return res.status(503).json({ success: false, error: 'Email service is not configured. Set RESEND_API_KEY in the backend environment.' });
+        }
+
         const { bookingRef, clientEmail, clientName, quoteData } = req.body;
         
         if (!bookingRef || !clientEmail) {
