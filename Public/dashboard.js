@@ -1609,7 +1609,8 @@ async function sendQuotationEmail() {
             await fetchBookings();
             return true;
         } else {
-            showNotificationToast("Failed to send email. Please try again.", "warning");
+            const errorMessage = emailResult?.error || "Failed to send email. Please try again.";
+            showNotificationToast(errorMessage, "warning");
             return false;
         }
     } catch (error) {
