@@ -7,15 +7,52 @@
         <meta name="description" content="Looking for an affordable and reliable car rental in Legazpi or anywhere in the Bicol region? Mayon Rent a Car offers top-notch self-drive and with-driver car rental services. Book your Bicol trip today!">
         <meta property="og:title" content="Mayon Rent a Car | Affordable & Reliable Car Rental in Legazpi & Bicol Region" />
         <meta property="og:description" content="Safe, well-maintained, and budget-friendly car rental services in Legazpi City and across the entire Bicol region." />
-        <meta property="og:image" content="https://mayonrentacar.com.ph/images/Mayon.svg" />
-        <meta property="og:image:type" content="images.2/svg" />
+        <meta property="og:image" content="https://mayonrentacar.com.ph/images/Mayon.png" />
+        <meta property="og:image:type" content="image/png" />
         <meta property="og:image:width" content="512" />
         <meta property="og:image:height" content="512" />
+        <link rel="canonical" href="https://mayonrentacar.com.ph/" />
+        <meta name="robots" content="index, follow">
+        <meta name="language" content="English">
+        <meta name="author" content="Mayon Rent a Car, Inc.">
+        <!-- JSON-LD Schema Markup for Local Business -->
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "LocalBusiness",
+          "name": "Mayon Rent a Car",
+          "image": "https://mayonrentacar.com.ph/images/Mayon.png",
+          "description": "Affordable & Reliable Car Rental in Legazpi and Bicol Region",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "162 Purok 3, Brgy 17",
+            "addressLocality": "Legazpi City",
+            "addressRegion": "Albay",
+            "postalCode": "4500",
+            "addressCountry": "PH"
+          },
+          "telephone": "+63936993 8179",
+          "email": "mayonrentacar@gmail.com",
+          "url": "https://mayonrentacar.com.ph",
+          "priceRange": "₱",
+          "areaServed": {
+            "@type": "City",
+            "name": "Legazpi City"
+          },
+          "sameAs": [
+            "https://www.facebook.com/mayonrentacar/",
+            "https://www.instagram.com/mayonrentacar/"
+          ]
+        }
+        </script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="styles.css" />
+        <link rel="icon" type="image/svg+xml" href="images/Mayon.svg?v=20260713">
+        <link rel="shortcut icon" href="images/Mayon.svg?v=20260713">
+        <link rel="apple-touch-icon" href="images/Mayon.svg?v=20260713">
         <meta name="theme-color" content="#178ca4">
         <!-- Google reCAPTCHA v3 (disabled for local/dev). Replace with your site key when deploying -->
         <!-- <script src="https://www.google.com/recaptcha/api.js?render=YOUR_RECAPTCHA_SITE_KEY"></script>
@@ -26,7 +63,7 @@
         <div class="top-bar">
             <div class="top-bar__container">
                 <div class="top-bar__contact">
-                    <a href="tel:+639369938179 "><i class="fas fa-phone"></i> +63 936 993 8179</a>
+                    <a href="tel:+639369938179"><i class="fas fa-phone"></i> +63 936 993 8179</a>
                     <a href="mailto:mayonrentacar@gmail.com"><i class="fas fa-envelope"></i> mayonrentacar@gmail.com</a>
                 </div>
                 <div class="top-bar__socials">
@@ -52,7 +89,7 @@
             <li class="navbar__item"><a href="about.html" class="navbar__links">About</a></li>
             <li class="navbar__item"><a href="services.html" class="navbar__links">Services</a></li>
             <li class="navbar__item"><a href="fleet.html" class="navbar__links">Our Fleet</a></li>
-            <li class="navbar__item"><a href="#partner" class="navbar__links">Contact Us</a></li>
+            <li class="navbar__item"><a href="contact-us.html" class="navbar__links">Contact Us</a></li>
             
             <li class="navbar__btn"><a href="#booking" class="button button--quote">REQUEST A QUOTE</a></li>
         </ul>
@@ -170,7 +207,7 @@
                             </div>
                             <div class="input-group">
                                 <label>Contact No *</label>
-                                <input type="tel" name="contact_no" required placeholder="09XXXXXXXXX">
+                                <input type="tel" name="contact_no" required placeholder="+63">
                             </div>
                             <div class="input-group">
                                 <label>Email *</label>
@@ -353,40 +390,21 @@
             </div>
         </div>
 
-        <!-- ==================== BAGONG DAGDAG: PARTNER WITH US ==================== -->
+        <!-- ==================== CONTACT US CTA ==================== -->
         <div class="partner-section" id="partner">
             <div class="partner-container">
-                <h2 class="section-title">Partner With Us</h2>
-                <p class="section-subtitle">Are you a hotel, travel agency, or business looking for a reliable transport partner in Bicol? Send us a message, and let's collaborate.</p>
-                
-                <form class="partner-form">
-                    <div class="partner-form-grid">
-                        <div class="partner-input-group">
-                            <label for="partner-name">Name *</label>
-                            <input type="text" id="partner-name" name="partner_name" placeholder="Your Full Name" required>
-                        </div>
-                        <div class="partner-input-group">
-                            <label for="partner-email">Email Address *</label>
-                            <input type="email" id="partner-email" name="partner_email" placeholder="example@gmail.com" required>
-                        </div>
-                        <div class="partner-input-group full-width">
-                            <label for="partner-contact">Contact Number *</label>
-                            <input type="tel" id="partner-contact" name="partner_contact" placeholder="09XXXXXXXXX" required>
-                        </div>
-                        <div class="partner-input-group full-width">
-                            <label for="partner-message">Message / Inquiries *</label>
-                            <textarea id="partner-message" name="partner_message" rows="5" placeholder="Tell us how we can help your business or fleet requirements..." required></textarea>
-                        </div>
-                    </div>
-                    <button type="submit" class="partner-submit-btn">Submit Inquiry</button>
-                </form>
+                <h2 class="section-title">Contact Us</h2>
+                <p class="section-subtitle">Have questions about our rates, vehicles, or travel services? Click below to continue to our Contact Us page.</p>
+                <div class="partner-cta">
+                    <a href="contact-us.html" class="partner-submit-btn">Go to Contact Us</a>
+                </div>
             </div>
         </div>
 <!-- ==================== FOOTER / FOOTNOTE SECTION ==================== -->
         <footer class="footer">
             <div class="footer__container">
                 <div class="footer__brand-side">
-                    <img src="images/Mayon.svg" alt="Mayon Rent a Car" class="footer__logo">
+                    <img src="images/Mayon-footer.svg" alt="Mayon Rent a Car" class="footer__logo">
                     <p class="footer__desc">Your gateway to the Bicol Region. Providing affordable, reliable, and premium car rental and transfer services across Albay and beyond.</p>
                 </div>
                 
@@ -397,7 +415,7 @@
                             <li><a href="/">About Us</a></li>
                             <li><a href="/services.html">Our Services</a></li>
                             <li><a href="#our-fleet">Our Fleet</a></li>
-                            <li><a href="/">Contact Us</a></li>
+                            <li><a href="contact-us.html">Contact Us</a></li>
                         </ul>
                     </div>
                     
@@ -414,8 +432,8 @@
                     <div class="footer__link-group">
                         <h4>Contact Details</h4>
                         <ul class="footer__contact-info">
-                            <li>📍 163 Purok 3, Brgy 17, Legazpi City 4500</li>
-                            <li>📞 <a href="tel:+639695039044">+63 969 503 9044</a></li>
+                            <li>📍 162 Purok 3, Brgy 17, Legazpi City 4500</li>
+                            <li>📞 <a href="tel:+639369938179">+63 936 993 8179</a></li>
                             <li>✉️ <a href="mailto:mayonrentacar@gmail.com">mayonrentacar@gmail.com</a></li>
                         </ul>
                     </div>

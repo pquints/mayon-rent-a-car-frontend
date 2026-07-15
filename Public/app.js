@@ -1,4 +1,9 @@
 // Mobile Menu Selector & Logic
+if (window.location.hostname === 'mayonrentacar.com.ph') {
+    const canonicalUrl = `https://www.mayonrentacar.com.ph${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.replace(canonicalUrl);
+}
+
 const menu = document.querySelector('#mobile-menu');
 const menuLinks = document.querySelector('.navbar__menu');
 
@@ -12,6 +17,9 @@ if (menu) {
 
 // Multi-step Booking Form Wizard Engine
 document.addEventListener('DOMContentLoaded', () => {
+    const DEBUG = false;
+    const BOOKING_API_ENDPOINT = '/api/bookings';
+
     const steps = document.querySelectorAll('.form-step');
     const stepIndicators = document.querySelectorAll('.step');
     const prevBtn = document.getElementById('prev-btn');
@@ -327,8 +335,8 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 setSubmitLoading(true);
 
-                // Ipadala ang payload data sa Express Backend Endpoint mo
-                const response = await fetch('https://mayonrentacar.com.ph/api/bookings', {
+                // Use same-origin API path so Vercel rewrite handles forwarding to backend.
+                const response = await fetch(BOOKING_API_ENDPOINT, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -336,18 +344,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify(bookingData)
                 });
 
-                const result = await response.json();
+                let result = {};
+                try {
+                    result = await response.json();
+                } catch (jsonError) {
+                    result = {};
+                }
 
                 if (response.ok && result.success) {
                     alert(`Thank you! Your booking request ${result.booking.ref} has been submitted.`);
                     this.reset();
                     window.location.reload(); // I-refresh ang layout para bumalik sa Step 1
                 } else {
-                    alert('May error sa server: ' + (result.error || 'Hindi mai-save ang data.'));
+                    const serverMessage = result.error || `HTTP ${response.status}`;
+                    alert('May error sa server: ' + serverMessage);
                 }
             } catch (error) {
                 console.error('Error submitting to backend:', error);
-                alert('Hindi makakonekta sa server. Siguraduhing umaandar ang iyong `node server.js` sa Port 3000.');
+                alert('Hindi makakonekta sa server. Pakisubukan ulit maya-maya o i-check ang deployed API service.');
             } finally {
                 setSubmitLoading(false);
             }
@@ -361,6 +375,205 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 // FLEET VEHICLE FILTER ENGINE (SEDAN, MPV, EV)
 // ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const contactForm = document.querySelector('.contact-form');
+    const contactSubmitBtn = document.querySelector('.contact-submit-btn');
+    const contactStatus = document.getElementById('contact-form-status');
+    let cooldownIntervalId = null;
+    let cooldownUntil = 0;
+
+    if (!contactForm) return;
+
+    function setContactSubmitLoading(isLoading, label) {
+        if (!contactSubmitBtn) return;
+        contactSubmitBtn.disabled = isLoading;
+        contactSubmitBtn.textContent = label || (isLoading ? 'Sending...' : 'Submit Inquiry');
+    }
+
+    function showContactStatus(message, type) {
+        if (!contactStatus) return;
+        contactStatus.textContent = message;
+        contactStatus.className = `contact-form-status is-${type}`;
+    }
+
+    function clearContactStatus() {
+        if (!contactStatus) return;
+        contactStatus.textContent = '';
+        contactStatus.className = 'contact-form-status';
+    }
+
+    function clearFieldErrors() {
+        const fields = contactForm.querySelectorAll('input, textarea');
+        fields.forEach((field) => {
+            field.classList.remove('input-error');
+        });
+
+        const errorMessages = contactForm.querySelectorAll('.field-error');
+        errorMessages.forEach((msg) => msg.remove());
+    }
+
+    function setFieldError(field, message) {
+        if (!field) return;
+        field.classList.add('input-error');
+
+        const group = field.closest('.partner-input-group');
+        if (!group) return;
+
+        const existingError = group.querySelector('.field-error');
+        if (existingError) {
+            existingError.textContent = message;
+            return;
+        }
+
+        const errorEl = document.createElement('small');
+        errorEl.className = 'field-error';
+        errorEl.textContent = message;
+        group.appendChild(errorEl);
+    }
+
+    function validateContactForm(formValues) {
+        clearFieldErrors();
+
+        const nameField = contactForm.querySelector('[name="customer_name"]');
+        const emailField = contactForm.querySelector('[name="customer_email"]');
+        const contactField = contactForm.querySelector('[name="customer_contact"]');
+        const messageField = contactForm.querySelector('[name="customer_message"]');
+
+        let isValid = true;
+
+        const name = (formValues.customer_name || '').trim();
+        const email = (formValues.customer_email || '').trim();
+        const contact = (formValues.customer_contact || '').trim();
+        const message = (formValues.customer_message || '').trim();
+
+        if (!name || name.length < 2) {
+            setFieldError(nameField, 'Please enter your full name.');
+            isValid = false;
+        }
+
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setFieldError(emailField, 'Please enter a valid email address.');
+            isValid = false;
+        }
+
+        const normalizedContact = contact.replace(/[^\d+]/g, '');
+        if (!contact || !/^(\+?63\d{10}|0\d{10})$/.test(normalizedContact)) {
+            setFieldError(contactField, 'Use international format: +63.');
+            isValid = false;
+        }
+
+        if (!message || message.length < 5) {
+            setFieldError(messageField, 'Please enter at least 5 characters.');
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    function startSubmitCooldown(seconds) {
+        if (!contactSubmitBtn) return;
+
+        cooldownUntil = Date.now() + (seconds * 1000);
+        if (cooldownIntervalId) clearInterval(cooldownIntervalId);
+
+        setContactSubmitLoading(true, `Sent. Wait ${seconds}s`);
+
+        cooldownIntervalId = setInterval(() => {
+            const remaining = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
+            if (remaining <= 0) {
+                clearInterval(cooldownIntervalId);
+                cooldownIntervalId = null;
+                setContactSubmitLoading(false, 'Submit Inquiry');
+                return;
+            }
+            setContactSubmitLoading(true, `Sent. Wait ${remaining}s`);
+        }, 250);
+    }
+
+    contactForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        if (Date.now() < cooldownUntil) {
+            const remaining = Math.max(1, Math.ceil((cooldownUntil - Date.now()) / 1000));
+            showContactStatus(`Please wait ${remaining}s before submitting again.`, 'error');
+            return;
+        }
+
+        const formData = new FormData(this);
+        const contactData = Object.fromEntries(formData.entries());
+
+        clearContactStatus();
+        if (!validateContactForm(contactData)) {
+            showContactStatus('Please fix the highlighted fields and try again.', 'error');
+            return;
+        }
+
+        const payload = {
+            ...contactData,
+            partner_name: contactData.partner_name || contactData.customer_name || '',
+            partner_email: contactData.partner_email || contactData.customer_email || '',
+            partner_contact: contactData.partner_contact || contactData.customer_contact || '',
+            partner_message: contactData.partner_message || contactData.customer_message || '',
+            name: contactData.customer_name || contactData.partner_name || '',
+            email: contactData.customer_email || contactData.partner_email || '',
+            contact: contactData.customer_contact || contactData.partner_contact || '',
+            message: contactData.customer_message || contactData.partner_message || ''
+        };
+
+        try {
+            setContactSubmitLoading(true);
+
+            const response = await fetch('/api/contact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const rawBody = await response.text();
+            let result = {};
+            try {
+                result = rawBody ? JSON.parse(rawBody) : {};
+            } catch {
+                result = { raw: rawBody };
+            }
+
+            if (response.ok && result.success) {
+                showContactStatus(result.message || 'Inquiry submitted successfully.', 'success');
+                this.reset();
+                clearFieldErrors();
+                startSubmitCooldown(8);
+            } else {
+                const serverMessage = result.error || result.message || result.raw || 'Failed to submit inquiry.';
+                showContactStatus(`Request failed (${response.status}): ${serverMessage}`, 'error');
+                console.error('Contact form request failed:', {
+                    status: response.status,
+                    response: result
+                });
+            }
+        } catch (error) {
+            console.error('Error submitting contact form:', error);
+            showContactStatus('Unable to connect to the server.', 'error');
+        } finally {
+            if (Date.now() >= cooldownUntil) {
+                setContactSubmitLoading(false, 'Submit Inquiry');
+            }
+        }
+    });
+
+    const contactFields = contactForm.querySelectorAll('input, textarea');
+    contactFields.forEach((field) => {
+        field.addEventListener('input', () => {
+            field.classList.remove('input-error');
+            const group = field.closest('.partner-input-group');
+            const err = group ? group.querySelector('.field-error') : null;
+            if (err) err.remove();
+            clearContactStatus();
+        });
+    });
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     const tabs = document.querySelectorAll('.tab-btn');
     const cards = document.querySelectorAll('.fleet-card');

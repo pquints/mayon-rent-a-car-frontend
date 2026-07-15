@@ -2050,7 +2050,7 @@ async function executeQuoteAction(actionType) {
                 <div class="header-container">
                     <div class="brand-side">
                         <h1>Mayon Rent a Car</h1>
-                        <p>163 Purok 3, Brgy 17, Legazpi City 4500</p>
+                        <p>162 Purok 3, Brgy 17, Legazpi City 4500</p>
                         <p>mayonrentacar.com | mayonrentacar@gmail.com</p>
                     </div>
                     <div class="quote-title-side">

@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /about.html
+Allow: /services.html
+Allow: /fleet.html
+Allow: /contact-us.html
+
+Disallow: /admin/
+Disallow: /private/
+
+Sitemap: https://mayonrentacar.com.ph/sitemap.xml
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /

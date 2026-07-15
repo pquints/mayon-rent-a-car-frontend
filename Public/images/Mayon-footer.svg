@@ -13,12 +13,7 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
-   <circle
-       id="favicon-bg-circle"
-       cx="1000"
-       cy="1000"
-       r="980"
-       fill="#ffffff" />
+   
   <defs
      id="defs1">
     <color-profile
