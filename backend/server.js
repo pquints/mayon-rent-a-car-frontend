@@ -201,10 +201,21 @@ const saveQuotes = (quotes) => {
     fs.writeFileSync(QUOTES_FILE_PATH, JSON.stringify(quotes, null, 2), 'utf8');
 };
 
+const redactAuthorizationHeader = (authHeader) => {
+    if (!authHeader || typeof authHeader !== 'string') return '(missing)';
+
+    const [scheme, token] = authHeader.split(' ');
+    if (!token) return `${scheme || 'Bearer'} (missing token)`;
+
+    const visiblePrefix = token.slice(0, 10);
+    const visibleSuffix = token.slice(-6);
+    return `${scheme || 'Bearer'} ${visiblePrefix}...${visibleSuffix}`;
+};
+
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
-    if (DEBUG) console.log('[AUTH] authorization header:', authHeader);
+    if (DEBUG) console.log('[AUTH] authorization header:', redactAuthorizationHeader(authHeader));
     const token = authHeader?.split(' ')[1];
     if (!token) return res.status(401).json({ success: false, error: "No token provided" });
 
@@ -1003,6 +1014,102 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
     } catch (error) {
         console.error("❌ Email send error:", error.message);
         res.status(500).json({ success: false, error: "Failed to send email: " + error.message });
+    }
+});
+
+// CONTACT US ENDPOINT (Public)
+app.post('/api/contact', async (req, res) => {
+    try {
+        const name = (req.body.partner_name || req.body.customer_name || req.body.name || '').trim();
+        const email = (req.body.partner_email || req.body.customer_email || req.body.email || '').trim();
+        const contact = (req.body.partner_contact || req.body.customer_contact || req.body.contact_no || req.body.contact || '').trim();
+        const message = (req.body.partner_message || req.body.customer_message || req.body.message || '').trim();
+
+        if (!name || !email || !contact || !message) {
+            return res.status(400).json({ success: false, error: 'Missing required fields' });
+        }
+
+        const escapeHtml = (value) => {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
+        const safeName = escapeHtml(name);
+        const safeEmail = escapeHtml(email);
+        const safeContact = escapeHtml(contact);
+        const safeMessage = escapeHtml(message).replace(/\n/g, '<br>');
+
+        const mailSubject = `New Website Contact Form Submission: ${name}`;
+        const textBody = [
+            `Name: ${name}`,
+            `Email: ${email}`,
+            `Contact: ${contact}`,
+            '',
+            'Message:',
+            message
+        ].join('\n');
+
+        const htmlBody = `
+            <div style="font-family: Arial, Helvetica, sans-serif; background: #f4f7fb; padding: 24px; color: #1f2937;">
+                <div style="max-width: 620px; margin: 0 auto; background: #ffffff; border: 1px solid #dbe3ef; border-radius: 10px; padding: 20px 22px; box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);">
+                    <h2 style="margin: 0 0 14px; color: #0b77c5; font-size: 32px; line-height: 1.1;">New Contact Form Submission</h2>
+                    <div style="border-top: 1px solid #dbe3ef; padding-top: 16px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 16px; line-height: 1.6;">
+                            <tr>
+                                <td style="padding: 6px 0; width: 170px; color: #334155;"><strong>Full Name:</strong></td>
+                                <td style="padding: 6px 0; color: #1e293b;">${safeName}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 0; color: #334155;"><strong>Email Address:</strong></td>
+                                <td style="padding: 6px 0;"><a href="mailto:${safeEmail}" style="color: #0b77c5; text-decoration: none;">${safeEmail}</a></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 0; color: #334155;"><strong>Contact Number:</strong></td>
+                                <td style="padding: 6px 0; color: #1e293b;">${safeContact}</td>
+                            </tr>
+                        </table>
+
+                        <div style="margin-top: 14px; background: #f8fbff; border-left: 4px solid #0b77c5; border-radius: 6px; padding: 14px 14px 12px;">
+                            <div style="font-weight: 700; color: #334155; margin-bottom: 8px;">Message / Inquiry:</div>
+                            <div style="color: #1f2937;">${safeMessage}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        if (resend) {
+            const { error } = await resend.emails.send({
+                from: 'Mayon Rent a Car <no-reply@mayonrentacar.com.ph>',
+                to: ['mayonrentacar@gmail.com'],
+                replyTo: email,
+                subject: mailSubject,
+                text: textBody,
+                html: htmlBody
+            });
+
+            if (error) {
+                throw new Error(`Resend service error: ${error.message}`);
+            }
+        } else {
+            await transporter.sendMail({
+                from: process.env.GMAIL_USER,
+                to: process.env.GMAIL_USER,
+                replyTo: email,
+                subject: mailSubject,
+                text: textBody,
+                html: htmlBody
+            });
+        }
+
+        return res.json({ success: true, message: 'Inquiry submitted successfully.' });
+    } catch (error) {
+        console.error('Contact route transactional exception:', error);
+        return res.status(500).json({ success: false, error: 'An internal error occurred while processing your request. Please try again later.' });
     }
 });
 
