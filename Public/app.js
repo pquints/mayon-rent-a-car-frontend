@@ -6,12 +6,40 @@ if (window.location.hostname === 'mayonrentacar.com.ph') {
 
 const menu = document.querySelector('#mobile-menu');
 const menuLinks = document.querySelector('.navbar__menu');
+const servicesDropdown = document.querySelector('.navbar__item--dropdown');
+const servicesDropdownTrigger = document.querySelector('.navbar__links--dropdown');
 
 if (menu) {
     menu.addEventListener('click', function(e) {
         e.preventDefault();
         menu.classList.toggle('is-active');
         menuLinks.classList.toggle('active');
+
+        // Isara ang services submenu kapag sinarado ang mobile menu.
+        if (!menuLinks.classList.contains('active') && servicesDropdown) {
+            servicesDropdown.classList.remove('is-open');
+        }
+    });
+}
+
+if (servicesDropdown && servicesDropdownTrigger) {
+    servicesDropdownTrigger.addEventListener('click', (e) => {
+        if (window.innerWidth <= 960) {
+            e.preventDefault();
+            servicesDropdown.classList.toggle('is-open');
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 960 && !servicesDropdown.contains(e.target)) {
+            servicesDropdown.classList.remove('is-open');
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 960) {
+            servicesDropdown.classList.remove('is-open');
+        }
     });
 }
 

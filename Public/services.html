@@ -38,7 +38,41 @@
         <ul class="navbar__menu">
           <li class="navbar__item"><a href="index.html" class="navbar__links">Home</a></li>
           <li class="navbar__item"><a href="about.html" class="navbar__links">About</a></li>
-          <li class="navbar__item"><a href="services.html" class="navbar__links">Services</a></li>
+          <li class="navbar__item navbar__item--dropdown">
+            <a href="services.html" class="navbar__links navbar__links--dropdown">Services <i class="fas fa-chevron-down dropdown__icon" aria-hidden="true"></i></a>
+            <div class="dropdown__menu dropdown__menu--mega">
+              <div class="dropdown__columns">
+                <div class="dropdown__column">
+                  <a href="services.html#self-drive-services" class="dropdown__link">
+                    <span class="dropdown__title">Self-Drive Rentals</span>
+                    <span class="dropdown__desc">Drive yourself around Bicol</span>
+                  </a>
+                  <a href="services.html#long-term-car-rental" class="dropdown__link">
+                    <span class="dropdown__title">Long-Term Car Lease</span>
+                    <span class="dropdown__desc">Monthly or yearly vehicle rentals</span>
+                  </a>
+                  <a href="services.html#corporate-fleet-leasing" class="dropdown__link">
+                    <span class="dropdown__title">Corporate Fleet Leasing</span>
+                    <span class="dropdown__desc">Multi-vehicle solutions for businesses</span>
+                  </a>
+                </div>
+                <div class="dropdown__column">
+                  <a href="services.html#with-driver-rentals" class="dropdown__link">
+                    <span class="dropdown__title">With Driver Rentals</span>
+                    <span class="dropdown__desc">Hire a car with a professional driver by the hour or day</span>
+                  </a>
+                  <a href="services.html#airport-transfers" class="dropdown__link">
+                    <span class="dropdown__title">Airport Transfers</span>
+                    <span class="dropdown__desc">To and from Bicol International Airport</span>
+                  </a>
+                  <a href="services.html#inbound-outbound-transfers" class="dropdown__link">
+                    <span class="dropdown__title">Inbound and Outbound Transfers</span>
+                    <span class="dropdown__desc">Point-to-point travel from or ending in Legazpi-Daraga</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </li>
           <li class="navbar__item"><a href="fleet.html" class="navbar__links">Our Fleet</a></li>
           <li class="navbar__item"><a href="contact-us.html" class="navbar__links">Contact Us</a></li>
         </ul>
@@ -55,24 +89,34 @@
     </section>
 
     <section class="services-list container">
-      <div class="service-card">
+      <div class="service-card" id="airport-transfers">
         <h3>Airport Transfers</h3>
         <p>Timely pickups and drop-offs at Bicol International Airport, with flight tracking and flexible waiting policies.</p>
       </div>
 
-      <div class="service-card">
-        <h3>Bicol Regional Transfers</h3>
-        <p>Point-to-point transfers between cities and tourist spots across the region.</p>
+      <div class="service-card" id="with-driver-rentals">
+        <h3>With Driver Rentals</h3>
+        <p>Enjoy stress-free travel with experienced local drivers familiar with routes around Albay and nearby provinces.</p>
       </div>
 
-      <div class="service-card">
-        <h3>Corporate Rentals</h3>
-        <p>Long-term and recurring rentals for corporations and events with invoicing and account management.</p>
+      <div class="service-card" id="inbound-outbound-transfers">
+        <h3>Inbound and Outbound Transfers</h3>
+        <p>Point-to-point travel starting from or ending in Legazpi-Daraga for airport, city, and nearby province trips.</p>
       </div>
 
-      <div class="service-card">
-        <h3>Self-Drive Options</h3>
-        <p>Short-term self-drive rentals with flexible pickup/drop schedules.</p>
+      <div class="service-card" id="long-term-car-rental">
+        <h3>Long-Term Car Lease</h3>
+        <p>Flexible monthly or yearly rental arrangements with priority support and routine vehicle maintenance.</p>
+      </div>
+
+      <div class="service-card" id="corporate-fleet-leasing">
+        <h3>Corporate Fleet Leasing</h3>
+        <p>Multi-vehicle solutions for businesses that need reliable transport for teams, guests, and operations.</p>
+      </div>
+
+      <div class="service-card" id="self-drive-services">
+        <h3>Self Drive Services</h3>
+        <p>Short-term and multi-day self-drive rentals with convenient pickup schedules and straightforward requirements.</p>
       </div>
     </section>
   </main>
