@@ -102,13 +102,13 @@
             <h3>Bicol International Airport to Legazpi-Daraga</h3>
             <p>Starting fare for one-way transfer.</p>
             <strong>From PHP 750</strong>
-            <a href="index.html#booking" class="airport-card-book">Book Now</a>
+            <a href="#airport-booking" class="airport-card-book airport-select-route" data-route="Bicol International Airport to Legazpi-Daraga" data-area="Albay" data-fare="750">Book Now</a>
           </li>
           <li>
             <h3>Bicol International Airport to Tabaco</h3>
             <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 1,500</strong>
-            <a href="index.html#booking" class="airport-card-book">Book Now</a>
+            <strong>From PHP 2,000</strong>
+            <a href="#airport-booking" class="airport-card-book airport-select-route" data-route="Bicol International Airport to Tabaco" data-area="Albay" data-fare="2000">Book Now</a>
           </li>
           <li class="airport-rate-placeholder">
             <h3>Next Albay Route</h3>
@@ -126,13 +126,13 @@
             <h3>Bicol International Airport to Pilar</h3>
             <p>Starting fare for one-way transfer.</p>
             <strong>From PHP 1,800</strong>
-            <a href="index.html#booking" class="airport-card-book">Book Now</a>
+            <a href="#airport-booking" class="airport-card-book airport-select-route" data-route="Bicol International Airport to Pilar" data-area="Sorsogon" data-fare="1800">Book Now</a>
           </li>
           <li>
             <h3>Bicol International Airport to Sorsogon City</h3>
             <p>Starting fare for one-way transfer.</p>
             <strong>From PHP 2,500</strong>
-            <a href="index.html#booking" class="airport-card-book">Book Now</a>
+            <a href="#airport-booking" class="airport-card-book airport-select-route" data-route="Bicol International Airport to Sorsogon City" data-area="Sorsogon" data-fare="2500">Book Now</a>
           </li>
           <li class="airport-rate-placeholder">
             <h3>Next Sorsogon Route</h3>
@@ -150,13 +150,13 @@
             <h3>Bicol International Airport to Naga</h3>
             <p>Starting fare for one-way transfer.</p>
             <strong>From PHP 4,800</strong>
-            <a href="index.html#booking" class="airport-card-book">Book Now</a>
+            <a href="#airport-booking" class="airport-card-book airport-select-route" data-route="Bicol International Airport to Naga" data-area="Camarines Sur" data-fare="4800">Book Now</a>
           </li>
           <li>
             <h3>Bicol International Airport to Iriga City</h3>
             <p>Starting fare for one-way transfer.</p>
             <strong>From PHP 4,000</strong>
-            <a href="index.html#booking" class="airport-card-book">Book Now</a>
+            <a href="#airport-booking" class="airport-card-book airport-select-route" data-route="Bicol International Airport to Iriga City" data-area="Camarines Sur" data-fare="4000">Book Now</a>
           </li>
           <li class="airport-rate-placeholder">
             <h3>Next CamSur Route</h3>
@@ -168,8 +168,86 @@
       </article>
 
       <div class="airport-cta">
-        <a href="index.html#booking" class="btn-primary">Book Airport Transfer Now</a>
+        <a href="#airport-booking" class="btn-primary">Book Airport Transfer Now</a>
         <a href="contact-us.html" class="btn-secondary airport-cta-secondary">Ask About Round-Trip Rates</a>
+      </div>
+    </section>
+
+    <section class="booking-section airport-booking-section" id="airport-booking">
+      <div class="booking-container airport-booking-container">
+        <h2>Book Airport Transfer</h2>
+        <p class="booking-subtitle">Submit your trip details here. Your request goes directly to your dashboard bookings.</p>
+
+        <form class="airport-transfer-form" id="airportTransferForm">
+          <div id="airport-booking-status" class="contact-form-status" role="status" aria-live="polite"></div>
+
+          <div class="form-fields-grid">
+            <div class="input-group">
+              <label for="airport-client-name">Full Name *</label>
+              <input type="text" id="airport-client-name" name="client_name" required placeholder="Your full name">
+            </div>
+
+            <div class="input-group">
+              <label for="airport-contact-no">Contact Number *</label>
+              <input type="tel" id="airport-contact-no" name="contact_no" required placeholder="+63">
+            </div>
+
+            <div class="input-group">
+              <label for="airport-email">Email *</label>
+              <input type="email" id="airport-email" name="email" required placeholder="example@gmail.com">
+            </div>
+
+            <div class="input-group">
+              <label for="airport-passengers">Passengers *</label>
+              <input type="number" id="airport-passengers" name="passengers" min="1" max="20" required placeholder="e.g. 4">
+            </div>
+
+            <div class="input-group">
+              <label for="airport-vehicle-type">Vehicle Type *</label>
+              <select id="airport-vehicle-type" name="vehicleType" required>
+                <option value="" selected disabled>Select vehicle type</option>
+                <option value="Sedan">Sedan</option>
+                <option value="MPV">MPV</option>
+                <option value="Electric MPV">Electric MPV</option>
+              </select>
+            </div>
+
+            <div class="input-group full-width">
+              <label for="airport-destination">Destination Route *</label>
+              <select id="airport-destination" name="airport_route" required>
+                <option value="" selected disabled>Select destination route</option>
+                <option value="Bicol International Airport to Legazpi-Daraga" data-area="Albay" data-fare="750">Bicol International Airport to Legazpi-Daraga (From PHP 750)</option>
+                <option value="Bicol International Airport to Tabaco" data-area="Albay" data-fare="2000">Bicol International Airport to Tabaco (From PHP 2,000)</option>
+                <option value="Bicol International Airport to Pilar" data-area="Sorsogon" data-fare="1800">Bicol International Airport to Pilar (From PHP 1,800)</option>
+                <option value="Bicol International Airport to Sorsogon City" data-area="Sorsogon" data-fare="2500">Bicol International Airport to Sorsogon City (From PHP 2,500)</option>
+                <option value="Bicol International Airport to Naga" data-area="Camarines Sur" data-fare="4800">Bicol International Airport to Naga (From PHP 4,800)</option>
+                <option value="Bicol International Airport to Iriga City" data-area="Camarines Sur" data-fare="4000">Bicol International Airport to Iriga City (From PHP 4,000)</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label for="airport-pickup-date">Pick-up Date *</label>
+              <input type="date" id="airport-pickup-date" name="pickup_date" required>
+            </div>
+
+            <div class="input-group">
+              <label for="airport-pickup-time">Pick-up Time *</label>
+              <input type="time" id="airport-pickup-time" name="pickup_time" required>
+            </div>
+
+            <div class="input-group full-width">
+              <label for="airport-pickup-address">Pick-up Address *</label>
+              <input type="text" id="airport-pickup-address" name="pickup_address" required placeholder="Arrival gate, hotel, or exact pick-up point">
+            </div>
+
+            <div class="input-group full-width">
+              <label for="airport-notes">Notes / Flight Details</label>
+              <textarea id="airport-notes" name="itinerary" rows="4" placeholder="Flight number, arrival time, or special requests"></textarea>
+            </div>
+          </div>
+
+          <button type="submit" class="partner-submit-btn airport-submit-btn">Submit Airport Transfer Booking</button>
+        </form>
       </div>
     </section>
   </main>

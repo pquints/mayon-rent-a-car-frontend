@@ -680,6 +680,129 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+document.addEventListener('DOMContentLoaded', () => {
+    const airportForm = document.getElementById('airportTransferForm');
+    if (!airportForm) return;
+
+    const statusEl = document.getElementById('airport-booking-status');
+    const submitBtn = airportForm.querySelector('.airport-submit-btn');
+    const destinationSelect = document.getElementById('airport-destination');
+    const pickupDateInput = document.getElementById('airport-pickup-date');
+    const routeButtons = document.querySelectorAll('.airport-select-route');
+    const BOOKING_API_ENDPOINT = '/api/bookings';
+
+    function setStatus(message, type) {
+        if (!statusEl) return;
+        statusEl.textContent = message;
+        statusEl.className = `contact-form-status is-${type}`;
+    }
+
+    function clearStatus() {
+        if (!statusEl) return;
+        statusEl.textContent = '';
+        statusEl.className = 'contact-form-status';
+    }
+
+    function setSubmitLoading(isLoading) {
+        if (!submitBtn) return;
+        submitBtn.disabled = isLoading;
+        submitBtn.textContent = isLoading ? 'Sending...' : 'Submit Airport Transfer Booking';
+    }
+
+    if (pickupDateInput) {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        pickupDateInput.min = `${yyyy}-${mm}-${dd}`;
+    }
+
+    routeButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (!destinationSelect) return;
+            const route = btn.dataset.route || '';
+            if (!route) return;
+
+            const option = Array.from(destinationSelect.options).find(opt => opt.value === route);
+            if (option) {
+                destinationSelect.value = route;
+                destinationSelect.dispatchEvent(new Event('change'));
+            }
+        });
+    });
+
+    airportForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearStatus();
+
+        const formData = new FormData(airportForm);
+        const formValues = Object.fromEntries(formData.entries());
+        const selectedOption = destinationSelect?.selectedOptions?.[0] || null;
+
+        if (!selectedOption || !formValues.airport_route) {
+            setStatus('Please select a destination route.', 'error');
+            return;
+        }
+
+        const area = selectedOption.dataset.area || 'Airport Transfer';
+        const fare = selectedOption.dataset.fare || 'TBA';
+        const route = formValues.airport_route;
+
+        const payload = {
+            client_name: formValues.client_name || '',
+            contact_no: formValues.contact_no || '',
+            email: formValues.email || '',
+            area,
+            rentalType: 'with-driver',
+            serviceOption: `Airport Transfer - ${route} (From PHP ${fare})`,
+            vehicleType: formValues.vehicleType || 'MPV',
+            passengers: formValues.passengers || '1',
+            pickup_date: formValues.pickup_date || '',
+            pickup_time: formValues.pickup_time || '',
+            pickup_address: formValues.pickup_address || '',
+            itinerary: formValues.itinerary || ''
+        };
+
+        try {
+            setSubmitLoading(true);
+
+            const response = await fetch(BOOKING_API_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const rawBody = await response.text();
+            let result = {};
+            try {
+                result = rawBody ? JSON.parse(rawBody) : {};
+            } catch {
+                result = { raw: rawBody };
+            }
+
+            if (response.ok && result.success && result.booking) {
+                setStatus(`Booking submitted successfully. Reference: ${result.booking.ref}`, 'success');
+                airportForm.reset();
+            } else {
+                const msg = result.error || result.message || result.raw || `HTTP ${response.status}`;
+                setStatus(`Booking failed: ${msg}`, 'error');
+            }
+        } catch (error) {
+            console.error('Airport transfer booking error:', error);
+            setStatus('Unable to connect to server. Please try again.', 'error');
+        } finally {
+            setSubmitLoading(false);
+        }
+    });
+
+    airportForm.querySelectorAll('input, select, textarea').forEach((field) => {
+        field.addEventListener('input', clearStatus);
+        field.addEventListener('change', clearStatus);
+    });
+});
+
 // --- NAV HIGHLIGHT (active link) ---
 document.addEventListener('DOMContentLoaded', () => {
     const navLinks = document.querySelectorAll('.navbar__links');
