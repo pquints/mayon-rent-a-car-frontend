@@ -8,34 +8,88 @@ const menu = document.querySelector('#mobile-menu');
 const menuLinks = document.querySelector('.navbar__menu');
 const servicesDropdown = document.querySelector('.navbar__item--dropdown');
 const servicesDropdownTrigger = document.querySelector('.navbar__links--dropdown');
+const servicesDropdownMenu = servicesDropdown ? servicesDropdown.querySelector('.dropdown__menu') : null;
+
+function isMobileNavViewport() {
+    return window.matchMedia('(max-width: 960px)').matches;
+}
+
+function syncMenuState(isOpen) {
+    if (!menu || !menuLinks) return;
+
+    menu.classList.toggle('is-active', isOpen);
+    menuLinks.classList.toggle('active', isOpen);
+
+    if (isMobileNavViewport()) {
+        menuLinks.style.left = isOpen ? '0' : '-100%';
+        menuLinks.style.opacity = isOpen ? '1' : '0';
+        menuLinks.style.zIndex = isOpen ? '99' : '';
+    } else {
+        menuLinks.style.removeProperty('left');
+        menuLinks.style.removeProperty('opacity');
+        menuLinks.style.removeProperty('z-index');
+    }
+
+    if (!isOpen) {
+        syncServicesDropdownState(false);
+    }
+}
+
+function syncServicesDropdownState(isOpen) {
+    if (!servicesDropdown || !servicesDropdownMenu) return;
+
+    servicesDropdown.classList.toggle('is-open', isOpen);
+
+    if (isMobileNavViewport()) {
+        servicesDropdownMenu.style.maxHeight = isOpen ? '760px' : '0px';
+        servicesDropdownMenu.style.padding = isOpen ? '12px 14px' : '0';
+        servicesDropdownMenu.style.opacity = '1';
+        servicesDropdownMenu.style.visibility = 'visible';
+        servicesDropdownMenu.style.pointerEvents = 'auto';
+        servicesDropdownMenu.style.transform = 'none';
+    } else {
+        servicesDropdownMenu.style.maxHeight = '';
+        servicesDropdownMenu.style.padding = '';
+        servicesDropdownMenu.style.opacity = isOpen ? '1' : '0';
+        servicesDropdownMenu.style.visibility = isOpen ? 'visible' : 'hidden';
+        servicesDropdownMenu.style.pointerEvents = isOpen ? 'auto' : 'none';
+        servicesDropdownMenu.style.transform = isOpen ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(8px)';
+    }
+}
 
 if (menu) {
     menu.addEventListener('click', function(e) {
         e.preventDefault();
-        menu.classList.toggle('is-active');
-        menuLinks.classList.toggle('active');
-
-        // Isara ang services submenu kapag sinarado ang mobile menu.
-        if (!menuLinks.classList.contains('active') && servicesDropdown) {
-            servicesDropdown.classList.remove('is-open');
-        }
+        syncMenuState(!menuLinks.classList.contains('active'));
     });
 }
 
 if (servicesDropdown && servicesDropdownTrigger) {
     servicesDropdownTrigger.addEventListener('click', (e) => {
         e.preventDefault();
-        servicesDropdown.classList.toggle('is-open');
+        syncServicesDropdownState(!servicesDropdown.classList.contains('is-open'));
     });
 
     document.addEventListener('click', (e) => {
         if (!servicesDropdown.contains(e.target)) {
-            servicesDropdown.classList.remove('is-open');
+            syncServicesDropdownState(false);
         }
     });
 
     window.addEventListener('resize', () => {
-        servicesDropdown.classList.remove('is-open');
+        syncServicesDropdownState(false);
+        if (!isMobileNavViewport()) {
+            syncMenuState(false);
+        }
+    });
+
+    servicesDropdownMenu?.querySelectorAll('.dropdown__link').forEach((link) => {
+        link.addEventListener('click', () => {
+            syncServicesDropdownState(false);
+            if (isMobileNavViewport()) {
+                syncMenuState(false);
+            }
+        });
     });
 }
 
@@ -642,13 +696,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Close mobile menu after clicking a link
         link.addEventListener('click', () => {
-            const mobileToggle = document.getElementById('mobile-menu');
-            const menu = document.querySelector('.navbar__menu');
-            if (mobileToggle && mobileToggle.classList.contains('is-active')) {
-                mobileToggle.classList.remove('is-active');
+            if (link === servicesDropdownTrigger) {
+                return;
             }
-            if (menu && menu.classList.contains('active')) {
-                menu.classList.remove('active');
+
+            if (menuLinks && menuLinks.classList.contains('active')) {
+                syncMenuState(false);
             }
         });
 

@@ -382,7 +382,7 @@ section {
         margin-left: 0; /* Panatilihin natin ito */
     }
 
-  .navbar__menu.active {
+    .navbar__menu.active {
         left: 0;
         /* Alisin muna natin ang right: 0; dito dahil sumusobra ang hatak */
         opacity: 1;
