@@ -2,6 +2,30 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/",
+      "destination": "/Public/index.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/Public/dashboard.html"
+    },
+    {
+      "source": "/about",
+      "destination": "/Public/about.html"
+    },
+    {
+      "source": "/services",
+      "destination": "/Public/services.html"
+    },
+    {
+      "source": "/fleet",
+      "destination": "/Public/fleet.html"
+    },
+    {
+      "source": "/contact-us",
+      "destination": "/Public/contact-us.html"
+    },
+    {
       "source": "/app.js",
       "destination": "/Public/app.js"
     },
