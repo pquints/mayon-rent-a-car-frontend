@@ -2,6 +2,66 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/",
+      "destination": "/Public"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/Public/dashboard"
+    },
+    {
+      "source": "/about",
+      "destination": "/Public/about"
+    },
+    {
+      "source": "/services",
+      "destination": "/Public/services"
+    },
+    {
+      "source": "/fleet",
+      "destination": "/Public/fleet"
+    },
+    {
+      "source": "/contact-us",
+      "destination": "/Public/contact-us"
+    },
+    {
+      "source": "/app.js",
+      "destination": "/Public/app.js"
+    },
+    {
+      "source": "/auth-utils.js",
+      "destination": "/Public/auth-utils.js"
+    },
+    {
+      "source": "/dashboard.js",
+      "destination": "/Public/dashboard.js"
+    },
+    {
+      "source": "/styles.css",
+      "destination": "/Public/styles.css"
+    },
+    {
+      "source": "/dashboard-style.css",
+      "destination": "/Public/dashboard-style.css"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/Public/robots.txt"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/Public/sitemap.xml"
+    },
+    {
+      "source": "/images/:path*",
+      "destination": "/Public/images/:path*"
+    },
+    {
+      "source": "/images.2/:path*",
+      "destination": "/Public/images.2/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://api.mayonrentacar.com.ph/api/:path*"
     }
