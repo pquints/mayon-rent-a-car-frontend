@@ -681,86 +681,314 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    const airportForm = document.getElementById('airportTransferForm');
-    if (!airportForm) return;
+    const plannerFrom = document.getElementById('plannerFrom');
+    const plannerDate = document.getElementById('plannerDate');
+    const plannerTime = document.getElementById('plannerTime');
+    const plannerSwitch = document.getElementById('plannerSwitch');
+    const plannerDirectionLabel = document.getElementById('plannerDirectionLabel');
+    const destinationPicker = document.getElementById('destinationPicker');
+    const destinationPickerTrigger = document.getElementById('destinationPickerTrigger');
+    const provinceButtons = document.querySelectorAll('.province-btn');
+    const cityOptionsWrap = document.getElementById('cityOptions');
+    const cityColumnTitle = document.getElementById('cityColumnTitle');
+    const plannerContinueBtn = document.getElementById('plannerContinueBtn');
+    const routeQuickButtons = document.querySelectorAll('.airport-select-route');
 
-    const statusEl = document.getElementById('airport-booking-status');
-    const submitBtn = airportForm.querySelector('.airport-submit-btn');
-    const destinationSelect = document.getElementById('airport-destination');
-    const pickupDateInput = document.getElementById('airport-pickup-date');
-    const routeButtons = document.querySelectorAll('.airport-select-route');
+    const modal = document.getElementById('airportWizardModal');
+    const modalOverlay = document.getElementById('airportWizardOverlay');
+    const modalClose = document.getElementById('airportWizardClose');
+    const wizardStatus = document.getElementById('airportWizardStatus');
+    const wizardForm = document.getElementById('airportWizardForm');
+    const wizardStep1Continue = document.getElementById('airportStep1Continue');
+    const wizardStep2Back = document.getElementById('airportStep2Back');
+    const wizardSubmitBtn = document.getElementById('airportWizardSubmit');
+    const wizardRoutePreview = document.getElementById('wizardRoutePreview');
+    const wizardTransferType = document.getElementById('wizardTransferType');
+    const wizardEstimatedPrice = document.getElementById('wizardEstimatedPrice');
+    const wizardPickupGroup = document.getElementById('wizardPickupGroup');
+    const wizardDropoffGroup = document.getElementById('wizardDropoffGroup');
+    const wizardPickup = document.getElementById('wizardPickup');
+    const wizardDropoff = document.getElementById('wizardDropoff');
+
+    if (!plannerFrom || !plannerDate || !plannerTime || !destinationPicker || !wizardForm || !modal) return;
+
     const BOOKING_API_ENDPOINT = '/api/bookings';
+    const airportName = 'Bicol International Airport';
 
-    function setStatus(message, type) {
-        if (!statusEl) return;
-        statusEl.textContent = message;
-        statusEl.className = `contact-form-status is-${type}`;
+    const provinceCities = {
+        'Albay': ['Legazpi', 'Daraga', 'Tabaco', 'Sto. Domingo', 'Ligao', 'Polangui', 'Guinobatan', 'Bacacay'],
+        'Sorsogon': ['Sorsogon City', 'Pilar', 'Bulan', 'Gubat', 'Bacon', 'Irosin', 'Donsol'],
+        'Camarines Sur': ['Naga', 'Iriga City', 'Pili', 'Nabua', 'Libmanan', 'Sipocot', 'Baao']
+    };
+
+    const baseFare = {
+        'Albay|Legazpi': 750,
+        'Albay|Daraga': 750,
+        'Albay|Tabaco': 2000,
+        'Sorsogon|Pilar': 1800,
+        'Sorsogon|Sorsogon City': 2500,
+        'Camarines Sur|Naga': 4800,
+        'Camarines Sur|Iriga City': 4000
+    };
+
+    let selectedProvince = 'Albay';
+    let selectedCity = '';
+    let isTransferOut = true;
+    let currentStep = 1;
+
+    function getBaseFare(province, city) {
+        const key = `${province}|${city}`;
+        return baseFare[key] || 1800;
     }
 
-    function clearStatus() {
-        if (!statusEl) return;
-        statusEl.textContent = '';
-        statusEl.className = 'contact-form-status';
+    function setWizardStatus(message, type) {
+        if (!wizardStatus) return;
+        wizardStatus.textContent = message;
+        wizardStatus.className = `contact-form-status is-${type}`;
+    }
+
+    function clearWizardStatus() {
+        if (!wizardStatus) return;
+        wizardStatus.textContent = '';
+        wizardStatus.className = 'contact-form-status';
     }
 
     function setSubmitLoading(isLoading) {
-        if (!submitBtn) return;
-        submitBtn.disabled = isLoading;
-        submitBtn.textContent = isLoading ? 'Sending...' : 'Submit Airport Transfer Booking';
+        if (!wizardSubmitBtn) return;
+        wizardSubmitBtn.disabled = isLoading;
+        wizardSubmitBtn.textContent = isLoading ? 'Sending...' : 'Submit Booking';
     }
 
-    if (pickupDateInput) {
-        const now = new Date();
-        const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const dd = String(now.getDate()).padStart(2, '0');
-        pickupDateInput.min = `${yyyy}-${mm}-${dd}`;
+    function updatePlannerDirection() {
+        plannerFrom.value = isTransferOut ? airportName : (selectedCity ? `${selectedCity}, ${selectedProvince}` : 'Select Destination First');
+        destinationPickerTrigger.textContent = isTransferOut
+            ? (selectedCity ? `${selectedCity}, ${selectedProvince}` : 'Select Destination')
+            : airportName;
+        plannerDirectionLabel.textContent = isTransferOut
+            ? 'Transfer Type: Airport Transfer Out (Airport to City)'
+            : 'Transfer Type: Airport Transfer In (City to Airport)';
     }
 
-    routeButtons.forEach((btn) => {
+    function updateWizardPreview() {
+        const routeText = selectedCity
+            ? (isTransferOut
+                ? `${airportName} to ${selectedCity}, ${selectedProvince}`
+                : `${selectedCity}, ${selectedProvince} to ${airportName}`)
+            : '-';
+
+        if (wizardRoutePreview) wizardRoutePreview.textContent = routeText;
+        if (wizardTransferType) wizardTransferType.textContent = isTransferOut ? 'Airport Transfer Out' : 'Airport Transfer In';
+
+        const checkedVehicle = wizardForm.querySelector('input[name="vehicleType"]:checked');
+        const multiplier = checkedVehicle ? Number(checkedVehicle.dataset.multiplier || '1') : 1;
+        const estimate = Math.round(getBaseFare(selectedProvince, selectedCity || '') * multiplier);
+        if (wizardEstimatedPrice) wizardEstimatedPrice.textContent = selectedCity ? `PHP ${estimate.toLocaleString()}` : 'PHP -';
+    }
+
+    function renderCities(province) {
+        selectedProvince = province;
+        const cities = provinceCities[province] || [];
+        if (cityColumnTitle) cityColumnTitle.textContent = `${province} - Cities and Towns`;
+        if (!cityOptionsWrap) return;
+
+        cityOptionsWrap.innerHTML = '';
+        cities.forEach((city) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `city-btn${city === selectedCity ? ' is-active' : ''}`;
+            btn.textContent = city;
+            btn.addEventListener('click', () => {
+                selectedCity = city;
+                destinationPicker.hidden = true;
+                updatePlannerDirection();
+                updateWizardPreview();
+                renderCities(selectedProvince);
+            });
+            cityOptionsWrap.appendChild(btn);
+        });
+    }
+
+    function updateWizardAddressFields() {
+        if (isTransferOut) {
+            wizardPickupGroup.style.display = 'none';
+            wizardDropoffGroup.style.display = 'flex';
+            wizardPickup.value = airportName;
+            wizardDropoff.placeholder = `Drop-off in ${selectedCity || 'destination city'}`;
+        } else {
+            wizardPickupGroup.style.display = 'flex';
+            wizardDropoffGroup.style.display = 'none';
+            wizardDropoff.value = airportName;
+            wizardPickup.placeholder = `Pick-up in ${selectedCity || 'destination city'}`;
+        }
+    }
+
+    function setStep(step) {
+        currentStep = step;
+        wizardForm.querySelectorAll('.airport-wizard-step').forEach((panel) => {
+            panel.classList.toggle('is-active', panel.dataset.step === String(step));
+        });
+        modal.querySelectorAll('[data-step-indicator]').forEach((chip) => {
+            chip.classList.toggle('is-active', chip.dataset.stepIndicator === String(step));
+        });
+    }
+
+    function openModal() {
+        modal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        clearWizardStatus();
+        updateWizardAddressFields();
+        updateWizardPreview();
+        setStep(1);
+    }
+
+    function closeModal() {
+        modal.hidden = true;
+        document.body.style.overflow = '';
+        clearWizardStatus();
+    }
+
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    plannerDate.min = `${yyyy}-${mm}-${dd}`;
+
+    provinceButtons.forEach((btn) => {
         btn.addEventListener('click', () => {
-            if (!destinationSelect) return;
-            const route = btn.dataset.route || '';
-            if (!route) return;
-
-            const option = Array.from(destinationSelect.options).find(opt => opt.value === route);
-            if (option) {
-                destinationSelect.value = route;
-                destinationSelect.dispatchEvent(new Event('change'));
-            }
+            provinceButtons.forEach((item) => item.classList.remove('is-active'));
+            btn.classList.add('is-active');
+            selectedCity = '';
+            renderCities(btn.dataset.province || 'Albay');
+            updatePlannerDirection();
+            updateWizardPreview();
         });
     });
 
-    airportForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        clearStatus();
+    destinationPickerTrigger.addEventListener('click', () => {
+        if (!isTransferOut) return;
+        destinationPicker.hidden = !destinationPicker.hidden;
+    });
 
-        const formData = new FormData(airportForm);
-        const formValues = Object.fromEntries(formData.entries());
-        const selectedOption = destinationSelect?.selectedOptions?.[0] || null;
+    document.addEventListener('click', (e) => {
+        if (destinationPicker.hidden) return;
+        if (!destinationPicker.contains(e.target) && e.target !== destinationPickerTrigger) {
+            destinationPicker.hidden = true;
+        }
+    });
 
-        if (!selectedOption || !formValues.airport_route) {
-            setStatus('Please select a destination route.', 'error');
+    plannerSwitch.addEventListener('click', () => {
+        if (!selectedCity) {
+            setWizardStatus('Select destination first before switching transfer direction.', 'error');
+            return;
+        }
+        clearWizardStatus();
+        isTransferOut = !isTransferOut;
+        destinationPicker.hidden = true;
+        updatePlannerDirection();
+        updateWizardAddressFields();
+        updateWizardPreview();
+    });
+
+    routeQuickButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const province = btn.dataset.province;
+            const city = btn.dataset.city;
+            if (!province || !city) return;
+
+            selectedProvince = province;
+            selectedCity = city;
+            provinceButtons.forEach((item) => {
+                item.classList.toggle('is-active', item.dataset.province === province);
+            });
+            renderCities(province);
+            updatePlannerDirection();
+            updateWizardPreview();
+            document.getElementById('airport-planner')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
+    plannerContinueBtn.addEventListener('click', () => {
+        if (!selectedCity) {
+            setWizardStatus('Please select your destination city/town.', 'error');
+            return;
+        }
+        if (!plannerDate.value || !plannerTime.value) {
+            setWizardStatus('Please choose transfer date and time.', 'error');
+            return;
+        }
+        clearWizardStatus();
+        openModal();
+    });
+
+    modalOverlay?.addEventListener('click', closeModal);
+    modalClose?.addEventListener('click', closeModal);
+
+    wizardForm.querySelectorAll('input[name="vehicleType"]').forEach((input) => {
+        input.addEventListener('change', updateWizardPreview);
+    });
+
+    wizardStep1Continue?.addEventListener('click', () => {
+        const vehicleChosen = wizardForm.querySelector('input[name="vehicleType"]:checked');
+        const flightNumber = document.getElementById('wizardFlightNumber');
+        const transferAddressOk = isTransferOut ? wizardDropoff.value.trim() : wizardPickup.value.trim();
+
+        if (!vehicleChosen) {
+            setWizardStatus('Please choose a vehicle type.', 'error');
+            return;
+        }
+        if (!flightNumber || !flightNumber.value.trim()) {
+            setWizardStatus('Flight number is required.', 'error');
+            return;
+        }
+        if (!transferAddressOk) {
+            setWizardStatus(isTransferOut ? 'Please provide drop-off location.' : 'Please provide pick-up location.', 'error');
             return;
         }
 
-        const area = selectedOption.dataset.area || 'Airport Transfer';
-        const fare = selectedOption.dataset.fare || 'TBA';
-        const route = formValues.airport_route;
+        clearWizardStatus();
+        setStep(2);
+    });
+
+    wizardStep2Back?.addEventListener('click', () => {
+        clearWizardStatus();
+        setStep(1);
+    });
+
+    wizardForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearWizardStatus();
+
+        const formData = new FormData(wizardForm);
+        const formValues = Object.fromEntries(formData.entries());
+        const selectedVehicle = wizardForm.querySelector('input[name="vehicleType"]:checked');
+        const multiplier = selectedVehicle ? Number(selectedVehicle.dataset.multiplier || '1') : 1;
+        const estimate = Math.round(getBaseFare(selectedProvince, selectedCity) * multiplier);
+
+        if (!formValues.client_name || !formValues.contact_no || !formValues.email) {
+            setWizardStatus('Please complete client details.', 'error');
+            return;
+        }
+
+        const route = isTransferOut
+            ? `${airportName} to ${selectedCity}, ${selectedProvince}`
+            : `${selectedCity}, ${selectedProvince} to ${airportName}`;
+
+        const pickupAddress = isTransferOut ? airportName : (formValues.pickup_address || '—');
+        const dropoffAddress = isTransferOut ? (formValues.dropoff_address || '—') : airportName;
 
         const payload = {
-            client_name: formValues.client_name || '',
-            contact_no: formValues.contact_no || '',
-            email: formValues.email || '',
-            area,
+            client_name: formValues.client_name,
+            contact_no: formValues.contact_no,
+            email: formValues.email,
+            area: selectedProvince,
             rentalType: 'with-driver',
-            serviceOption: `Airport Transfer - ${route} (From PHP ${fare})`,
-            vehicleType: formValues.vehicleType || 'MPV',
+            serviceOption: `${isTransferOut ? 'Airport Transfer Out' : 'Airport Transfer In'} - ${route} (Est. PHP ${estimate.toLocaleString()})`,
+            vehicleType: formValues.vehicleType || 'Sedan',
             passengers: formValues.passengers || '1',
-            pickup_date: formValues.pickup_date || '',
-            pickup_time: formValues.pickup_time || '',
-            pickup_address: formValues.pickup_address || '',
-            itinerary: formValues.itinerary || ''
+            pickup_date: plannerDate.value,
+            pickup_time: plannerTime.value,
+            pickup_address: pickupAddress,
+            itinerary: `Flight Number: ${formValues.flight_number || '—'} | Drop-off: ${dropoffAddress}`
         };
 
         try {
@@ -768,9 +996,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const response = await fetch(BOOKING_API_ENDPOINT, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
@@ -783,24 +1009,36 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (response.ok && result.success && result.booking) {
-                setStatus(`Booking submitted successfully. Reference: ${result.booking.ref}`, 'success');
-                airportForm.reset();
+                setWizardStatus(`Booking submitted. Reference: ${result.booking.ref}`, 'success');
+                wizardForm.reset();
+                selectedCity = '';
+                isTransferOut = true;
+                renderCities(selectedProvince);
+                updatePlannerDirection();
+                updateWizardPreview();
+                setTimeout(() => {
+                    closeModal();
+                }, 1200);
             } else {
                 const msg = result.error || result.message || result.raw || `HTTP ${response.status}`;
-                setStatus(`Booking failed: ${msg}`, 'error');
+                setWizardStatus(`Booking failed: ${msg}`, 'error');
             }
         } catch (error) {
-            console.error('Airport transfer booking error:', error);
-            setStatus('Unable to connect to server. Please try again.', 'error');
+            console.error('Airport wizard booking error:', error);
+            setWizardStatus('Unable to connect to server. Please try again.', 'error');
         } finally {
             setSubmitLoading(false);
         }
     });
 
-    airportForm.querySelectorAll('input, select, textarea').forEach((field) => {
-        field.addEventListener('input', clearStatus);
-        field.addEventListener('change', clearStatus);
+    wizardForm.querySelectorAll('input, select, textarea').forEach((field) => {
+        field.addEventListener('input', clearWizardStatus);
+        field.addEventListener('change', clearWizardStatus);
     });
+
+    renderCities(selectedProvince);
+    updatePlannerDirection();
+    updateWizardPreview();
 });
 
 // --- NAV HIGHLIGHT (active link) ---

@@ -94,6 +94,59 @@
       </div>
     </section>
 
+    <section class="container airport-planner-wrap" id="airport-planner">
+      <div class="airport-planner-card">
+        <h2 class="airport-planner-title">Plan Your Airport Transfer</h2>
+
+        <div class="airport-planner-grid">
+          <div class="planner-field planner-field--from">
+            <label>From</label>
+            <input type="text" id="plannerFrom" value="Bicol International Airport" readonly>
+          </div>
+
+          <button type="button" class="planner-switch" id="plannerSwitch" aria-label="Switch transfer direction">
+            <i class="fas fa-right-left"></i>
+          </button>
+
+          <div class="planner-field planner-field--to">
+            <label>To</label>
+            <button type="button" id="destinationPickerTrigger" class="planner-destination-btn">Select Destination</button>
+
+            <div class="destination-picker" id="destinationPicker" hidden>
+              <div class="destination-picker-columns">
+                <div class="destination-col destination-col--province">
+                  <h4>Province</h4>
+                  <button type="button" class="province-btn is-active" data-province="Albay">Albay</button>
+                  <button type="button" class="province-btn" data-province="Sorsogon">Sorsogon</button>
+                  <button type="button" class="province-btn" data-province="Camarines Sur">Camarines Sur</button>
+                </div>
+
+                <div class="destination-col destination-col--city">
+                  <h4 id="cityColumnTitle">Cities and Towns</h4>
+                  <div id="cityOptions"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="planner-field planner-field--date">
+            <label>Date</label>
+            <input type="date" id="plannerDate">
+          </div>
+
+          <div class="planner-field planner-field--time">
+            <label>Time</label>
+            <input type="time" id="plannerTime">
+          </div>
+        </div>
+
+        <div class="airport-planner-footer">
+          <p id="plannerDirectionLabel">Transfer Type: Airport Transfer Out (Airport to City)</p>
+          <button type="button" id="plannerContinueBtn" class="btn-primary">Continue</button>
+        </div>
+      </div>
+    </section>
+
     <section class="container airport-rates">
       <article class="airport-region-card">
         <h2>Albay</h2>
@@ -102,13 +155,13 @@
             <h3>Bicol International Airport to Legazpi-Daraga</h3>
             <p>Starting fare for one-way transfer.</p>
             <strong>From PHP 750</strong>
-            <a href="#airport-booking" class="airport-card-book airport-select-route" data-route="Bicol International Airport to Legazpi-Daraga" data-area="Albay" data-fare="750">Book Now</a>
+            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Albay" data-city="Legazpi-Daraga" data-area="Albay" data-fare="750">Book Now</a>
           </li>
           <li>
             <h3>Bicol International Airport to Tabaco</h3>
             <p>Starting fare for one-way transfer.</p>
             <strong>From PHP 2,000</strong>
-            <a href="#airport-booking" class="airport-card-book airport-select-route" data-route="Bicol International Airport to Tabaco" data-area="Albay" data-fare="2000">Book Now</a>
+            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Albay" data-city="Tabaco" data-area="Albay" data-fare="2000">Book Now</a>
           </li>
           <li class="airport-rate-placeholder">
             <h3>Next Albay Route</h3>
@@ -126,13 +179,13 @@
             <h3>Bicol International Airport to Pilar</h3>
             <p>Starting fare for one-way transfer.</p>
             <strong>From PHP 1,800</strong>
-            <a href="#airport-booking" class="airport-card-book airport-select-route" data-route="Bicol International Airport to Pilar" data-area="Sorsogon" data-fare="1800">Book Now</a>
+            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Sorsogon" data-city="Pilar" data-area="Sorsogon" data-fare="1800">Book Now</a>
           </li>
           <li>
             <h3>Bicol International Airport to Sorsogon City</h3>
             <p>Starting fare for one-way transfer.</p>
             <strong>From PHP 2,500</strong>
-            <a href="#airport-booking" class="airport-card-book airport-select-route" data-route="Bicol International Airport to Sorsogon City" data-area="Sorsogon" data-fare="2500">Book Now</a>
+            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Sorsogon" data-city="Sorsogon City" data-area="Sorsogon" data-fare="2500">Book Now</a>
           </li>
           <li class="airport-rate-placeholder">
             <h3>Next Sorsogon Route</h3>
@@ -150,13 +203,13 @@
             <h3>Bicol International Airport to Naga</h3>
             <p>Starting fare for one-way transfer.</p>
             <strong>From PHP 4,800</strong>
-            <a href="#airport-booking" class="airport-card-book airport-select-route" data-route="Bicol International Airport to Naga" data-area="Camarines Sur" data-fare="4800">Book Now</a>
+            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Camarines Sur" data-city="Naga" data-area="Camarines Sur" data-fare="4800">Book Now</a>
           </li>
           <li>
             <h3>Bicol International Airport to Iriga City</h3>
             <p>Starting fare for one-way transfer.</p>
             <strong>From PHP 4,000</strong>
-            <a href="#airport-booking" class="airport-card-book airport-select-route" data-route="Bicol International Airport to Iriga City" data-area="Camarines Sur" data-fare="4000">Book Now</a>
+            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Camarines Sur" data-city="Iriga City" data-area="Camarines Sur" data-fare="4000">Book Now</a>
           </li>
           <li class="airport-rate-placeholder">
             <h3>Next CamSur Route</h3>
@@ -168,88 +221,122 @@
       </article>
 
       <div class="airport-cta">
-        <a href="#airport-booking" class="btn-primary">Book Airport Transfer Now</a>
+        <a href="#airport-planner" class="btn-primary">Book Airport Transfer Now</a>
         <a href="contact-us.html" class="btn-secondary airport-cta-secondary">Ask About Round-Trip Rates</a>
       </div>
     </section>
 
-    <section class="booking-section airport-booking-section" id="airport-booking">
-      <div class="booking-container airport-booking-container">
-        <h2>Book Airport Transfer</h2>
-        <p class="booking-subtitle">Submit your trip details here. Your request goes directly to your dashboard bookings.</p>
+    <div class="airport-wizard-modal" id="airportWizardModal" hidden>
+      <div class="airport-wizard-overlay" id="airportWizardOverlay"></div>
+      <div class="airport-wizard-content" role="dialog" aria-modal="true" aria-labelledby="airportWizardTitle">
+        <button type="button" class="airport-wizard-close" id="airportWizardClose" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
 
-        <form class="airport-transfer-form" id="airportTransferForm">
-          <div id="airport-booking-status" class="contact-form-status" role="status" aria-live="polite"></div>
-
-          <div class="form-fields-grid">
-            <div class="input-group">
-              <label for="airport-client-name">Full Name *</label>
-              <input type="text" id="airport-client-name" name="client_name" required placeholder="Your full name">
-            </div>
-
-            <div class="input-group">
-              <label for="airport-contact-no">Contact Number *</label>
-              <input type="tel" id="airport-contact-no" name="contact_no" required placeholder="+63">
-            </div>
-
-            <div class="input-group">
-              <label for="airport-email">Email *</label>
-              <input type="email" id="airport-email" name="email" required placeholder="example@gmail.com">
-            </div>
-
-            <div class="input-group">
-              <label for="airport-passengers">Passengers *</label>
-              <input type="number" id="airport-passengers" name="passengers" min="1" max="20" required placeholder="e.g. 4">
-            </div>
-
-            <div class="input-group">
-              <label for="airport-vehicle-type">Vehicle Type *</label>
-              <select id="airport-vehicle-type" name="vehicleType" required>
-                <option value="" selected disabled>Select vehicle type</option>
-                <option value="Sedan">Sedan</option>
-                <option value="MPV">MPV</option>
-                <option value="Electric MPV">Electric MPV</option>
-              </select>
-            </div>
-
-            <div class="input-group full-width">
-              <label for="airport-destination">Destination Route *</label>
-              <select id="airport-destination" name="airport_route" required>
-                <option value="" selected disabled>Select destination route</option>
-                <option value="Bicol International Airport to Legazpi-Daraga" data-area="Albay" data-fare="750">Bicol International Airport to Legazpi-Daraga (From PHP 750)</option>
-                <option value="Bicol International Airport to Tabaco" data-area="Albay" data-fare="2000">Bicol International Airport to Tabaco (From PHP 2,000)</option>
-                <option value="Bicol International Airport to Pilar" data-area="Sorsogon" data-fare="1800">Bicol International Airport to Pilar (From PHP 1,800)</option>
-                <option value="Bicol International Airport to Sorsogon City" data-area="Sorsogon" data-fare="2500">Bicol International Airport to Sorsogon City (From PHP 2,500)</option>
-                <option value="Bicol International Airport to Naga" data-area="Camarines Sur" data-fare="4800">Bicol International Airport to Naga (From PHP 4,800)</option>
-                <option value="Bicol International Airport to Iriga City" data-area="Camarines Sur" data-fare="4000">Bicol International Airport to Iriga City (From PHP 4,000)</option>
-              </select>
-            </div>
-
-            <div class="input-group">
-              <label for="airport-pickup-date">Pick-up Date *</label>
-              <input type="date" id="airport-pickup-date" name="pickup_date" required>
-            </div>
-
-            <div class="input-group">
-              <label for="airport-pickup-time">Pick-up Time *</label>
-              <input type="time" id="airport-pickup-time" name="pickup_time" required>
-            </div>
-
-            <div class="input-group full-width">
-              <label for="airport-pickup-address">Pick-up Address *</label>
-              <input type="text" id="airport-pickup-address" name="pickup_address" required placeholder="Arrival gate, hotel, or exact pick-up point">
-            </div>
-
-            <div class="input-group full-width">
-              <label for="airport-notes">Notes / Flight Details</label>
-              <textarea id="airport-notes" name="itinerary" rows="4" placeholder="Flight number, arrival time, or special requests"></textarea>
-            </div>
+        <div class="airport-wizard-header">
+          <h2 id="airportWizardTitle">Airport Transfer Booking</h2>
+          <div class="airport-step-indicator">
+            <span class="airport-step is-active" data-step-indicator="1">1. Trip Details</span>
+            <span class="airport-step" data-step-indicator="2">2. Client Details</span>
           </div>
+        </div>
 
-          <button type="submit" class="partner-submit-btn airport-submit-btn">Submit Airport Transfer Booking</button>
+        <div id="airportWizardStatus" class="contact-form-status" role="status" aria-live="polite"></div>
+
+        <form id="airportWizardForm">
+          <section class="airport-wizard-step is-active" data-step="1">
+            <div class="airport-wizard-grid">
+              <div class="airport-wizard-left">
+                <h3>What's Included?</h3>
+                <ul>
+                  <li>Professional driver service</li>
+                  <li>Airport pickup coordination</li>
+                  <li>Fuel and standard toll fees</li>
+                </ul>
+
+                <h3>Guidelines</h3>
+                <ul>
+                  <li>Please provide your exact flight number.</li>
+                  <li>Book at least a few hours before your target pickup.</li>
+                  <li>Rates are starting prices and may vary by schedule or stopovers.</li>
+                </ul>
+              </div>
+
+              <div class="airport-wizard-right">
+                <h3>Vehicle Type and Pricing</h3>
+                <div class="airport-vehicle-cards">
+                  <label class="airport-vehicle-card">
+                    <input type="radio" name="vehicleType" value="Sedan" data-multiplier="1" required>
+                    <span>Sedan</span>
+                  </label>
+                  <label class="airport-vehicle-card">
+                    <input type="radio" name="vehicleType" value="MPV" data-multiplier="1.2" required>
+                    <span>MPV</span>
+                  </label>
+                  <label class="airport-vehicle-card">
+                    <input type="radio" name="vehicleType" value="Electric MPV" data-multiplier="1.35" required>
+                    <span>Electric MPV</span>
+                  </label>
+                </div>
+
+                <div class="airport-estimate-box">
+                  <p><strong>Route:</strong> <span id="wizardRoutePreview">-</span></p>
+                  <p><strong>Transfer Type:</strong> <span id="wizardTransferType">Airport Transfer Out</span></p>
+                  <p><strong>Estimated Price:</strong> <span id="wizardEstimatedPrice">PHP -</span></p>
+                </div>
+
+                <div class="form-fields-grid airport-wizard-fields">
+                  <div class="input-group full-width">
+                    <label for="wizardFlightNumber">Flight Number *</label>
+                    <input type="text" id="wizardFlightNumber" name="flight_number" required placeholder="e.g. PR 2921">
+                  </div>
+
+                  <div class="input-group full-width" id="wizardPickupGroup">
+                    <label for="wizardPickup">Pick-up Location *</label>
+                    <input type="text" id="wizardPickup" name="pickup_address" required placeholder="Exact pickup point">
+                  </div>
+
+                  <div class="input-group full-width" id="wizardDropoffGroup">
+                    <label for="wizardDropoff">Drop-off Location *</label>
+                    <input type="text" id="wizardDropoff" name="dropoff_address" required placeholder="Exact drop-off point">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="airport-wizard-actions">
+              <button type="button" class="btn-primary" id="airportStep1Continue">Continue</button>
+            </div>
+          </section>
+
+          <section class="airport-wizard-step" data-step="2">
+            <div class="airport-client-grid">
+              <div class="input-group">
+                <label for="wizardClientName">Full Name *</label>
+                <input type="text" id="wizardClientName" name="client_name" required placeholder="Your full name">
+              </div>
+              <div class="input-group">
+                <label for="wizardClientPhone">Phone Number *</label>
+                <input type="tel" id="wizardClientPhone" name="contact_no" required placeholder="+63">
+              </div>
+              <div class="input-group">
+                <label for="wizardClientEmail">Email Address *</label>
+                <input type="email" id="wizardClientEmail" name="email" required placeholder="example@gmail.com">
+              </div>
+              <div class="input-group">
+                <label for="wizardPassengers">Passengers *</label>
+                <input type="number" id="wizardPassengers" name="passengers" min="1" max="20" required value="1">
+              </div>
+            </div>
+
+            <div class="airport-wizard-actions">
+              <button type="button" class="btn-secondary airport-cta-secondary" id="airportStep2Back">Back</button>
+              <button type="submit" class="btn-primary" id="airportWizardSubmit">Submit Booking</button>
+            </div>
+          </section>
         </form>
       </div>
-    </section>
+    </div>
   </main>
 
   <footer class="footer">
