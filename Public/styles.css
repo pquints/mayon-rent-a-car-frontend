@@ -1490,17 +1490,21 @@ section {
 .airport-rate-list {
     list-style: none;
     display: grid;
-    gap: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
 }
 
 .airport-rate-list li {
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     justify-content: space-between;
-    align-items: center;
-    gap: 14px;
+    min-height: 180px;
+    gap: 8px;
     border: 1px solid #e2e8f0;
     border-radius: 10px;
     padding: 16px;
+    background: #ffffff;
 }
 
 .airport-rate-list h3 {
@@ -1517,6 +1521,30 @@ section {
 .airport-rate-list strong {
     color: #0b77c5;
     white-space: nowrap;
+    margin-top: auto;
+}
+
+.airport-rate-placeholder {
+    border-style: dashed;
+    background: #f8fafc;
+}
+
+.airport-card-book {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #0b77c5;
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 700;
+    transition: background-color 0.2s ease;
+}
+
+.airport-card-book:hover {
+    background: #075e9a;
 }
 
 .airport-cta {
@@ -1546,9 +1574,12 @@ section {
         padding: 16px;
     }
 
+    .airport-rate-list {
+        grid-template-columns: 1fr;
+    }
+
     .airport-rate-list li {
-        flex-direction: column;
-        align-items: flex-start;
+        min-height: auto;
     }
 
     .airport-rate-list strong {
@@ -1558,5 +1589,11 @@ section {
     .airport-cta a {
         width: 100%;
         text-align: center;
+    }
+}
+
+@media screen and (min-width: 769px) and (max-width: 1100px) {
+    .airport-rate-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
