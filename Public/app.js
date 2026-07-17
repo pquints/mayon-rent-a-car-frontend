@@ -24,22 +24,18 @@ if (menu) {
 
 if (servicesDropdown && servicesDropdownTrigger) {
     servicesDropdownTrigger.addEventListener('click', (e) => {
-        if (window.innerWidth <= 960) {
-            e.preventDefault();
-            servicesDropdown.classList.toggle('is-open');
-        }
+        e.preventDefault();
+        servicesDropdown.classList.toggle('is-open');
     });
 
     document.addEventListener('click', (e) => {
-        if (window.innerWidth <= 960 && !servicesDropdown.contains(e.target)) {
+        if (!servicesDropdown.contains(e.target)) {
             servicesDropdown.classList.remove('is-open');
         }
     });
 
     window.addEventListener('resize', () => {
-        if (window.innerWidth > 960) {
-            servicesDropdown.classList.remove('is-open');
-        }
+        servicesDropdown.classList.remove('is-open');
     });
 }
 
