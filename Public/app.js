@@ -868,11 +868,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    destinationPickerTrigger.addEventListener('click', () => {
+    destinationPickerTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
         toggleDestinationPicker();
     });
 
-    plannerFrom.addEventListener('click', () => {
+    plannerFrom.addEventListener('click', (e) => {
+        e.stopPropagation();
         toggleDestinationPicker();
     });
 
@@ -880,7 +882,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('click', (e) => {
         if (destinationPicker.hidden) return;
-        if (!destinationPicker.contains(e.target) && e.target !== destinationPickerTrigger) {
+        if (!destinationPicker.contains(e.target) && e.target !== destinationPickerTrigger && e.target !== plannerFrom) {
             destinationPicker.hidden = true;
         }
     });
