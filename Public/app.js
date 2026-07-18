@@ -736,6 +736,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let isTransferOut = true;
     let currentStep = 1;
 
+    function toggleDestinationPicker() {
+        destinationPicker.hidden = !destinationPicker.hidden;
+    }
+
     function getBaseFare(province, city) {
         const key = `${province}|${city}`;
         return baseFare[key] || 1800;
@@ -865,9 +869,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     destinationPickerTrigger.addEventListener('click', () => {
-        if (!isTransferOut) return;
-        destinationPicker.hidden = !destinationPicker.hidden;
+        toggleDestinationPicker();
     });
+
+    plannerFrom.addEventListener('click', () => {
+        toggleDestinationPicker();
+    });
+
+    plannerFrom.style.cursor = 'pointer';
 
     document.addEventListener('click', (e) => {
         if (destinationPicker.hidden) return;
