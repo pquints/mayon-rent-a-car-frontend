@@ -2,6 +2,10 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/inbound-outbound-transfers",
+      "destination": "/Public/inbound-outbound-transfers"
+    },
+    {
       "source": "/app.js",
       "destination": "/Public/app.js"
     },
