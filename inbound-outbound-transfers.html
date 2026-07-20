@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="Airport transfer rates from Bicol International Airport to key destinations in Albay, Sorsogon, and Camarines Sur.">
+  <meta name="description" content="Inbound and outbound transfer rates starting from or ending in Legazpi-Daraga across Bicol.">
   <meta name="robots" content="index, follow">
-  <link rel="canonical" href="https://mayonrentacar.com.ph/airport-transfers.html" />
-  <title>Airport Transfers - Mayon Rent a Car</title>
+  <link rel="canonical" href="https://mayonrentacar.com.ph/inbound-outbound-transfers.html" />
+  <title>Inbound and Outbound Transfers - Mayon Rent a Car</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -89,19 +89,19 @@
   <main class="content">
     <section class="hero small-hero airport-hero">
       <div class="hero-inner">
-        <h1>Airport Transfers</h1>
-        <p>Transparent starting rates from Bicol International Airport. Choose your destination, then book directly.</p>
+        <h1>Inbound and Outbound Transfers</h1>
+        <p>Point-to-point trips starting from or ending in Legazpi-Daraga. Choose your route and book directly.</p>
       </div>
     </section>
 
     <section class="container airport-planner-wrap" id="airport-planner">
       <div class="airport-planner-card">
-        <h2 class="airport-planner-title">Plan Your Airport Transfer</h2>
+        <h2 class="airport-planner-title">Plan Your Inbound or Outbound Transfer</h2>
 
         <div class="airport-planner-grid">
           <div class="planner-field planner-field--from">
             <label>From</label>
-            <input type="text" id="plannerFrom" value="Bicol International Airport" readonly>
+            <input type="text" id="plannerFrom" value="Legazpi-Daraga" data-fixed-origin="Legazpi-Daraga" data-out-label="Outbound Transfer (Legazpi-Daraga to Destination)" data-in-label="Inbound Transfer (Destination to Legazpi-Daraga)" data-service-prefix="Inbound/Outbound Transfer" readonly>
           </div>
 
           <button type="button" class="planner-switch" id="plannerSwitch" aria-label="Switch transfer direction">
@@ -141,7 +141,7 @@
         </div>
 
         <div class="airport-planner-footer">
-          <p id="plannerDirectionLabel">Transfer Type: Airport Transfer Out (Airport to City)</p>
+          <p id="plannerDirectionLabel">Transfer Type: Outbound Transfer (Legazpi-Daraga to Destination)</p>
           <button type="button" id="plannerContinueBtn" class="btn-primary">Continue</button>
         </div>
       </div>
@@ -152,16 +152,16 @@
         <h2>Albay</h2>
         <ul class="airport-rate-list">
           <li>
-            <h3>Bicol International Airport to Legazpi-Daraga</h3>
+            <h3>Legazpi-Daraga to Tabaco</h3>
             <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 750</strong>
-            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Albay" data-city="Legazpi-Daraga" data-area="Albay" data-fare="750">Book Now</a>
+            <strong>From PHP 1,200</strong>
+            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Albay" data-city="Tabaco" data-area="Albay" data-fare="1200">Book Now</a>
           </li>
           <li>
-            <h3>Bicol International Airport to Tabaco</h3>
+            <h3>Legazpi-Daraga to Ligao</h3>
             <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 2,000</strong>
-            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Albay" data-city="Tabaco" data-area="Albay" data-fare="2000">Book Now</a>
+            <strong>From PHP 1,100</strong>
+            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Albay" data-city="Ligao" data-area="Albay" data-fare="1100">Book Now</a>
           </li>
           <li class="airport-rate-placeholder">
             <h3>Next Albay Route</h3>
@@ -176,16 +176,16 @@
         <h2>Sorsogon</h2>
         <ul class="airport-rate-list">
           <li>
-            <h3>Bicol International Airport to Pilar</h3>
+            <h3>Legazpi-Daraga to Sorsogon City</h3>
             <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 1,800</strong>
-            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Sorsogon" data-city="Pilar" data-area="Sorsogon" data-fare="1800">Book Now</a>
+            <strong>From PHP 2,000</strong>
+            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Sorsogon" data-city="Sorsogon City" data-area="Sorsogon" data-fare="2000">Book Now</a>
           </li>
           <li>
-            <h3>Bicol International Airport to Sorsogon City</h3>
+            <h3>Legazpi-Daraga to Bulan</h3>
             <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 2,500</strong>
-            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Sorsogon" data-city="Sorsogon City" data-area="Sorsogon" data-fare="2500">Book Now</a>
+            <strong>From PHP 2,800</strong>
+            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Sorsogon" data-city="Bulan" data-area="Sorsogon" data-fare="2800">Book Now</a>
           </li>
           <li class="airport-rate-placeholder">
             <h3>Next Sorsogon Route</h3>
@@ -200,16 +200,16 @@
         <h2>Camarines Sur</h2>
         <ul class="airport-rate-list">
           <li>
-            <h3>Bicol International Airport to Naga</h3>
+            <h3>Legazpi-Daraga to Naga</h3>
             <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 4,800</strong>
-            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Camarines Sur" data-city="Naga" data-area="Camarines Sur" data-fare="4800">Book Now</a>
+            <strong>From PHP 3,500</strong>
+            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Camarines Sur" data-city="Naga" data-area="Camarines Sur" data-fare="3500">Book Now</a>
           </li>
           <li>
-            <h3>Bicol International Airport to Iriga City</h3>
+            <h3>Legazpi-Daraga to Iriga City</h3>
             <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 4,000</strong>
-            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Camarines Sur" data-city="Iriga City" data-area="Camarines Sur" data-fare="4000">Book Now</a>
+            <strong>From PHP 3,900</strong>
+            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Camarines Sur" data-city="Iriga City" data-area="Camarines Sur" data-fare="3900">Book Now</a>
           </li>
           <li class="airport-rate-placeholder">
             <h3>Next CamSur Route</h3>
@@ -221,8 +221,8 @@
       </article>
 
       <div class="airport-cta">
-        <a href="#airport-planner" class="btn-primary">Book Airport Transfer Now</a>
-        <a href="contact-us.html" class="btn-secondary airport-cta-secondary">Ask About Round-Trip Rates</a>
+        <a href="#airport-planner" class="btn-primary">Book Inbound/Outbound Transfer</a>
+        <a href="contact-us.html" class="btn-secondary airport-cta-secondary">Ask About Custom Route Pricing</a>
       </div>
     </section>
 
@@ -234,7 +234,7 @@
         </button>
 
         <div class="airport-wizard-header">
-          <h2 id="airportWizardTitle">Airport Transfer Booking</h2>
+          <h2 id="airportWizardTitle">Inbound/Outbound Transfer Booking</h2>
           <div class="airport-step-indicator">
             <span class="airport-step is-active" data-step-indicator="1">1. Trip Details</span>
             <span class="airport-step" data-step-indicator="2">2. Client Details</span>
@@ -250,13 +250,13 @@
                 <h3>What's Included?</h3>
                 <ul>
                   <li>Professional driver service</li>
-                  <li>Airport pickup coordination</li>
+                  <li>Clean and well-maintained vehicle</li>
                   <li>Fuel and standard toll fees</li>
                 </ul>
 
                 <h3>Guidelines</h3>
                 <ul>
-                  <li>Please provide your exact flight number.</li>
+                  <li>Please provide your exact pick-up or drop-off point.</li>
                   <li>Book at least a few hours before your target pickup.</li>
                   <li>Rates are starting prices and may vary by schedule or stopovers.</li>
                 </ul>
@@ -281,14 +281,14 @@
 
                 <div class="airport-estimate-box">
                   <p><strong>Route:</strong> <span id="wizardRoutePreview">-</span></p>
-                  <p><strong>Transfer Type:</strong> <span id="wizardTransferType">Airport Transfer Out</span></p>
+                  <p><strong>Transfer Type:</strong> <span id="wizardTransferType">Outbound Transfer</span></p>
                   <p><strong>Estimated Price:</strong> <span id="wizardEstimatedPrice">PHP -</span></p>
                 </div>
 
                 <div class="form-fields-grid airport-wizard-fields">
                   <div class="input-group full-width">
-                    <label for="wizardFlightNumber">Flight Number *</label>
-                    <input type="text" id="wizardFlightNumber" name="flight_number" required placeholder="e.g. PR 2921">
+                    <label for="wizardFlightNumber">Trip Reference / Note</label>
+                    <input type="text" id="wizardFlightNumber" name="flight_number" placeholder="Optional reference, landmark, or note">
                   </div>
 
                   <div class="input-group full-width" id="wizardPickupGroup">

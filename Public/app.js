@@ -713,7 +713,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!plannerFrom || !plannerDate || !plannerTime || !destinationPicker || !wizardForm || !modal) return;
 
     const BOOKING_API_ENDPOINT = '/api/bookings';
-    const airportName = 'Bicol International Airport';
+    const fixedOrigin = plannerFrom.dataset.fixedOrigin || plannerFrom.value || 'Bicol International Airport';
+    const outLabel = plannerFrom.dataset.outLabel || 'Airport Transfer Out (Airport to City)';
+    const inLabel = plannerFrom.dataset.inLabel || 'Airport Transfer In (City to Airport)';
+    const servicePrefix = plannerFrom.dataset.servicePrefix || 'Airport Transfer';
 
     const provinceCities = {
         'Albay': ['Legazpi', 'Daraga', 'Tabaco', 'Sto. Domingo', 'Ligao', 'Polangui', 'Guinobatan', 'Bacacay'],
@@ -728,7 +731,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'Sorsogon|Pilar': 1800,
         'Sorsogon|Sorsogon City': 2500,
         'Camarines Sur|Naga': 4800,
-        'Camarines Sur|Iriga City': 4000
+        'Camarines Sur|Iriga City': 4000,
+        'Albay|Ligao': 1100,
+        'Sorsogon|Bulan': 2800
     };
 
     let selectedProvince = 'Albay';
@@ -764,24 +769,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updatePlannerDirection() {
-        plannerFrom.value = isTransferOut ? airportName : (selectedCity ? `${selectedCity}, ${selectedProvince}` : 'Select Destination First');
+        plannerFrom.value = isTransferOut ? fixedOrigin : (selectedCity ? `${selectedCity}, ${selectedProvince}` : 'Select Destination First');
         destinationPickerTrigger.textContent = isTransferOut
             ? (selectedCity ? `${selectedCity}, ${selectedProvince}` : 'Select Destination')
-            : airportName;
+            : fixedOrigin;
         plannerDirectionLabel.textContent = isTransferOut
-            ? 'Transfer Type: Airport Transfer Out (Airport to City)'
-            : 'Transfer Type: Airport Transfer In (City to Airport)';
+            ? `Transfer Type: ${outLabel}`
+            : `Transfer Type: ${inLabel}`;
     }
 
     function updateWizardPreview() {
         const routeText = selectedCity
             ? (isTransferOut
-                ? `${airportName} to ${selectedCity}, ${selectedProvince}`
-                : `${selectedCity}, ${selectedProvince} to ${airportName}`)
+                ? `${fixedOrigin} to ${selectedCity}, ${selectedProvince}`
+                : `${selectedCity}, ${selectedProvince} to ${fixedOrigin}`)
             : '-';
 
         if (wizardRoutePreview) wizardRoutePreview.textContent = routeText;
-        if (wizardTransferType) wizardTransferType.textContent = isTransferOut ? 'Airport Transfer Out' : 'Airport Transfer In';
+        if (wizardTransferType) wizardTransferType.textContent = isTransferOut ? outLabel : inLabel;
 
         const checkedVehicle = wizardForm.querySelector('input[name="vehicleType"]:checked');
         const multiplier = checkedVehicle ? Number(checkedVehicle.dataset.multiplier || '1') : 1;
@@ -816,12 +821,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isTransferOut) {
             wizardPickupGroup.style.display = 'none';
             wizardDropoffGroup.style.display = 'flex';
-            wizardPickup.value = airportName;
+            wizardPickup.value = fixedOrigin;
             wizardDropoff.placeholder = `Drop-off in ${selectedCity || 'destination city'}`;
         } else {
             wizardPickupGroup.style.display = 'flex';
             wizardDropoffGroup.style.display = 'none';
-            wizardDropoff.value = airportName;
+            wizardDropoff.value = fixedOrigin;
             wizardPickup.placeholder = `Pick-up in ${selectedCity || 'destination city'}`;
         }
     }
@@ -947,7 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setWizardStatus('Please choose a vehicle type.', 'error');
             return;
         }
-        if (!flightNumber || !flightNumber.value.trim()) {
+        if (flightNumber && flightNumber.required && !flightNumber.value.trim()) {
             setWizardStatus('Flight number is required.', 'error');
             return;
         }
@@ -981,11 +986,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const route = isTransferOut
-            ? `${airportName} to ${selectedCity}, ${selectedProvince}`
-            : `${selectedCity}, ${selectedProvince} to ${airportName}`;
+            ? `${fixedOrigin} to ${selectedCity}, ${selectedProvince}`
+            : `${selectedCity}, ${selectedProvince} to ${fixedOrigin}`;
 
-        const pickupAddress = isTransferOut ? airportName : (formValues.pickup_address || '—');
-        const dropoffAddress = isTransferOut ? (formValues.dropoff_address || '—') : airportName;
+        const pickupAddress = isTransferOut ? fixedOrigin : (formValues.pickup_address || '—');
+        const dropoffAddress = isTransferOut ? (formValues.dropoff_address || '—') : fixedOrigin;
 
         const payload = {
             client_name: formValues.client_name,
@@ -993,7 +998,7 @@ document.addEventListener('DOMContentLoaded', () => {
             email: formValues.email,
             area: selectedProvince,
             rentalType: 'with-driver',
-            serviceOption: `${isTransferOut ? 'Airport Transfer Out' : 'Airport Transfer In'} - ${route} (Est. PHP ${estimate.toLocaleString()})`,
+            serviceOption: `${isTransferOut ? outLabel : inLabel} - ${route} (Est. PHP ${estimate.toLocaleString()})`,
             vehicleType: formValues.vehicleType || 'Sedan',
             passengers: formValues.passengers || '1',
             pickup_date: plannerDate.value,

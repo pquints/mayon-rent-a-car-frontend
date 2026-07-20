@@ -10,6 +10,7 @@ FILES=(
   "contact-us.html"
   "services.html"
   "airport-transfers.html"
+  "inbound-outbound-transfers.html"
   "fleet.html"
   "dashboard.html"
 )
