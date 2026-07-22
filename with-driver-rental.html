@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="Book with-driver rental service in Bicol with Mayon Rent a Car.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://mayonrentacar.com.ph/with-driver-rental.html" />
+  <title>With Driver Rental - Mayon Rent a Car</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/svg+xml" href="images/Mayon.svg?v=20260713">
+  <link rel="shortcut icon" href="images/Mayon.svg?v=20260713">
+  <link rel="apple-touch-icon" href="images/Mayon.svg?v=20260713">
+  <meta name="theme-color" content="#178ca4">
+</head>
+<body>
+  <header>
+    <div class="top-bar">
+      <div class="top-bar__container">
+        <div class="top-bar__contact">
+          <a href="tel:+639369938179"><i class="fas fa-phone"></i> +63 936 993 8179</a>
+          <a href="mailto:mayonrentacar@gmail.com"><i class="fas fa-envelope"></i> mayonrentacar@gmail.com</a>
+        </div>
+        <div class="top-bar__socials">
+          <a href="https://www.facebook.com/mayonrentacar/" target="_blank" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+          <a href="https://www.instagram.com/mayonrentacar/" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+        </div>
+      </div>
+    </div>
+    <nav class="navbar">
+      <div class="navbar__container">
+        <a href="index.html" id="navbar__logo"><img src="images/Mayon.svg" alt="Mayon" class="navbar__logo-img"></a>
+        <div class="navbar__toggle" id="mobile-menu">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+        </div>
+        <ul class="navbar__menu">
+          <li class="navbar__item"><a href="index.html" class="navbar__links">Home</a></li>
+          <li class="navbar__item"><a href="about.html" class="navbar__links">About</a></li>
+          <li class="navbar__item navbar__item--dropdown">
+            <a href="services.html" class="navbar__links navbar__links--dropdown">Services <i class="fas fa-chevron-down dropdown__icon" aria-hidden="true"></i></a>
+            <div class="dropdown__menu dropdown__menu--mega">
+              <div class="dropdown__columns">
+                <div class="dropdown__column">
+                  <a href="self-drive-rental.html" class="dropdown__link">
+                    <span class="dropdown__title">Self-Drive Rentals</span>
+                    <span class="dropdown__desc">Drive yourself around Bicol</span>
+                  </a>
+                  <a href="services.html#long-term-car-rental" class="dropdown__link">
+                    <span class="dropdown__title">Long-Term Car Lease</span>
+                    <span class="dropdown__desc">Monthly or yearly vehicle rentals</span>
+                  </a>
+                  <a href="services.html#corporate-fleet-leasing" class="dropdown__link">
+                    <span class="dropdown__title">Corporate Fleet Leasing</span>
+                    <span class="dropdown__desc">Multi-vehicle solutions for businesses</span>
+                  </a>
+                </div>
+                <div class="dropdown__column">
+                  <a href="with-driver-rental.html" class="dropdown__link">
+                    <span class="dropdown__title">With Driver Rentals</span>
+                    <span class="dropdown__desc">Hire a car with a professional driver by the hour or day</span>
+                  </a>
+                  <a href="airport-transfers.html" class="dropdown__link">
+                    <span class="dropdown__title">Airport Transfers</span>
+                    <span class="dropdown__desc">To and from Bicol International Airport</span>
+                  </a>
+                  <a href="inbound-outbound-transfers.html" class="dropdown__link">
+                    <span class="dropdown__title">Inbound and Outbound Transfers</span>
+                    <span class="dropdown__desc">Point-to-point travel from or ending in Legazpi-Daraga</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li class="navbar__item"><a href="fleet.html" class="navbar__links">Our Fleet</a></li>
+          <li class="navbar__item"><a href="contact-us.html" class="navbar__links">Contact Us</a></li>
+          <li class="navbar__btn"><a href="#with-driver-booking" class="button button--quote">BOOK WITH DRIVER</a></li>
+        </ul>
+      </div>
+    </nav>
+  </header>
+
+  <main class="content">
+    <section class="hero small-hero airport-hero">
+      <div class="hero-inner">
+        <h1>With Driver Rental</h1>
+        <p>Relax while we drive. Professional with-driver services for business trips, airport runs, and family tours.</p>
+      </div>
+    </section>
+
+    <section id="with-driver-booking" class="booking-section">
+      <div class="booking-container">
+        <h2>Book Your With Driver Service</h2>
+        <p class="booking-subtitle">Same booking flow as homepage, focused for with-driver requests.</p>
+
+        <div class="step-indicator">
+          <div class="step step--active">1. Area</div>
+          <div class="step">2. Service & Vehicle</div>
+          <div class="step">3. Details</div>
+        </div>
+
+        <form class="booking-form" id="withDriverBookingForm">
+          <input type="hidden" name="rental_type" value="with-driver">
+
+          <div class="form-step form-step--active">
+            <h3>Step 1: Select Booking Area</h3>
+            <div class="input-group full-width">
+              <label for="driver-booking-area">Booking Area *</label>
+              <select id="driver-booking-area" name="area" required>
+                <option value="" disabled selected>-- Select an Area --</option>
+                <option value="legazpi">Legazpi City</option>
+                <option value="daraga">Daraga</option>
+                <option value="tabaco">Tabaco City</option>
+                <option value="Sorsogon">Sorsogon City</option>
+                <option value="others">Other Bicol Areas</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-step">
+            <h3>Step 2: Select Service & Vehicle</h3>
+            <div class="input-group full-width" style="margin-bottom: 20px;">
+              <label for="driver-service">Service Option *</label>
+              <select id="driver-service" name="driver_service" required>
+                <option value="" disabled selected>-- Select Service --</option>
+                <option value="One-way Service">One-way Service</option>
+                <option value="Airport Transfer">Airport Transfer</option>
+                <option value="5-hours">5 Hours Service</option>
+                <option value="10-hours">10 Hours Service</option>
+              </select>
+            </div>
+
+            <div class="vehicle-selection">
+              <label style="font-weight: 600; display: block; margin-bottom: 10px;">Select Vehicle Type *</label>
+              <div class="booking-grid">
+                <label class="booking-card">
+                  <input type="radio" name="vehicle_type" value="Sedan" required>
+                  <span class="card-box"><strong>Sedan</strong><small>Up to 4 passengers</small></span>
+                </label>
+                <label class="booking-card">
+                  <input type="radio" name="vehicle_type" value="MPV" required>
+                  <span class="card-box"><strong>MPV</strong><small>Up to 6 passengers</small></span>
+                </label>
+                <label class="booking-card">
+                  <input type="radio" name="vehicle_type" value="Electric MPV" required>
+                  <span class="card-box"><strong>Electric MPV</strong><small>Up to 6 passengers</small></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-step">
+            <h3>Step 3: Fill up the Form</h3>
+            <div class="form-fields-grid">
+              <div class="input-group">
+                <label>Name *</label>
+                <input type="text" name="client_name" required placeholder="Full Name">
+              </div>
+              <div class="input-group">
+                <label>Contact No *</label>
+                <input type="tel" name="contact_no" required placeholder="+63">
+              </div>
+              <div class="input-group">
+                <label>Email *</label>
+                <input type="email" name="email" required placeholder="example@gmail.com">
+              </div>
+              <div class="input-group">
+                <label>Pick up Date *</label>
+                <input type="date" name="pickup_date" required>
+              </div>
+              <div class="input-group">
+                <label>Pick up Time *</label>
+                <input type="time" name="pickup_time" required>
+              </div>
+              <div class="input-group">
+                <label>Pick up Address *</label>
+                <input type="text" name="pickup_address" required placeholder="Hotel, Airport, or House Address">
+              </div>
+              <div class="input-group">
+                <label>Number of Passengers *</label>
+                <input type="number" name="passengers" id="passengers" min="1" required placeholder="No. of passengers">
+              </div>
+              <div class="input-group full-width">
+                <label>Destination / Itinerary *</label>
+                <textarea name="itinerary" rows="3" required placeholder="List down your travel destinations..."></textarea>
+              </div>
+            </div>
+
+            <input type="hidden" name="recaptcha_token" id="recaptchaToken">
+            <button type="submit" class="submit-booking-btn">Submit Booking Request</button>
+          </div>
+
+          <div class="form-navigation">
+            <button type="button" id="prev-btn" class="nav-btn btn-prev" disabled>Back</button>
+            <button type="button" id="next-btn" class="nav-btn btn-next">Next</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__container">
+      <img src="images/Mayon-footer.svg" alt="Mayon" class="footer__logo">
+      <p>Contact us: <a href="tel:+639369938179">+63 936 993 8179</a> • <a href="mailto:mayonrentacar@gmail.com">mayonrentacar@gmail.com</a></p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

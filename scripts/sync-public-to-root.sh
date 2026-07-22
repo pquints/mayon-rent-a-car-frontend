@@ -9,6 +9,8 @@ FILES=(
   "about.html"
   "contact-us.html"
   "services.html"
+  "self-drive-rental.html"
+  "with-driver-rental.html"
   "airport-transfers.html"
   "inbound-outbound-transfers.html"
   "fleet.html"
