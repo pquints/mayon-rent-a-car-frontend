@@ -2,14 +2,6 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/self-drive-rental",
-      "destination": "/Public/self-drive-rental"
-    },
-    {
-      "source": "/with-driver-rental",
-      "destination": "/Public/with-driver-rental"
-    },
-    {
       "source": "/inbound-outbound-transfers",
       "destination": "/Public/inbound-outbound-transfers"
     },
