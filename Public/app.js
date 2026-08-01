@@ -688,7 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const plannerDirectionLabel = document.getElementById('plannerDirectionLabel');
     const destinationPicker = document.getElementById('destinationPicker');
     const destinationPickerTrigger = document.getElementById('destinationPickerTrigger');
-    const provinceButtons = document.querySelectorAll('.province-btn');
+    const provinceButtonsWrap = destinationPicker?.querySelector('.destination-col--province');
     const cityOptionsWrap = document.getElementById('cityOptions');
     const cityColumnTitle = document.getElementById('cityColumnTitle');
     const plannerContinueBtn = document.getElementById('plannerContinueBtn');
@@ -757,6 +757,75 @@ document.addEventListener('DOMContentLoaded', () => {
         return String(value || '').trim().toLowerCase();
     }
 
+    function normalizeTitleCase(value) {
+        return String(value || '')
+            .trim()
+            .toLowerCase()
+            .replace(/\b\w/g, (ch) => ch.toUpperCase());
+    }
+
+    function sortProvinceKeys(keys) {
+        const preferredOrder = ['Albay', 'Sorsogon', 'Camarines Sur'];
+        return [...keys].sort((a, b) => {
+            const aIndex = preferredOrder.indexOf(a);
+            const bIndex = preferredOrder.indexOf(b);
+            const aRank = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+            const bRank = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+            if (aRank !== bRank) return aRank - bRank;
+            return a.localeCompare(b);
+        });
+    }
+
+    function getProvinceButtons() {
+        return destinationPicker.querySelectorAll('.province-btn');
+    }
+
+    function mergeProvinceCityFromLiveRates() {
+        if (!Array.isArray(liveAirportRates) || !liveAirportRates.length) return;
+
+        liveAirportRates.forEach((route) => {
+            const province = normalizeTitleCase(route?.province);
+            const destination = normalizeTitleCase(route?.destination);
+            if (!province || !destination) return;
+
+            if (!provinceCities[province]) provinceCities[province] = [];
+            const exists = provinceCities[province].some((city) => toLowerTrim(city) === toLowerTrim(destination));
+            if (!exists) provinceCities[province].push(destination);
+        });
+
+        Object.keys(provinceCities).forEach((province) => {
+            provinceCities[province].sort((a, b) => a.localeCompare(b));
+        });
+    }
+
+    function renderProvinceButtons() {
+        if (!provinceButtonsWrap) return;
+
+        const provinceKeys = sortProvinceKeys(Object.keys(provinceCities));
+        provinceButtonsWrap.querySelectorAll('.province-btn').forEach((button) => button.remove());
+
+        provinceKeys.forEach((province, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `province-btn${province === selectedProvince || (!selectedProvince && index === 0) ? ' is-active' : ''}`;
+            button.dataset.province = province;
+            button.textContent = province;
+            button.addEventListener('click', () => {
+                getProvinceButtons().forEach((item) => item.classList.remove('is-active'));
+                button.classList.add('is-active');
+                selectedCity = '';
+                renderCities(province);
+                updatePlannerDirection();
+                updateWizardPreview();
+            });
+            provinceButtonsWrap.appendChild(button);
+        });
+
+        if (!selectedProvince || !provinceCities[selectedProvince]) {
+            selectedProvince = provinceKeys[0] || 'Albay';
+        }
+    }
+
     function upsertLiveRouteRate(route) {
         const province = String(route?.province || '').trim();
         const destination = String(route?.destination || '').trim();
@@ -802,6 +871,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // ignore and try the next base URL
             }
         }
+
+        liveAirportRates = [];
     }
 
     function getLiveAirportRoute(province, city) {
@@ -958,17 +1029,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const dd = String(today.getDate()).padStart(2, '0');
     plannerDate.min = `${yyyy}-${mm}-${dd}`;
 
-    provinceButtons.forEach((btn) => {
-        btn.addEventListener('click', () => {
-            provinceButtons.forEach((item) => item.classList.remove('is-active'));
-            btn.classList.add('is-active');
-            selectedCity = '';
-            renderCities(btn.dataset.province || 'Albay');
-            updatePlannerDirection();
-            updateWizardPreview();
-        });
-    });
-
     destinationPickerTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleDestinationPicker();
@@ -1014,9 +1074,16 @@ document.addEventListener('DOMContentLoaded', () => {
             ev: Number(button.dataset.fareEv || 0)
         });
 
+        if (!provinceCities[province]) provinceCities[province] = [];
+        if (!provinceCities[province].some((item) => toLowerTrim(item) === toLowerTrim(city))) {
+            provinceCities[province].push(city);
+            provinceCities[province].sort((a, b) => a.localeCompare(b));
+            renderProvinceButtons();
+        }
+
         selectedProvince = province;
         selectedCity = city;
-        provinceButtons.forEach((item) => {
+        getProvinceButtons().forEach((item) => {
             item.classList.toggle('is-active', item.dataset.province === province);
         });
         renderCities(province);
@@ -1164,10 +1231,13 @@ document.addEventListener('DOMContentLoaded', () => {
         field.addEventListener('change', clearWizardStatus);
     });
 
-    renderCities(selectedProvince);
-    updatePlannerDirection();
-    loadLiveAirportRates().then(updateWizardPreview);
-    updateWizardPreview();
+    loadLiveAirportRates().finally(() => {
+        mergeProvinceCityFromLiveRates();
+        renderProvinceButtons();
+        renderCities(selectedProvince);
+        updatePlannerDirection();
+        updateWizardPreview();
+    });
 });
 
 // --- NAV HIGHLIGHT (active link) ---
