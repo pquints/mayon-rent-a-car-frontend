@@ -303,9 +303,9 @@
         grouped[r.province].push(r);
       });
 
-      let html = '';
+        let html = '';
       for (const [province, rows] of Object.entries(grouped)) {
-        html += `<article class="airport-region-card"><h2>${province}</h2><ul class="airport-rate-list">`;
+        html += `<article class="airport-region-card"><h2>${province}</h2><div class="airport-rate-scroller"><ul class="airport-rate-list">`;
         rows.forEach(r => {
           const fare = r.sedan;
           html += `
@@ -321,7 +321,7 @@
                 data-fare-ev="${Number(r.ev) || 0}">Book Now</a>
             </li>`;
         });
-        html += `</ul></article>`;
+          html += `</ul></div></article>`;
       }
 
       html += `<div class="airport-cta">
