@@ -2964,8 +2964,10 @@ async function saveRates() {
     if (response.ok) {
         _currentRates = data.rates;
         showRatesStatus('Rates saved successfully!', 'success');
+        return true;
     } else {
         showRatesStatus(data.error || 'Failed to save rates.', 'error');
+        return false;
     }
 }
 
@@ -3198,14 +3200,19 @@ function removeUnsupportedAirportRoutes() {
     }
 }
 
-function removeAirportRoute(routeId) {
+async function removeAirportRoute(routeId) {
     if (!_currentRates || !_currentRates.airportTransfers) return;
     if (!confirm('Remove this route?')) return;
 
     _currentRates.airportTransfers = _currentRates.airportTransfers.filter(r => r.id !== routeId);
     renderRatesTables(_currentRates);
+    initializeAirportRatesSuggestions();
     switchRatesTab('airport');
-    showRatesStatus('Route removed. Click Save All Rates to apply live.', 'success');
+
+    const didSave = await saveRates();
+    if (didSave) {
+        showRatesStatus('Route removed and saved. Frontend will update on next fetch.', 'success');
+    }
 }
 
 function showRatesStatus(msg, type) {
