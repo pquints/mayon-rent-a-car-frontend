@@ -2895,12 +2895,32 @@ function renderDestinationOptions(suggestionMap, selectedProvince) {
 function initializeAirportRatesSuggestions() {
     const provinceEl = document.getElementById('rateProvince');
     const destinationEl = document.getElementById('rateDestination');
+    const provinceQuickEl = document.getElementById('rateProvinceQuick');
+    const destinationQuickEl = document.getElementById('rateDestinationQuick');
     if (!provinceEl || !destinationEl) return;
 
     const refreshSuggestions = () => {
         const suggestionMap = getAirportSuggestionMapFromData();
         renderProvinceOptions(suggestionMap);
         renderDestinationOptions(suggestionMap, provinceEl.value);
+
+        if (provinceQuickEl) {
+            const provinces = Object.keys(suggestionMap).sort((a, b) => a.localeCompare(b));
+            provinceQuickEl.innerHTML = ['<option value="">-- Select Province --</option>', ...provinces.map((p) => `<option value="${p}">${p}</option>`)].join('');
+            if (provinceEl.value && provinces.includes(normalizeTitleCase(provinceEl.value))) {
+                provinceQuickEl.value = normalizeTitleCase(provinceEl.value);
+            }
+        }
+
+        if (destinationQuickEl) {
+            const activeProvince = provinceQuickEl && provinceQuickEl.value ? provinceQuickEl.value : provinceEl.value;
+            const provinceKey = normalizeTitleCase(activeProvince);
+            const cityList = (suggestionMap[provinceKey] || []).sort((a, b) => a.localeCompare(b));
+            destinationQuickEl.innerHTML = ['<option value="">-- Select Destination --</option>', ...cityList.map((c) => `<option value="${c}">${c}</option>`)].join('');
+            if (destinationEl.value && cityList.includes(normalizeTitleCase(destinationEl.value))) {
+                destinationQuickEl.value = normalizeTitleCase(destinationEl.value);
+            }
+        }
     };
 
     refreshSuggestions();
@@ -2917,7 +2937,39 @@ function initializeAirportRatesSuggestions() {
         destinationEl.value = normalizeTitleCase(destinationEl.value);
     });
 
+    if (provinceQuickEl) {
+        provinceQuickEl.addEventListener('change', () => {
+            provinceEl.value = normalizeTitleCase(provinceQuickEl.value);
+            refreshSuggestions();
+        });
+    }
+
+    if (destinationQuickEl) {
+        destinationQuickEl.addEventListener('change', () => {
+            destinationEl.value = normalizeTitleCase(destinationQuickEl.value);
+        });
+    }
+
     _airportRatesSuggestionsBound = true;
+}
+
+function applyQuickAirportSuggestion() {
+    const provinceQuickEl = document.getElementById('rateProvinceQuick');
+    const destinationQuickEl = document.getElementById('rateDestinationQuick');
+    const provinceEl = document.getElementById('rateProvince');
+    const destinationEl = document.getElementById('rateDestination');
+
+    const province = normalizeTitleCase(provinceQuickEl?.value || '');
+    const destination = normalizeTitleCase(destinationQuickEl?.value || '');
+
+    if (!province || !destination) {
+        showRatesStatus('Please select both province and destination.', 'error');
+        return;
+    }
+
+    if (provinceEl) provinceEl.value = province;
+    if (destinationEl) destinationEl.value = destination;
+    showRatesStatus('Selection applied. Set prices and click Add Route.', 'success');
 }
 
 async function saveRates() {
