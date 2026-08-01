@@ -719,11 +719,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const inLabel = plannerFrom.dataset.inLabel || 'Airport Transfer In (City to Airport)';
     const servicePrefix = plannerFrom.dataset.servicePrefix || 'Airport Transfer';
 
-    const provinceCities = {
+    const DEFAULT_PROVINCE_CITIES = {
         'Albay': ['Legazpi', 'Daraga', 'Tabaco', 'Sto. Domingo', 'Ligao', 'Polangui', 'Guinobatan', 'Bacacay'],
         'Sorsogon': ['Sorsogon City', 'Pilar', 'Bulan', 'Gubat', 'Bacon', 'Irosin', 'Donsol'],
         'Camarines Sur': ['Naga', 'Iriga City', 'Pili', 'Nabua', 'Libmanan', 'Sipocot', 'Baao']
     };
+
+    let provinceCities = {};
 
     const baseFare = {
         'Albay|Legazpi': 750,
@@ -780,22 +782,33 @@ document.addEventListener('DOMContentLoaded', () => {
         return destinationPicker.querySelectorAll('.province-btn');
     }
 
-    function mergeProvinceCityFromLiveRates() {
-        if (!Array.isArray(liveAirportRates) || !liveAirportRates.length) return;
+    function cloneDefaultProvinceCities() {
+        const copy = {};
+        Object.entries(DEFAULT_PROVINCE_CITIES).forEach(([province, cities]) => {
+            copy[province] = [...cities];
+        });
+        return copy;
+    }
+
+    function buildProvinceCitiesFromLiveRates() {
+        const map = {};
 
         liveAirportRates.forEach((route) => {
             const province = normalizeTitleCase(route?.province);
             const destination = normalizeTitleCase(route?.destination);
             if (!province || !destination) return;
 
-            if (!provinceCities[province]) provinceCities[province] = [];
-            const exists = provinceCities[province].some((city) => toLowerTrim(city) === toLowerTrim(destination));
-            if (!exists) provinceCities[province].push(destination);
+            if (!map[province]) map[province] = [];
+            if (!map[province].some((city) => toLowerTrim(city) === toLowerTrim(destination))) {
+                map[province].push(destination);
+            }
         });
 
-        Object.keys(provinceCities).forEach((province) => {
-            provinceCities[province].sort((a, b) => a.localeCompare(b));
+        Object.keys(map).forEach((province) => {
+            map[province].sort((a, b) => a.localeCompare(b));
         });
+
+        return map;
     }
 
     function renderProvinceButtons() {
@@ -836,8 +849,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const previousProvince = selectedProvince;
         const previousCity = selectedCity;
 
-        await loadLiveAirportRates();
-        mergeProvinceCityFromLiveRates();
+        const loadedFromApi = await loadLiveAirportRates();
+        provinceCities = loadedFromApi ? buildProvinceCitiesFromLiveRates() : cloneDefaultProvinceCities();
         renderProvinceButtons();
 
         const allProvinces = sortProvinceKeys(Object.keys(provinceCities));
@@ -905,13 +918,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     mpv: Number(item.mpv) || 0,
                     ev: Number(item.ev) || 0
                 }));
-                return;
+                return true;
             } catch (_) {
                 // ignore and try the next base URL
             }
         }
 
         liveAirportRates = [];
+        return false;
     }
 
     function getLiveAirportRoute(province, city) {
@@ -1127,19 +1141,12 @@ document.addEventListener('DOMContentLoaded', () => {
             ev: Number(button.dataset.fareEv || 0)
         });
 
-        if (!provinceCities[province]) provinceCities[province] = [];
-        if (!provinceCities[province].some((item) => toLowerTrim(item) === toLowerTrim(city))) {
-            provinceCities[province].push(city);
-            provinceCities[province].sort((a, b) => a.localeCompare(b));
-            renderProvinceButtons();
-        }
-
-        selectedProvince = province;
-        selectedCity = city;
+        selectedProvince = normalizeTitleCase(province);
+        selectedCity = normalizeTitleCase(city);
         getProvinceButtons().forEach((item) => {
-            item.classList.toggle('is-active', item.dataset.province === province);
+            item.classList.toggle('is-active', item.dataset.province === selectedProvince);
         });
-        renderCities(province);
+        renderCities(selectedProvince);
         updatePlannerDirection();
         updateWizardPreview();
         document.getElementById('airport-planner')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
