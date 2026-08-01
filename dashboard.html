@@ -538,11 +538,11 @@
                     <div style="display:grid; grid-template-columns: 1.1fr 1.1fr 0.7fr 0.7fr 0.9fr auto; gap:10px; margin-bottom:16px; align-items:end;">
                         <div>
                             <label style="display:block; margin-bottom:6px; font-size:12px; color:#64748b; font-weight:600;">Province</label>
-                            <input type="text" id="rateProvince" class="rates-input" placeholder="e.g. Albay" style="width:100%;">
+                            <input type="text" id="rateProvince" class="rates-input" placeholder="e.g. Albay" list="rateProvinceList" style="width:100%;">
                         </div>
                         <div>
                             <label style="display:block; margin-bottom:6px; font-size:12px; color:#64748b; font-weight:600;">Destination</label>
-                            <input type="text" id="rateDestination" class="rates-input" placeholder="e.g. Ligao City" style="width:100%;">
+                            <input type="text" id="rateDestination" class="rates-input" placeholder="e.g. Ligao City" list="rateDestinationList" style="width:100%;">
                         </div>
                         <div>
                             <label style="display:block; margin-bottom:6px; font-size:12px; color:#64748b; font-weight:600;">Sedan</label>
@@ -558,6 +558,8 @@
                         </div>
                         <button class="btn-secondary" onclick="addAirportRoute()" style="height:38px; white-space:nowrap;">+ Add Route</button>
                     </div>
+                    <datalist id="rateProvinceList"></datalist>
+                    <datalist id="rateDestinationList"></datalist>
                     <div id="airportRatesTable"></div>
                 </div>
 

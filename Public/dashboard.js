@@ -2781,6 +2781,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
 let _currentRates = null;
 let _activeRatesTab = 'airport';
+let _airportRatesSuggestionsBound = false;
+
+const AIRPORT_ROUTE_SUGGESTIONS = {
+    'Albay': [
+        'Legazpi City', 'Daraga', 'Tabaco City', 'Ligao City', 'Guinobatan', 'Polangui',
+        'Camalig', 'Bacacay', 'Sto. Domingo', 'Tiwi', 'Malilipot', 'Malinao', 'Jovellar',
+        'Oas', 'Pio Duran', 'Rapu-Rapu', 'Libon'
+    ],
+    'Sorsogon': [
+        'Sorsogon City', 'Pilar', 'Bulan', 'Gubat', 'Donsol', 'Irosin', 'Castilla', 'Barcelona',
+        'Bacon', 'Prieto Diaz', 'Sta. Magdalena', 'Matnog', 'Bulusan', 'Juban', 'Casiguran',
+        'Magallanes'
+    ],
+    'Camarines Sur': [
+        'Naga City', 'Iriga City', 'Pili', 'Nabua', 'Baao', 'Libmanan', 'Sipocot', 'Calabanga',
+        'Camaligan', 'Canaman', 'Gainza', 'Milaor', 'Minalabac', 'Bombon', 'Magarao', 'Pasacao',
+        'Ragay', 'Del Gallego', 'Lupi', 'Tinambac', 'Tigaon', 'Goa', 'Sagnay', 'Bato', 'Buhi',
+        'Bula', 'Balatan', 'Cabusao', 'Caramoan', 'Garchitorena', 'Presentacion', 'San Jose'
+    ],
+    'Camarines Norte': [
+        'Daet', 'Basud', 'Capalonga', 'Jose Panganiban', 'Labo', 'Mercedes', 'Paracale',
+        'San Lorenzo Ruiz', 'San Vicente', 'Santa Elena', 'Talisay', 'Vinzons'
+    ],
+    'Catanduanes': [
+        'Virac', 'San Andres', 'Caramoran', 'Bagamanoc', 'Baras', 'Bato', 'Gigmoto', 'Pandan',
+        'Panganiban', 'Viga', 'San Miguel'
+    ],
+    'Masbate': [
+        'Masbate City', 'Aroroy', 'Baleno', 'Balud', 'Batuan', 'Cataingan', 'Cawayan', 'Claveria',
+        'Dimasalang', 'Esperanza', 'Mandaon', 'Milagros', 'Mobo', 'Monreal', 'Palanas', 'Pio V. Corpuz',
+        'Placer', 'San Fernando', 'San Jacinto', 'San Pascual', 'Uson'
+    ]
+};
 
 async function loadRates() {
     const { response, data } = await requestWithFallback('/rates', {
@@ -2791,8 +2824,81 @@ async function loadRates() {
         return;
     }
     _currentRates = data.rates;
+    initializeAirportRatesSuggestions();
     renderRatesTables(_currentRates);
     switchRatesTab(_activeRatesTab);
+}
+
+function normalizeTitleCase(text) {
+    return String(text || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function getAirportSuggestionMapFromData() {
+    const map = {};
+
+    Object.entries(AIRPORT_ROUTE_SUGGESTIONS).forEach(([province, cities]) => {
+        map[province] = [...cities];
+    });
+
+    if (_currentRates?.airportTransfers) {
+        _currentRates.airportTransfers.forEach((row) => {
+            const province = normalizeTitleCase(row.province);
+            const destination = normalizeTitleCase(row.destination);
+            if (!province || !destination) return;
+            if (!map[province]) map[province] = [];
+            if (!map[province].includes(destination)) map[province].push(destination);
+        });
+    }
+
+    return map;
+}
+
+function renderProvinceOptions(suggestionMap) {
+    const datalist = document.getElementById('rateProvinceList');
+    if (!datalist) return;
+    const provinces = Object.keys(suggestionMap).sort((a, b) => a.localeCompare(b));
+    datalist.innerHTML = provinces.map((province) => `<option value="${province}"></option>`).join('');
+}
+
+function renderDestinationOptions(suggestionMap, selectedProvince) {
+    const datalist = document.getElementById('rateDestinationList');
+    if (!datalist) return;
+
+    const provinceKey = normalizeTitleCase(selectedProvince);
+    const cities = suggestionMap[provinceKey] || [];
+    const uniqueCities = Array.from(new Set(cities)).sort((a, b) => a.localeCompare(b));
+    datalist.innerHTML = uniqueCities.map((city) => `<option value="${city}"></option>`).join('');
+}
+
+function initializeAirportRatesSuggestions() {
+    const provinceEl = document.getElementById('rateProvince');
+    const destinationEl = document.getElementById('rateDestination');
+    if (!provinceEl || !destinationEl) return;
+
+    const refreshSuggestions = () => {
+        const suggestionMap = getAirportSuggestionMapFromData();
+        renderProvinceOptions(suggestionMap);
+        renderDestinationOptions(suggestionMap, provinceEl.value);
+    };
+
+    refreshSuggestions();
+
+    if (_airportRatesSuggestionsBound) return;
+
+    provinceEl.addEventListener('input', refreshSuggestions);
+    provinceEl.addEventListener('change', refreshSuggestions);
+    provinceEl.addEventListener('blur', () => {
+        provinceEl.value = normalizeTitleCase(provinceEl.value);
+        refreshSuggestions();
+    });
+    destinationEl.addEventListener('blur', () => {
+        destinationEl.value = normalizeTitleCase(destinationEl.value);
+    });
+
+    _airportRatesSuggestionsBound = true;
 }
 
 async function saveRates() {
@@ -2920,8 +3026,8 @@ function addAirportRoute() {
     const mpvEl = document.getElementById('rateMpv');
     const evEl = document.getElementById('rateEv');
 
-    const province = (provinceEl?.value || '').trim();
-    const destination = (destinationEl?.value || '').trim();
+    const province = normalizeTitleCase(provinceEl?.value || '');
+    const destination = normalizeTitleCase(destinationEl?.value || '');
     const sedan = parseInt(sedanEl?.value || '0', 10);
     const mpv = parseInt(mpvEl?.value || '0', 10);
     const ev = parseInt(evEl?.value || '0', 10);
@@ -2950,6 +3056,7 @@ function addAirportRoute() {
     });
 
     renderRatesTables(_currentRates);
+    initializeAirportRatesSuggestions();
     switchRatesTab('airport');
 
     if (provinceEl) provinceEl.value = '';
