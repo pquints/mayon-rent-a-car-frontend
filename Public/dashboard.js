@@ -2783,36 +2783,11 @@ let _currentRates = null;
 let _activeRatesTab = 'airport';
 let _airportRatesSuggestionsBound = false;
 
-const AIRPORT_ROUTE_SUGGESTIONS = {
-    'Albay': [
-        'Legazpi City', 'Daraga', 'Tabaco City', 'Ligao City', 'Guinobatan', 'Polangui',
-        'Camalig', 'Bacacay', 'Sto. Domingo', 'Tiwi', 'Malilipot', 'Malinao', 'Jovellar',
-        'Oas', 'Pio Duran', 'Rapu-Rapu', 'Libon'
-    ],
-    'Sorsogon': [
-        'Sorsogon City', 'Pilar', 'Bulan', 'Gubat', 'Donsol', 'Irosin', 'Castilla', 'Barcelona',
-        'Bacon', 'Prieto Diaz', 'Sta. Magdalena', 'Matnog', 'Bulusan', 'Juban', 'Casiguran',
-        'Magallanes'
-    ],
-    'Camarines Sur': [
-        'Naga City', 'Iriga City', 'Pili', 'Nabua', 'Baao', 'Libmanan', 'Sipocot', 'Calabanga',
-        'Camaligan', 'Canaman', 'Gainza', 'Milaor', 'Minalabac', 'Bombon', 'Magarao', 'Pasacao',
-        'Ragay', 'Del Gallego', 'Lupi', 'Tinambac', 'Tigaon', 'Goa', 'Sagnay', 'Bato', 'Buhi',
-        'Bula', 'Balatan', 'Cabusao', 'Caramoan', 'Garchitorena', 'Presentacion', 'San Jose'
-    ],
-    'Camarines Norte': [
-        'Daet', 'Basud', 'Capalonga', 'Jose Panganiban', 'Labo', 'Mercedes', 'Paracale',
-        'San Lorenzo Ruiz', 'San Vicente', 'Santa Elena', 'Talisay', 'Vinzons'
-    ],
-    'Catanduanes': [
-        'Virac', 'San Andres', 'Caramoran', 'Bagamanoc', 'Baras', 'Bato', 'Gigmoto', 'Pandan',
-        'Panganiban', 'Viga', 'San Miguel'
-    ],
-    'Masbate': [
-        'Masbate City', 'Aroroy', 'Baleno', 'Balud', 'Batuan', 'Cataingan', 'Cawayan', 'Claveria',
-        'Dimasalang', 'Esperanza', 'Mandaon', 'Milagros', 'Mobo', 'Monreal', 'Palanas', 'Pio V. Corpuz',
-        'Placer', 'San Fernando', 'San Jacinto', 'San Pascual', 'Uson'
-    ]
+// Keep dashboard destination choices aligned to the airport frontend picker.
+const FRONTEND_AIRPORT_DESTINATIONS = {
+    'Albay': ['Legazpi', 'Daraga', 'Tabaco', 'Sto. Domingo', 'Ligao', 'Polangui', 'Guinobatan', 'Bacacay'],
+    'Sorsogon': ['Sorsogon City', 'Pilar', 'Bulan', 'Gubat', 'Bacon', 'Irosin', 'Donsol'],
+    'Camarines Sur': ['Naga', 'Iriga City', 'Pili', 'Nabua', 'Libmanan', 'Sipocot', 'Baao']
 };
 
 const AIRPORT_DEFAULT_SEDAN_BY_ROUTE = {
@@ -2828,6 +2803,32 @@ const AIRPORT_DEFAULT_SEDAN_BY_ROUTE = {
 };
 
 const AIRPORT_DEFAULT_SEDAN_FALLBACK = 1800;
+
+function normalizeRouteCompareText(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+}
+
+function isSupportedAirportProvince(province) {
+    const provinceKey = normalizeTitleCase(province);
+    return Object.prototype.hasOwnProperty.call(FRONTEND_AIRPORT_DESTINATIONS, provinceKey);
+}
+
+function isSupportedAirportDestination(province, destination) {
+    const provinceKey = normalizeTitleCase(province);
+    const allowedDestinations = FRONTEND_AIRPORT_DESTINATIONS[provinceKey] || [];
+    if (!allowedDestinations.length) return false;
+
+    const normalizedDestination = normalizeRouteCompareText(destination);
+    return allowedDestinations.some((item) => {
+        const normalizedAllowed = normalizeRouteCompareText(item);
+        return normalizedAllowed === normalizedDestination ||
+            normalizedAllowed.includes(normalizedDestination) ||
+            normalizedDestination.includes(normalizedAllowed);
+    });
+}
 
 async function loadRates() {
     const { response, data } = await requestWithFallback('/rates', {
@@ -2858,7 +2859,7 @@ function getDefaultAirportSedanRate(province, destination) {
 function getAirportSuggestionMapFromData() {
     const map = {};
 
-    Object.entries(AIRPORT_ROUTE_SUGGESTIONS).forEach(([province, cities]) => {
+    Object.entries(FRONTEND_AIRPORT_DESTINATIONS).forEach(([province, cities]) => {
         map[province] = [...cities];
     });
 
@@ -2867,6 +2868,8 @@ function getAirportSuggestionMapFromData() {
             const province = normalizeTitleCase(row.province);
             const destination = normalizeTitleCase(row.destination);
             if (!province || !destination) return;
+            if (!isSupportedAirportProvince(province)) return;
+            if (!isSupportedAirportDestination(province, destination)) return;
             if (!map[province]) map[province] = [];
             if (!map[province].includes(destination)) map[province].push(destination);
         });
@@ -3150,7 +3153,7 @@ function populateSuggestedAirportRoutes() {
 
     let addedCount = 0;
 
-    Object.entries(AIRPORT_ROUTE_SUGGESTIONS).forEach(([province, cities]) => {
+    Object.entries(FRONTEND_AIRPORT_DESTINATIONS).forEach(([province, cities]) => {
         cities.forEach((destination) => {
             const normalizedProvince = normalizeTitleCase(province);
             const normalizedDestination = normalizeTitleCase(destination);
@@ -3186,6 +3189,28 @@ function populateSuggestedAirportRoutes() {
         showRatesStatus(`${addedCount} routes added. Click Save All Rates to apply live.`, 'success');
     } else {
         showRatesStatus('All suggested cities/towns are already in your rates list.', 'success');
+    }
+}
+
+function removeUnsupportedAirportRoutes() {
+    if (!_currentRates || !_currentRates.airportTransfers) return;
+
+    const before = _currentRates.airportTransfers.length;
+    _currentRates.airportTransfers = _currentRates.airportTransfers.filter((row) => {
+        const province = normalizeTitleCase(row.province);
+        const destination = normalizeTitleCase(row.destination);
+        return isSupportedAirportProvince(province) && isSupportedAirportDestination(province, destination);
+    });
+    const removed = before - _currentRates.airportTransfers.length;
+
+    renderRatesTables(_currentRates);
+    initializeAirportRatesSuggestions();
+    switchRatesTab('airport');
+
+    if (removed > 0) {
+        showRatesStatus(`${removed} non-frontend routes removed. Click Save All Rates to apply live.`, 'success');
+    } else {
+        showRatesStatus('No non-frontend routes found.', 'success');
     }
 }
 
