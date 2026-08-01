@@ -147,83 +147,9 @@
       </div>
     </section>
 
-    <section class="container airport-rates">
-      <article class="airport-region-card">
-        <h2>Albay</h2>
-        <ul class="airport-rate-list">
-          <li>
-            <h3>Bicol International Airport to Legazpi-Daraga</h3>
-            <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 750</strong>
-            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Albay" data-city="Legazpi-Daraga" data-area="Albay" data-fare="750">Book Now</a>
-          </li>
-          <li>
-            <h3>Bicol International Airport to Tabaco</h3>
-            <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 2,000</strong>
-            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Albay" data-city="Tabaco" data-area="Albay" data-fare="2000">Book Now</a>
-          </li>
-          <li class="airport-rate-placeholder">
-            <h3>Next Albay Route</h3>
-            <p>Coming soon. You can request a custom destination now.</p>
-            <strong>TBA</strong>
-            <a href="contact-us.html" class="airport-card-book">Request Route</a>
-          </li>
-        </ul>
-      </article>
-
-      <article class="airport-region-card">
-        <h2>Sorsogon</h2>
-        <ul class="airport-rate-list">
-          <li>
-            <h3>Bicol International Airport to Pilar</h3>
-            <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 1,800</strong>
-            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Sorsogon" data-city="Pilar" data-area="Sorsogon" data-fare="1800">Book Now</a>
-          </li>
-          <li>
-            <h3>Bicol International Airport to Sorsogon City</h3>
-            <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 2,500</strong>
-            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Sorsogon" data-city="Sorsogon City" data-area="Sorsogon" data-fare="2500">Book Now</a>
-          </li>
-          <li class="airport-rate-placeholder">
-            <h3>Next Sorsogon Route</h3>
-            <p>Coming soon. You can request a custom destination now.</p>
-            <strong>TBA</strong>
-            <a href="contact-us.html" class="airport-card-book">Request Route</a>
-          </li>
-        </ul>
-      </article>
-
-      <article class="airport-region-card">
-        <h2>Camarines Sur</h2>
-        <ul class="airport-rate-list">
-          <li>
-            <h3>Bicol International Airport to Naga</h3>
-            <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 4,800</strong>
-            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Camarines Sur" data-city="Naga" data-area="Camarines Sur" data-fare="4800">Book Now</a>
-          </li>
-          <li>
-            <h3>Bicol International Airport to Iriga City</h3>
-            <p>Starting fare for one-way transfer.</p>
-            <strong>From PHP 4,000</strong>
-            <a href="#airport-planner" class="airport-card-book airport-select-route" data-province="Camarines Sur" data-city="Iriga City" data-area="Camarines Sur" data-fare="4000">Book Now</a>
-          </li>
-          <li class="airport-rate-placeholder">
-            <h3>Next CamSur Route</h3>
-            <p>Coming soon. You can request a custom destination now.</p>
-            <strong>TBA</strong>
-            <a href="contact-us.html" class="airport-card-book">Request Route</a>
-          </li>
-        </ul>
-      </article>
-
-      <div class="airport-cta">
-        <a href="#airport-planner" class="btn-primary">Book Airport Transfer Now</a>
-        <a href="contact-us.html" class="btn-secondary airport-cta-secondary">Ask About Round-Trip Rates</a>
-      </div>
+    <section class="container airport-rates" id="airportRatesSection">
+      <!-- Rates are rendered dynamically from the API -->
+      <div id="airportRatesLoading" style="text-align:center; padding:40px; color:#64748b;">Loading rates...</div>
     </section>
 
     <div class="airport-wizard-modal" id="airportWizardModal" hidden>
@@ -346,6 +272,88 @@
     </div>
   </footer>
 
+  <script>
+  (function () {
+    const API_BASES = ['/api', 'https://api.mayonrentacar.com.ph/api'];
+
+    async function fetchRates() {
+      for (const base of API_BASES) {
+        try {
+          const res = await fetch(`${base}/rates`);
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (data.success) return data.rates.airportTransfers || [];
+        } catch (_) {}
+      }
+      return null;
+    }
+
+    function formatPHP(num) {
+      return 'PHP ' + Number(num).toLocaleString('en-PH');
+    }
+
+    function renderRates(rates) {
+      const section = document.getElementById('airportRatesSection');
+      if (!section) return;
+
+      // Group by province
+      const grouped = {};
+      rates.forEach(r => {
+        if (!grouped[r.province]) grouped[r.province] = [];
+        grouped[r.province].push(r);
+      });
+
+      let html = '';
+      for (const [province, rows] of Object.entries(grouped)) {
+        html += `<article class="airport-region-card"><h2>${province}</h2><ul class="airport-rate-list">`;
+        rows.forEach(r => {
+          const fare = r.sedan;
+          html += `
+            <li>
+              <h3>Bicol International Airport to ${r.destination}</h3>
+              <p>Starting fare for one-way transfer.</p>
+              <strong>From ${formatPHP(fare)}</strong>
+              <a href="#airport-planner" class="airport-card-book airport-select-route"
+                data-province="${r.province}" data-city="${r.destination}"
+                data-area="${r.province}" data-fare="${fare}">Book Now</a>
+            </li>`;
+        });
+        html += `</ul></article>`;
+      }
+
+      html += `<div class="airport-cta">
+        <a href="#airport-planner" class="btn-primary">Book Airport Transfer Now</a>
+        <a href="contact-us.html" class="btn-secondary airport-cta-secondary">Ask About Round-Trip Rates</a>
+      </div>`;
+
+      section.innerHTML = html;
+
+      // Re-init route selector clicks after dynamic render
+      section.querySelectorAll('.airport-select-route').forEach(btn => {
+        btn.addEventListener('click', function () {
+          const fare = this.dataset.fare;
+          const city = this.dataset.city;
+          const area = this.dataset.area;
+          const fareEl = document.getElementById('wizardEstimatedPrice');
+          if (fareEl) fareEl.textContent = 'PHP ' + Number(fare).toLocaleString('en-PH');
+          const cityEl = document.getElementById('wizardCity');
+          if (cityEl) cityEl.value = city;
+          const areaEl = document.getElementById('wizardArea');
+          if (areaEl) areaEl.value = area;
+        });
+      });
+    }
+
+    fetchRates().then(rates => {
+      if (rates) {
+        renderRates(rates);
+      } else {
+        const el = document.getElementById('airportRatesLoading');
+        if (el) el.textContent = 'Rates temporarily unavailable. Please contact us for pricing.';
+      }
+    });
+  })();
+  </script>
   <script src="app.js"></script>
 </body>
 </html>
