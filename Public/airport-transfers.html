@@ -303,9 +303,19 @@
         grouped[r.province].push(r);
       });
 
-        let html = '';
-      for (const [province, rows] of Object.entries(grouped)) {
-        html += `<article class="airport-region-card"><h2>${province}</h2><div class="airport-rate-scroller"><ul class="airport-rate-list">`;
+      let html = '';
+      const provinceEntries = Object.entries(grouped);
+      provinceEntries.forEach(([province, rows], index) => {
+        const scrollerId = `airport-rate-scroller-${index}`;
+        html += `<article class="airport-region-card">
+          <div class="airport-rate-head">
+            <h2>${province}</h2>
+            <div class="airport-rate-nav" aria-label="Scroll ${province} routes">
+              <button type="button" class="airport-rate-nav-btn" data-dir="left" data-target="${scrollerId}" aria-label="Scroll left">&#8592;</button>
+              <button type="button" class="airport-rate-nav-btn" data-dir="right" data-target="${scrollerId}" aria-label="Scroll right">&#8594;</button>
+            </div>
+          </div>
+          <div class="airport-rate-scroller" id="${scrollerId}"><ul class="airport-rate-list">`;
         rows.forEach(r => {
           const fare = r.sedan;
           html += `
@@ -321,8 +331,8 @@
                 data-fare-ev="${Number(r.ev) || 0}">Book Now</a>
             </li>`;
         });
-          html += `</ul></div></article>`;
-      }
+        html += `</ul></div></article>`;
+      });
 
       html += `<div class="airport-cta">
         <a href="#airport-planner" class="btn-primary">Book Airport Transfer Now</a>
@@ -330,6 +340,43 @@
       </div>`;
 
       section.innerHTML = html;
+
+      const scrollers = section.querySelectorAll('.airport-rate-scroller');
+
+      function updateNavState(scroller) {
+        const card = scroller.closest('.airport-region-card');
+        if (!card) return;
+        const leftBtn = card.querySelector('.airport-rate-nav-btn[data-dir="left"]');
+        const rightBtn = card.querySelector('.airport-rate-nav-btn[data-dir="right"]');
+        if (!leftBtn || !rightBtn) return;
+
+        const maxLeft = scroller.scrollWidth - scroller.clientWidth;
+        const canScroll = maxLeft > 2;
+
+        leftBtn.disabled = !canScroll || scroller.scrollLeft <= 2;
+        rightBtn.disabled = !canScroll || scroller.scrollLeft >= (maxLeft - 2);
+      }
+
+      scrollers.forEach((scroller) => {
+        updateNavState(scroller);
+        scroller.addEventListener('scroll', () => updateNavState(scroller), { passive: true });
+      });
+
+      section.querySelectorAll('.airport-rate-nav-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const targetId = btn.dataset.target;
+          const target = targetId ? section.querySelector(`#${targetId}`) : null;
+          if (!target) return;
+
+          const direction = btn.dataset.dir === 'left' ? -1 : 1;
+          const step = Math.max(280, Math.round(target.clientWidth * 0.78));
+          target.scrollBy({ left: direction * step, behavior: 'smooth' });
+        });
+      });
+
+      window.requestAnimationFrame(() => {
+        scrollers.forEach((scroller) => updateNavState(scroller));
+      });
     }
 
     fetchRates().then(rates => {

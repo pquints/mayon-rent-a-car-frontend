@@ -1918,6 +1918,7 @@ section {
 .airport-rates {
     display: grid;
     gap: 22px;
+    overflow-x: hidden;
 }
 
 .airport-region-card {
@@ -1926,15 +1927,53 @@ section {
     border-radius: 14px;
     box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
     padding: 24px;
+    overflow: hidden;
 }
 
 .airport-region-card h2 {
     color: #0f172a;
     font-size: 1.45rem;
+    margin-bottom: 0;
+}
+
+.airport-rate-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     margin-bottom: 14px;
 }
 
+.airport-rate-nav {
+    display: inline-flex;
+    gap: 8px;
+}
+
+.airport-rate-nav-btn {
+    width: 34px;
+    height: 34px;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.airport-rate-nav-btn:hover {
+    background: #e2e8f0;
+}
+
+.airport-rate-nav-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .airport-rate-scroller {
+    width: 100%;
     overflow-x: auto;
     overflow-y: hidden;
     padding-bottom: 8px;
@@ -1961,8 +2000,6 @@ section {
     display: flex;
     flex-wrap: nowrap;
     gap: 14px;
-    width: max-content;
-    min-width: 100%;
 }
 
 .airport-rate-list li {
@@ -2025,7 +2062,8 @@ section {
     gap: 12px;
     justify-content: center;
     flex-wrap: wrap;
-    margin-top: 8px;
+    margin: 8px auto 0;
+    width: 100%;
 }
 
 .airport-cta a {
@@ -2047,12 +2085,17 @@ section {
         padding: 16px;
     }
 
+    .airport-rate-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
     .airport-rate-list {
         gap: 12px;
     }
 
     .airport-rate-list li {
-        flex-basis: 82vw;
+        flex-basis: 86vw;
         min-height: auto;
     }
 
