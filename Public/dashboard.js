@@ -2815,6 +2815,20 @@ const AIRPORT_ROUTE_SUGGESTIONS = {
     ]
 };
 
+const AIRPORT_DEFAULT_SEDAN_BY_ROUTE = {
+    'Albay|Legazpi': 750,
+    'Albay|Daraga': 750,
+    'Albay|Tabaco': 2000,
+    'Sorsogon|Pilar': 1800,
+    'Sorsogon|Sorsogon City': 2500,
+    'Camarines Sur|Naga': 4800,
+    'Camarines Sur|Iriga City': 4000,
+    'Albay|Ligao': 1100,
+    'Sorsogon|Bulan': 2800
+};
+
+const AIRPORT_DEFAULT_SEDAN_FALLBACK = 1800;
+
 async function loadRates() {
     const { response, data } = await requestWithFallback('/rates', {
         headers: { 'Authorization': `Bearer ${authToken}` }
@@ -2834,6 +2848,11 @@ function normalizeTitleCase(text) {
         .trim()
         .toLowerCase()
         .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function getDefaultAirportSedanRate(province, destination) {
+    const key = `${normalizeTitleCase(province)}|${normalizeTitleCase(destination)}`;
+    return AIRPORT_DEFAULT_SEDAN_BY_ROUTE[key] || AIRPORT_DEFAULT_SEDAN_FALLBACK;
 }
 
 function getAirportSuggestionMapFromData() {
@@ -3066,6 +3085,56 @@ function addAirportRoute() {
     if (evEl) evEl.value = '';
 
     showRatesStatus('Route added. Click Save All Rates to apply live.', 'success');
+}
+
+function populateSuggestedAirportRoutes() {
+    if (!_currentRates || !_currentRates.airportTransfers) return;
+
+    const existingKeys = new Set(
+        _currentRates.airportTransfers.map((row) =>
+            `${normalizeTitleCase(row.province)}|${normalizeTitleCase(row.destination)}`
+        )
+    );
+
+    let addedCount = 0;
+
+    Object.entries(AIRPORT_ROUTE_SUGGESTIONS).forEach(([province, cities]) => {
+        cities.forEach((destination) => {
+            const normalizedProvince = normalizeTitleCase(province);
+            const normalizedDestination = normalizeTitleCase(destination);
+            const key = `${normalizedProvince}|${normalizedDestination}`;
+            if (existingKeys.has(key)) return;
+
+            const sedan = getDefaultAirportSedanRate(normalizedProvince, normalizedDestination);
+            _currentRates.airportTransfers.push({
+                id: `at${Date.now()}${Math.floor(Math.random() * 1000)}`,
+                province: normalizedProvince,
+                destination: normalizedDestination,
+                sedan,
+                mpv: Math.round(sedan * 1.2),
+                ev: Math.round(sedan * 1.35)
+            });
+
+            existingKeys.add(key);
+            addedCount += 1;
+        });
+    });
+
+    _currentRates.airportTransfers.sort((a, b) => {
+        const provinceCmp = String(a.province).localeCompare(String(b.province));
+        if (provinceCmp !== 0) return provinceCmp;
+        return String(a.destination).localeCompare(String(b.destination));
+    });
+
+    renderRatesTables(_currentRates);
+    initializeAirportRatesSuggestions();
+    switchRatesTab('airport');
+
+    if (addedCount > 0) {
+        showRatesStatus(`${addedCount} routes added. Click Save All Rates to apply live.`, 'success');
+    } else {
+        showRatesStatus('All suggested cities/towns are already in your rates list.', 'success');
+    }
 }
 
 function removeAirportRoute(routeId) {
