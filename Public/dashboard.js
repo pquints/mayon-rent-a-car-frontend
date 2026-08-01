@@ -2844,7 +2844,7 @@ function renderRatesTables(rates) {
             <table class="rates-table">
                 <thead><tr>
                     <th>Province</th><th>Destination</th>
-                    <th>Sedan (₱)</th><th>MPV (₱)</th><th>Electric MPV (₱)</th>
+                    <th>Sedan (₱)</th><th>MPV (₱)</th><th>Electric MPV (₱)</th><th>Action</th>
                 </tr></thead>
                 <tbody>
                     ${rates.airportTransfers.map(r => `
@@ -2854,6 +2854,7 @@ function renderRatesTables(rates) {
                             <td><input type="number" id="at-${r.id}-sedan" value="${r.sedan}" min="0" class="rates-input"></td>
                             <td><input type="number" id="at-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input"></td>
                             <td><input type="number" id="at-${r.id}-ev" value="${r.ev}" min="0" class="rates-input"></td>
+                            <td><button type="button" class="btn-secondary" onclick="removeAirportRoute('${r.id}')" style="padding:6px 10px; font-size:12px;">Remove</button></td>
                         </tr>`).join('')}
                 </tbody>
             </table>`;
@@ -2908,6 +2909,66 @@ function switchRatesTab(tab) {
     const activePane = document.getElementById(`rates-tab-${tab}`);
     if (activeBtn) activeBtn.classList.add('active');
     if (activePane) activePane.style.display = 'block';
+}
+
+function addAirportRoute() {
+    if (!_currentRates || !_currentRates.airportTransfers) return;
+
+    const provinceEl = document.getElementById('rateProvince');
+    const destinationEl = document.getElementById('rateDestination');
+    const sedanEl = document.getElementById('rateSedan');
+    const mpvEl = document.getElementById('rateMpv');
+    const evEl = document.getElementById('rateEv');
+
+    const province = (provinceEl?.value || '').trim();
+    const destination = (destinationEl?.value || '').trim();
+    const sedan = parseInt(sedanEl?.value || '0', 10);
+    const mpv = parseInt(mpvEl?.value || '0', 10);
+    const ev = parseInt(evEl?.value || '0', 10);
+
+    if (!province || !destination) {
+        showRatesStatus('Province and destination are required.', 'error');
+        return;
+    }
+
+    const exists = _currentRates.airportTransfers.some(r =>
+        String(r.province).toLowerCase() === province.toLowerCase() &&
+        String(r.destination).toLowerCase() === destination.toLowerCase()
+    );
+    if (exists) {
+        showRatesStatus('Route already exists.', 'error');
+        return;
+    }
+
+    _currentRates.airportTransfers.push({
+        id: `at${Date.now()}`,
+        province,
+        destination,
+        sedan: Number.isFinite(sedan) ? sedan : 0,
+        mpv: Number.isFinite(mpv) ? mpv : 0,
+        ev: Number.isFinite(ev) ? ev : 0
+    });
+
+    renderRatesTables(_currentRates);
+    switchRatesTab('airport');
+
+    if (provinceEl) provinceEl.value = '';
+    if (destinationEl) destinationEl.value = '';
+    if (sedanEl) sedanEl.value = '';
+    if (mpvEl) mpvEl.value = '';
+    if (evEl) evEl.value = '';
+
+    showRatesStatus('Route added. Click Save All Rates to apply live.', 'success');
+}
+
+function removeAirportRoute(routeId) {
+    if (!_currentRates || !_currentRates.airportTransfers) return;
+    if (!confirm('Remove this route?')) return;
+
+    _currentRates.airportTransfers = _currentRates.airportTransfers.filter(r => r.id !== routeId);
+    renderRatesTables(_currentRates);
+    switchRatesTab('airport');
+    showRatesStatus('Route removed. Click Save All Rates to apply live.', 'success');
 }
 
 function showRatesStatus(msg, type) {
