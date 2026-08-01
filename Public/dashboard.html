@@ -562,16 +562,11 @@
                             <button class="btn-secondary" onclick="removeUnsupportedAirportRoutes()" style="height:38px; white-space:nowrap;">Remove Non-Frontend Routes</button>
                         </div>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1.1fr 1.1fr auto; gap:10px; margin-bottom:16px; align-items:end;">
+                    <div style="display:grid; grid-template-columns: 1fr; gap:10px; margin-bottom:16px; align-items:end; max-width:380px;">
                         <div>
-                            <label style="display:block; margin-bottom:6px; font-size:12px; color:#64748b; font-weight:600;">Quick Pick Province</label>
+                            <label style="display:block; margin-bottom:6px; font-size:12px; color:#64748b; font-weight:600;">Filter by Province</label>
                             <select id="rateProvinceQuick" class="rates-input" style="width:100%;"></select>
                         </div>
-                        <div>
-                            <label style="display:block; margin-bottom:6px; font-size:12px; color:#64748b; font-weight:600;">Quick Pick Destination</label>
-                            <select id="rateDestinationQuick" class="rates-input" style="width:100%;"></select>
-                        </div>
-                        <button class="btn-secondary" onclick="applyQuickAirportSuggestion()" style="height:38px; white-space:nowrap;">Use Selection</button>
                     </div>
                     <datalist id="rateProvinceList"></datalist>
                     <datalist id="rateDestinationList"></datalist>

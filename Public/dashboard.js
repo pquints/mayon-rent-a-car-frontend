@@ -2782,6 +2782,7 @@ document.addEventListener('DOMContentLoaded', function() {
 let _currentRates = null;
 let _activeRatesTab = 'airport';
 let _airportRatesSuggestionsBound = false;
+let _airportProvinceFilter = '';
 
 // Keep dashboard destination choices aligned to the airport frontend picker.
 const FRONTEND_AIRPORT_DESTINATIONS = {
@@ -2895,11 +2896,15 @@ function renderDestinationOptions(suggestionMap, selectedProvince) {
     datalist.innerHTML = uniqueCities.map((city) => `<option value="${city}"></option>`).join('');
 }
 
+function getAirportProvinceFilterValue() {
+    const quickProvince = document.getElementById('rateProvinceQuick');
+    return normalizeTitleCase(quickProvince?.value || _airportProvinceFilter || '');
+}
+
 function initializeAirportRatesSuggestions() {
     const provinceEl = document.getElementById('rateProvince');
     const destinationEl = document.getElementById('rateDestination');
     const provinceQuickEl = document.getElementById('rateProvinceQuick');
-    const destinationQuickEl = document.getElementById('rateDestinationQuick');
     if (!provinceEl || !destinationEl) return;
 
     const refreshSuggestions = () => {
@@ -2908,22 +2913,21 @@ function initializeAirportRatesSuggestions() {
         renderDestinationOptions(suggestionMap, provinceEl.value);
 
         if (provinceQuickEl) {
-            const provinces = Object.keys(suggestionMap).sort((a, b) => a.localeCompare(b));
-            provinceQuickEl.innerHTML = ['<option value="">-- Select Province --</option>', ...provinces.map((p) => `<option value="${p}">${p}</option>`)].join('');
-            if (provinceEl.value && provinces.includes(normalizeTitleCase(provinceEl.value))) {
-                provinceQuickEl.value = normalizeTitleCase(provinceEl.value);
+            const rateProvinces = Array.from(new Set((_currentRates?.airportTransfers || []).map((row) => normalizeTitleCase(row.province)).filter(Boolean)));
+            const provinces = Array.from(new Set([...Object.keys(suggestionMap), ...rateProvinces])).sort((a, b) => a.localeCompare(b));
+            provinceQuickEl.innerHTML = ['<option value="">All Provinces</option>', ...provinces.map((p) => `<option value="${p}">${p}</option>`)].join('');
+
+            const activeFilter = normalizeTitleCase(_airportProvinceFilter || provinceQuickEl.value || '');
+            if (activeFilter && provinces.includes(activeFilter)) {
+                provinceQuickEl.value = activeFilter;
+                _airportProvinceFilter = activeFilter;
+            } else {
+                provinceQuickEl.value = '';
+                _airportProvinceFilter = '';
             }
         }
 
-        if (destinationQuickEl) {
-            const activeProvince = provinceQuickEl && provinceQuickEl.value ? provinceQuickEl.value : provinceEl.value;
-            const provinceKey = normalizeTitleCase(activeProvince);
-            const cityList = (suggestionMap[provinceKey] || []).sort((a, b) => a.localeCompare(b));
-            destinationQuickEl.innerHTML = ['<option value="">-- Select Destination --</option>', ...cityList.map((c) => `<option value="${c}">${c}</option>`)].join('');
-            if (destinationEl.value && cityList.includes(normalizeTitleCase(destinationEl.value))) {
-                destinationQuickEl.value = normalizeTitleCase(destinationEl.value);
-            }
-        }
+        _airportProvinceFilter = getAirportProvinceFilterValue();
     };
 
     refreshSuggestions();
@@ -2942,37 +2946,12 @@ function initializeAirportRatesSuggestions() {
 
     if (provinceQuickEl) {
         provinceQuickEl.addEventListener('change', () => {
-            provinceEl.value = normalizeTitleCase(provinceQuickEl.value);
-            refreshSuggestions();
-        });
-    }
-
-    if (destinationQuickEl) {
-        destinationQuickEl.addEventListener('change', () => {
-            destinationEl.value = normalizeTitleCase(destinationQuickEl.value);
+            _airportProvinceFilter = normalizeTitleCase(provinceQuickEl.value || '');
+            renderRatesTables(_currentRates || {});
         });
     }
 
     _airportRatesSuggestionsBound = true;
-}
-
-function applyQuickAirportSuggestion() {
-    const provinceQuickEl = document.getElementById('rateProvinceQuick');
-    const destinationQuickEl = document.getElementById('rateDestinationQuick');
-    const provinceEl = document.getElementById('rateProvince');
-    const destinationEl = document.getElementById('rateDestination');
-
-    const province = normalizeTitleCase(provinceQuickEl?.value || '');
-    const destination = normalizeTitleCase(destinationQuickEl?.value || '');
-
-    if (!province || !destination) {
-        showRatesStatus('Please select both province and destination.', 'error');
-        return;
-    }
-
-    if (provinceEl) provinceEl.value = province;
-    if (destinationEl) destinationEl.value = destination;
-    showRatesStatus('Selection applied. Set prices and click Add Route.', 'success');
 }
 
 async function saveRates() {
@@ -3020,6 +2999,11 @@ function renderRatesTables(rates) {
     // Airport transfers table
     const atEl = document.getElementById('airportRatesTable');
     if (atEl && rates.airportTransfers) {
+        const activeProvinceFilter = getAirportProvinceFilterValue();
+        const airportRows = activeProvinceFilter
+            ? rates.airportTransfers.filter((row) => normalizeTitleCase(row.province) === activeProvinceFilter)
+            : rates.airportTransfers;
+
         atEl.innerHTML = `
             <table class="rates-table">
                 <thead><tr>
@@ -3027,7 +3011,7 @@ function renderRatesTables(rates) {
                     <th>Sedan (₱)</th><th>MPV (₱)</th><th>Electric MPV (₱)</th><th>Action</th>
                 </tr></thead>
                 <tbody>
-                    ${rates.airportTransfers.map(r => `
+                    ${airportRows.map(r => `
                         <tr>
                             <td><span class="rates-badge">${r.province}</span></td>
                             <td><strong>${r.destination}</strong></td>
@@ -3035,7 +3019,7 @@ function renderRatesTables(rates) {
                             <td><input type="number" id="at-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input"></td>
                             <td><input type="number" id="at-${r.id}-ev" value="${r.ev}" min="0" class="rates-input"></td>
                             <td><button type="button" class="btn-secondary" onclick="removeAirportRoute('${r.id}')" style="padding:6px 10px; font-size:12px;">Remove</button></td>
-                        </tr>`).join('')}
+                        </tr>`).join('') || '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:18px;">No routes for selected province.</td></tr>'}
                 </tbody>
             </table>`;
     }
