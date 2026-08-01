@@ -315,7 +315,10 @@
               <strong>From ${formatPHP(fare)}</strong>
               <a href="#airport-planner" class="airport-card-book airport-select-route"
                 data-province="${r.province}" data-city="${r.destination}"
-                data-area="${r.province}" data-fare="${fare}">Book Now</a>
+                data-area="${r.province}" data-fare="${fare}"
+                data-fare-sedan="${Number(r.sedan) || 0}"
+                data-fare-mpv="${Number(r.mpv) || 0}"
+                data-fare-ev="${Number(r.ev) || 0}">Book Now</a>
             </li>`;
         });
         html += `</ul></article>`;
@@ -327,21 +330,6 @@
       </div>`;
 
       section.innerHTML = html;
-
-      // Re-init route selector clicks after dynamic render
-      section.querySelectorAll('.airport-select-route').forEach(btn => {
-        btn.addEventListener('click', function () {
-          const fare = this.dataset.fare;
-          const city = this.dataset.city;
-          const area = this.dataset.area;
-          const fareEl = document.getElementById('wizardEstimatedPrice');
-          if (fareEl) fareEl.textContent = 'PHP ' + Number(fare).toLocaleString('en-PH');
-          const cityEl = document.getElementById('wizardCity');
-          if (cityEl) cityEl.value = city;
-          const areaEl = document.getElementById('wizardArea');
-          if (areaEl) areaEl.value = area;
-        });
-      });
     }
 
     fetchRates().then(rates => {

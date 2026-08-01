@@ -693,6 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cityColumnTitle = document.getElementById('cityColumnTitle');
     const plannerContinueBtn = document.getElementById('plannerContinueBtn');
     const routeQuickButtons = document.querySelectorAll('.airport-select-route');
+    const RATES_API_BASES = ['/api', 'https://api.mayonrentacar.com.ph/api'];
 
     const modal = document.getElementById('airportWizardModal');
     const modalOverlay = document.getElementById('airportWizardOverlay');
@@ -736,6 +737,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'Sorsogon|Bulan': 2800
     };
 
+    let liveAirportRates = [];
+
     let selectedProvince = 'Albay';
     let selectedCity = '';
     let isTransferOut = true;
@@ -748,6 +751,99 @@ document.addEventListener('DOMContentLoaded', () => {
     function getBaseFare(province, city) {
         const key = `${province}|${city}`;
         return baseFare[key] || 1800;
+    }
+
+    function toLowerTrim(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    function upsertLiveRouteRate(route) {
+        const province = String(route?.province || '').trim();
+        const destination = String(route?.destination || '').trim();
+        if (!province || !destination) return;
+
+        const matchIndex = liveAirportRates.findIndex((item) =>
+            toLowerTrim(item.province) === toLowerTrim(province) &&
+            toLowerTrim(item.destination) === toLowerTrim(destination)
+        );
+
+        const normalized = {
+            province,
+            destination,
+            sedan: Number(route.sedan) || 0,
+            mpv: Number(route.mpv) || 0,
+            ev: Number(route.ev) || 0
+        };
+
+        if (matchIndex >= 0) {
+            liveAirportRates[matchIndex] = normalized;
+        } else {
+            liveAirportRates.push(normalized);
+        }
+    }
+
+    async function loadLiveAirportRates() {
+        for (const base of RATES_API_BASES) {
+            try {
+                const response = await fetch(`${base}/rates`);
+                if (!response.ok) continue;
+                const payload = await response.json();
+                if (!payload?.success || !Array.isArray(payload?.rates?.airportTransfers)) continue;
+
+                liveAirportRates = payload.rates.airportTransfers.map((item) => ({
+                    province: item.province,
+                    destination: item.destination,
+                    sedan: Number(item.sedan) || 0,
+                    mpv: Number(item.mpv) || 0,
+                    ev: Number(item.ev) || 0
+                }));
+                return;
+            } catch (_) {
+                // ignore and try the next base URL
+            }
+        }
+    }
+
+    function getLiveAirportRoute(province, city) {
+        const normProvince = toLowerTrim(province);
+        const normCity = toLowerTrim(city);
+        if (!normProvince || !normCity || !liveAirportRates.length) return null;
+
+        const exact = liveAirportRates.find((item) =>
+            toLowerTrim(item.province) === normProvince &&
+            toLowerTrim(item.destination) === normCity
+        );
+        if (exact) return exact;
+
+        return liveAirportRates.find((item) =>
+            toLowerTrim(item.province) === normProvince &&
+            (toLowerTrim(item.destination).includes(normCity) || normCity.includes(toLowerTrim(item.destination)))
+        ) || null;
+    }
+
+    function getRouteFares(province, city) {
+        const liveRoute = getLiveAirportRoute(province, city);
+        if (liveRoute) {
+            return {
+                sedan: Number(liveRoute.sedan) || 0,
+                mpv: Number(liveRoute.mpv) || 0,
+                ev: Number(liveRoute.ev) || 0
+            };
+        }
+
+        const fallbackSedan = getBaseFare(province, city);
+        return {
+            sedan: fallbackSedan,
+            mpv: Math.round(fallbackSedan * 1.2),
+            ev: Math.round(fallbackSedan * 1.35)
+        };
+    }
+
+    function getEstimateForVehicle(province, city, vehicleType) {
+        const fares = getRouteFares(province, city);
+        if (vehicleType === 'MPV') return fares.mpv;
+        if (vehicleType === 'Electric MPV') return fares.ev;
+        return fares.sedan;
     }
 
     function setWizardStatus(message, type) {
@@ -789,8 +885,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (wizardTransferType) wizardTransferType.textContent = isTransferOut ? outLabel : inLabel;
 
         const checkedVehicle = wizardForm.querySelector('input[name="vehicleType"]:checked');
-        const multiplier = checkedVehicle ? Number(checkedVehicle.dataset.multiplier || '1') : 1;
-        const estimate = Math.round(getBaseFare(selectedProvince, selectedCity || '') * multiplier);
+        const vehicleType = checkedVehicle ? checkedVehicle.value : 'Sedan';
+        const estimate = getEstimateForVehicle(selectedProvince, selectedCity || '', vehicleType);
         if (wizardEstimatedPrice) wizardEstimatedPrice.textContent = selectedCity ? `PHP ${estimate.toLocaleString()}` : 'PHP -';
     }
 
@@ -905,22 +1001,38 @@ document.addEventListener('DOMContentLoaded', () => {
         updateWizardPreview();
     });
 
-    routeQuickButtons.forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const province = btn.dataset.province;
-            const city = btn.dataset.city;
-            if (!province || !city) return;
+    function applyQuickRouteSelection(button) {
+        const province = button?.dataset?.province;
+        const city = button?.dataset?.city;
+        if (!province || !city) return;
 
-            selectedProvince = province;
-            selectedCity = city;
-            provinceButtons.forEach((item) => {
-                item.classList.toggle('is-active', item.dataset.province === province);
-            });
-            renderCities(province);
-            updatePlannerDirection();
-            updateWizardPreview();
-            document.getElementById('airport-planner')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        upsertLiveRouteRate({
+            province,
+            destination: city,
+            sedan: Number(button.dataset.fareSedan || button.dataset.fare || 0),
+            mpv: Number(button.dataset.fareMpv || 0),
+            ev: Number(button.dataset.fareEv || 0)
         });
+
+        selectedProvince = province;
+        selectedCity = city;
+        provinceButtons.forEach((item) => {
+            item.classList.toggle('is-active', item.dataset.province === province);
+        });
+        renderCities(province);
+        updatePlannerDirection();
+        updateWizardPreview();
+        document.getElementById('airport-planner')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    routeQuickButtons.forEach((btn) => {
+        btn.addEventListener('click', () => applyQuickRouteSelection(btn));
+    });
+
+    document.addEventListener('click', (event) => {
+        const target = event.target.closest('.airport-select-route');
+        if (!target) return;
+        applyQuickRouteSelection(target);
     });
 
     plannerContinueBtn.addEventListener('click', () => {
@@ -977,8 +1089,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const formData = new FormData(wizardForm);
         const formValues = Object.fromEntries(formData.entries());
         const selectedVehicle = wizardForm.querySelector('input[name="vehicleType"]:checked');
-        const multiplier = selectedVehicle ? Number(selectedVehicle.dataset.multiplier || '1') : 1;
-        const estimate = Math.round(getBaseFare(selectedProvince, selectedCity) * multiplier);
+        const vehicleType = selectedVehicle ? selectedVehicle.value : 'Sedan';
+        const estimate = getEstimateForVehicle(selectedProvince, selectedCity, vehicleType);
 
         if (!formValues.client_name || !formValues.contact_no || !formValues.email) {
             setWizardStatus('Please complete client details.', 'error');
@@ -1054,6 +1166,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderCities(selectedProvince);
     updatePlannerDirection();
+    loadLiveAirportRates().then(updateWizardPreview);
     updateWizardPreview();
 });
 
