@@ -1,1 +1,12 @@
 .DS_Store
+
+# Backend runtime data — never overwrite production data
+backend/bookings.json
+backend/quotes.json
+backend/users.json
+backend/vehicles.json
+backend/server.pid
+
+# Dependencies
+backend/node_modules/
+node_modules/

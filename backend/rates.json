@@ -1,0 +1,21 @@
+{
+  "airportTransfers": [
+    { "id": "at1", "province": "Albay", "destination": "Legazpi-Daraga", "sedan": 750, "mpv": 1000, "ev": 1200 },
+    { "id": "at2", "province": "Albay", "destination": "Tabaco", "sedan": 2000, "mpv": 2500, "ev": 2800 },
+    { "id": "at3", "province": "Sorsogon", "destination": "Pilar", "sedan": 1800, "mpv": 2200, "ev": 2500 },
+    { "id": "at4", "province": "Sorsogon", "destination": "Sorsogon City", "sedan": 2500, "mpv": 3000, "ev": 3300 },
+    { "id": "at5", "province": "Camarines Sur", "destination": "Naga", "sedan": 4800, "mpv": 5500, "ev": 6000 },
+    { "id": "at6", "province": "Camarines Sur", "destination": "Iriga City", "sedan": 4000, "mpv": 4800, "ev": 5200 }
+  ],
+  "withDriver": [
+    { "id": "wd1", "service": "Airport Transfer", "sedan": 750, "mpv": 1000, "ev": 1200 },
+    { "id": "wd2", "service": "One-way Service", "sedan": 750, "mpv": 1000, "ev": 1200 },
+    { "id": "wd3", "service": "5 Hours Service", "sedan": 2000, "mpv": 2500, "ev": 2800 },
+    { "id": "wd4", "service": "10 Hours Service", "sedan": 3500, "mpv": 4500, "ev": 5000 }
+  ],
+  "selfDrive": [
+    { "id": "sd1", "vehicle": "Toyota Vios", "type": "Sedan", "dailyRate": 2500 },
+    { "id": "sd2", "vehicle": "Toyota Innova", "type": "MPV", "dailyRate": 3500 },
+    { "id": "sd3", "vehicle": "VinFast Limo Green", "type": "Electric MPV", "dailyRate": 4000 }
+  ]
+}

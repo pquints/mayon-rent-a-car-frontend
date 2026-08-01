@@ -84,6 +84,7 @@ const FILE_PATH = path.join(__dirname, 'bookings.json');
 const USERS_FILE_PATH = path.join(__dirname, 'users.json');
 const VEHICLES_FILE_PATH = path.join(__dirname, 'vehicles.json');
 const QUOTES_FILE_PATH = path.join(__dirname, 'quotes.json');
+const RATES_FILE_PATH = path.join(__dirname, 'rates.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // ========================================================
@@ -199,6 +200,32 @@ const getQuotes = () => {
 
 const saveQuotes = (quotes) => {
     fs.writeFileSync(QUOTES_FILE_PATH, JSON.stringify(quotes, null, 2), 'utf8');
+};
+
+// ========================================================
+// RATES MANAGEMENT FUNCTIONS
+// ========================================================
+const DEFAULT_RATES = {
+    airportTransfers: [],
+    withDriver: [],
+    selfDrive: []
+};
+
+const getRates = () => {
+    try {
+        if (!fs.existsSync(RATES_FILE_PATH)) {
+            fs.writeFileSync(RATES_FILE_PATH, JSON.stringify(DEFAULT_RATES, null, 2), 'utf8');
+            return DEFAULT_RATES;
+        }
+        const data = fs.readFileSync(RATES_FILE_PATH, 'utf8');
+        return JSON.parse(data);
+    } catch (err) {
+        return DEFAULT_RATES;
+    }
+};
+
+const saveRates = (rates) => {
+    fs.writeFileSync(RATES_FILE_PATH, JSON.stringify(rates, null, 2), 'utf8');
 };
 
 const redactAuthorizationHeader = (authHeader) => {
@@ -560,6 +587,34 @@ app.delete('/api/users/:id', verifyToken, verifyAdmin, (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, error: "Internal Server Error" });
+    }
+});
+
+// ========================================================
+// RATES MANAGEMENT ENDPOINTS
+// ========================================================
+
+// GET RATES — public so front-end pages can fetch live rates
+app.get('/api/rates', (req, res) => {
+    try {
+        const rates = getRates();
+        res.json({ success: true, rates });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+
+// UPDATE RATES (Admin only)
+app.put('/api/rates', verifyToken, verifyAdmin, (req, res) => {
+    try {
+        const { rates } = req.body;
+        if (!rates || typeof rates !== 'object') {
+            return res.status(400).json({ success: false, error: 'Invalid rates data' });
+        }
+        saveRates(rates);
+        res.json({ success: true, rates });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
 });
 

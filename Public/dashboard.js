@@ -2258,12 +2258,15 @@ function showView(viewType) {
     const accountSettingsView = document.getElementById('accountSettingsView');
     const vehicleEditView = document.getElementById('vehicleEditView');
 
+    const ratesManagementView = document.getElementById('ratesManagementView');
+
     if (mainDashboardView) mainDashboardView.style.display = viewType === 'dashboard' ? 'block' : 'none';
     if (fullPageDetailsView) fullPageDetailsView.style.display = viewType === 'details' ? 'block' : 'none';
     if (userManagementView) userManagementView.style.display = viewType === 'userManagement' ? 'block' : 'none';
     if (vehicleManagementView) vehicleManagementView.style.display = viewType === 'vehicleManagement' ? 'block' : 'none';
     if (accountSettingsView) accountSettingsView.style.display = viewType === 'accountSettings' ? 'block' : 'none';
     if (vehicleEditView) vehicleEditView.style.display = viewType === 'vehicleEdit' ? 'block' : 'none';
+    if (ratesManagementView) ratesManagementView.style.display = viewType === 'ratesManagement' ? 'block' : 'none';
 
     // Update nav items
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -2279,8 +2282,10 @@ function showView(viewType) {
     } else if (viewType === 'accountSettings') {
         const item = getNavItemByIcon('fa-user-gear');
         if (item) item.classList.add('active');
-        // Load account details into the form
         loadAccountSettings();
+    } else if (viewType === 'ratesManagement') {
+        const item = getNavItemByIcon('fa-tags');
+        if (item) item.classList.add('active');
     }
 }
 
@@ -2770,3 +2775,148 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+// ========================================================
+// RATES MANAGEMENT
+// ========================================================
+
+let _currentRates = null;
+let _activeRatesTab = 'airport';
+
+async function loadRates() {
+    const { response, data } = await requestWithFallback('/rates', {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!response.ok) {
+        showRatesStatus('Failed to load rates.', 'error');
+        return;
+    }
+    _currentRates = data.rates;
+    renderRatesTables(_currentRates);
+    switchRatesTab(_activeRatesTab);
+}
+
+async function saveRates() {
+    collectRatesFromInputs();
+    const { response, data } = await requestWithFallback('/rates', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify({ rates: _currentRates })
+    });
+    if (response.ok) {
+        _currentRates = data.rates;
+        showRatesStatus('Rates saved successfully!', 'success');
+    } else {
+        showRatesStatus(data.error || 'Failed to save rates.', 'error');
+    }
+}
+
+function collectRatesFromInputs() {
+    if (!_currentRates) return;
+
+    // Airport transfers
+    _currentRates.airportTransfers.forEach(row => {
+        ['sedan', 'mpv', 'ev'].forEach(key => {
+            const el = document.getElementById(`at-${row.id}-${key}`);
+            if (el) row[key] = parseInt(el.value, 10) || 0;
+        });
+    });
+
+    // With driver
+    _currentRates.withDriver.forEach(row => {
+        ['sedan', 'mpv', 'ev'].forEach(key => {
+            const el = document.getElementById(`wd-${row.id}-${key}`);
+            if (el) row[key] = parseInt(el.value, 10) || 0;
+        });
+    });
+
+    // Self-drive
+    _currentRates.selfDrive.forEach(row => {
+        const el = document.getElementById(`sd-${row.id}-daily`);
+        if (el) row.dailyRate = parseInt(el.value, 10) || 0;
+    });
+}
+
+function renderRatesTables(rates) {
+    // Airport transfers table
+    const atEl = document.getElementById('airportRatesTable');
+    if (atEl && rates.airportTransfers) {
+        atEl.innerHTML = `
+            <table class="rates-table">
+                <thead><tr>
+                    <th>Province</th><th>Destination</th>
+                    <th>Sedan (₱)</th><th>MPV (₱)</th><th>Electric MPV (₱)</th>
+                </tr></thead>
+                <tbody>
+                    ${rates.airportTransfers.map(r => `
+                        <tr>
+                            <td><span class="rates-badge">${r.province}</span></td>
+                            <td><strong>${r.destination}</strong></td>
+                            <td><input type="number" id="at-${r.id}-sedan" value="${r.sedan}" min="0" class="rates-input"></td>
+                            <td><input type="number" id="at-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input"></td>
+                            <td><input type="number" id="at-${r.id}-ev" value="${r.ev}" min="0" class="rates-input"></td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    // With driver table
+    const wdEl = document.getElementById('withDriverRatesTable');
+    if (wdEl && rates.withDriver) {
+        wdEl.innerHTML = `
+            <table class="rates-table">
+                <thead><tr>
+                    <th>Service Type</th>
+                    <th>Sedan (₱)</th><th>MPV (₱)</th><th>Electric MPV (₱)</th>
+                </tr></thead>
+                <tbody>
+                    ${rates.withDriver.map(r => `
+                        <tr>
+                            <td><strong>${r.service}</strong></td>
+                            <td><input type="number" id="wd-${r.id}-sedan" value="${r.sedan}" min="0" class="rates-input"></td>
+                            <td><input type="number" id="wd-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input"></td>
+                            <td><input type="number" id="wd-${r.id}-ev" value="${r.ev}" min="0" class="rates-input"></td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    // Self-drive table
+    const sdEl = document.getElementById('selfDriveRatesTable');
+    if (sdEl && rates.selfDrive) {
+        sdEl.innerHTML = `
+            <table class="rates-table">
+                <thead><tr>
+                    <th>Vehicle</th><th>Type</th><th>Daily Rate (₱)</th>
+                </tr></thead>
+                <tbody>
+                    ${rates.selfDrive.map(r => `
+                        <tr>
+                            <td><strong>${r.vehicle}</strong></td>
+                            <td><span class="rates-badge">${r.type}</span></td>
+                            <td><input type="number" id="sd-${r.id}-daily" value="${r.dailyRate}" min="0" class="rates-input"></td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+}
+
+function switchRatesTab(tab) {
+    _activeRatesTab = tab;
+    document.querySelectorAll('.rates-tab').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.rates-tab-pane').forEach(pane => pane.style.display = 'none');
+    const activeBtn = document.querySelector(`.rates-tab[data-tab="${tab}"]`);
+    const activePane = document.getElementById(`rates-tab-${tab}`);
+    if (activeBtn) activeBtn.classList.add('active');
+    if (activePane) activePane.style.display = 'block';
+}
+
+function showRatesStatus(msg, type) {
+    const el = document.getElementById('ratesStatusMsg');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.style.background = type === 'success' ? '#ecfdf3' : '#fef2f2';
+    el.style.color = type === 'success' ? '#166534' : '#991b1b';
+    el.style.border = `1px solid ${type === 'success' ? '#86efac' : '#fecaca'}`;
+    setTimeout(() => { el.style.display = 'none'; }, 3500);
+}
