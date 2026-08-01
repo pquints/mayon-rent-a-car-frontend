@@ -826,6 +826,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function syncActiveProvinceButton() {
+        getProvinceButtons().forEach((item) => {
+            item.classList.toggle('is-active', item.dataset.province === selectedProvince);
+        });
+    }
+
+    async function refreshAirportPickerData() {
+        const previousProvince = selectedProvince;
+        const previousCity = selectedCity;
+
+        await loadLiveAirportRates();
+        mergeProvinceCityFromLiveRates();
+        renderProvinceButtons();
+
+        const allProvinces = sortProvinceKeys(Object.keys(provinceCities));
+        if (!allProvinces.length) {
+            selectedProvince = 'Albay';
+            selectedCity = '';
+            renderCities(selectedProvince);
+            updatePlannerDirection();
+            updateWizardPreview();
+            return;
+        }
+
+        selectedProvince = provinceCities[previousProvince] ? previousProvince : allProvinces[0];
+        syncActiveProvinceButton();
+        renderCities(selectedProvince);
+
+        const matchedCity = (provinceCities[selectedProvince] || []).find((city) => toLowerTrim(city) === toLowerTrim(previousCity));
+        selectedCity = matchedCity || '';
+
+        if (selectedCity) {
+            renderCities(selectedProvince);
+        }
+
+        updatePlannerDirection();
+        updateWizardPreview();
+    }
+
     function upsertLiveRouteRate(route) {
         const province = String(route?.province || '').trim();
         const destination = String(route?.destination || '').trim();
@@ -1029,14 +1068,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const dd = String(today.getDate()).padStart(2, '0');
     plannerDate.min = `${yyyy}-${mm}-${dd}`;
 
-    destinationPickerTrigger.addEventListener('click', (e) => {
+    destinationPickerTrigger.addEventListener('click', async (e) => {
         e.stopPropagation();
-        toggleDestinationPicker();
+
+        if (!destinationPicker.hidden) {
+            toggleDestinationPicker();
+            return;
+        }
+
+        await refreshAirportPickerData();
+        destinationPicker.hidden = false;
     });
 
-    plannerFrom.addEventListener('click', (e) => {
+    plannerFrom.addEventListener('click', async (e) => {
         e.stopPropagation();
-        toggleDestinationPicker();
+
+        if (!destinationPicker.hidden) {
+            toggleDestinationPicker();
+            return;
+        }
+
+        await refreshAirportPickerData();
+        destinationPicker.hidden = false;
     });
 
     plannerFrom.style.cursor = 'pointer';
@@ -1231,13 +1284,7 @@ document.addEventListener('DOMContentLoaded', () => {
         field.addEventListener('change', clearWizardStatus);
     });
 
-    loadLiveAirportRates().finally(() => {
-        mergeProvinceCityFromLiveRates();
-        renderProvinceButtons();
-        renderCities(selectedProvince);
-        updatePlannerDirection();
-        updateWizardPreview();
-    });
+    refreshAirportPickerData();
 });
 
 // --- NAV HIGHLIGHT (active link) ---
