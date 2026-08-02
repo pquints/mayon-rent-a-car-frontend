@@ -1074,7 +1074,7 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
             from: 'Mayon Rent a Car <no-reply@mayonrentacar.com.ph>', // Verified Resend domain!
             to: [clientEmail],
             cc: ccRecipients,
-            subject: `Quotation for Your Car Rental Booking [${bookingRef}]`,
+            subject: `Mayon Rent a Car Quotation - [${bookingRef}]`,
             replyTo: 'mayonrentacar@gmail.com',                      // Kapag nag-reply si client, rekta sa normal gmail niyo!
             html: htmlTemplate,
             headers: {
