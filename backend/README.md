@@ -8,6 +8,7 @@ This folder contains the Express backend used locally for development and produc
   - `JWT_SECRET` must be a strong, unique secret.
   - `GMAIL_USER` and `GMAIL_APP_PASSWORD` — set production email (or use a transactional email provider).
   - `RESEND_API_KEY` — required for quotation emails via Resend.
+  - `QUOTATION_CC_EMAILS` — optional comma-separated emails to auto-CC on quotation sends (e.g. `ops@domain.com,sales@domain.com`). If omitted, it falls back to `GMAIL_USER` or `mayonrentacar@gmail.com`.
   - Set `DEBUG=false` in production.
 
 - Ensure `PORT` is set to the desired listening port (e.g., `3000`).

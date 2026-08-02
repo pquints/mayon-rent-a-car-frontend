@@ -18,6 +18,33 @@ const DEBUG = process.env.DEBUG === 'true';
 const isProduction = process.env.NODE_ENV === 'production';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
+const DEFAULT_TEAM_EMAIL = 'mayonrentacar@gmail.com';
+
+function parseEmailList(input) {
+    return String(input || '')
+        .split(',')
+        .map((email) => email.trim())
+        .filter(Boolean);
+}
+
+function dedupeEmails(emails) {
+    const seen = new Set();
+    return emails.filter((email) => {
+        const key = String(email).toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+function getQuotationCcRecipients(clientEmail) {
+    const envCcList = parseEmailList(process.env.QUOTATION_CC_EMAILS);
+    const fallback = process.env.GMAIL_USER ? [process.env.GMAIL_USER] : [DEFAULT_TEAM_EMAIL];
+    const ccList = envCcList.length ? envCcList : fallback;
+    const blocked = String(clientEmail || '').trim().toLowerCase();
+
+    return dedupeEmails(ccList).filter((email) => String(email).toLowerCase() !== blocked);
+}
 
 // Polyfill fetch for Node versions that don't have global fetch (use node-fetch v2 for CommonJS)
 if (typeof fetch === 'undefined') {
@@ -1041,9 +1068,12 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         if (DEBUG) console.log(`[EMAIL] Attempting to send quotation via RESEND to ${clientEmail} for booking ${bookingRef}`);
         
         // ── GINAMIT NA SI RESEND IMBIS NA NODEMAILER ──────────────────────────
+        const ccRecipients = getQuotationCcRecipients(clientEmail);
+
         const { data, error } = await resend.emails.send({
             from: 'Mayon Rent a Car <no-reply@mayonrentacar.com.ph>', // Verified Resend domain!
             to: [clientEmail],
+            cc: ccRecipients,
             subject: `Quotation for Your Car Rental Booking [${bookingRef}]`,
             replyTo: 'mayonrentacar@gmail.com',                      // Kapag nag-reply si client, rekta sa normal gmail niyo!
             html: htmlTemplate,
