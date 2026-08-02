@@ -39,8 +39,8 @@ function dedupeEmails(emails) {
 
 function getQuotationCcRecipients(clientEmail) {
     const envCcList = parseEmailList(process.env.QUOTATION_CC_EMAILS);
-    const fallback = process.env.GMAIL_USER ? [process.env.GMAIL_USER] : [DEFAULT_TEAM_EMAIL];
-    const ccList = envCcList.length ? envCcList : fallback;
+    const fallback = process.env.GMAIL_USER ? [process.env.GMAIL_USER] : [];
+    const ccList = [...envCcList, ...fallback, DEFAULT_TEAM_EMAIL];
     const blocked = String(clientEmail || '').trim().toLowerCase();
 
     return dedupeEmails(ccList).filter((email) => String(email).toLowerCase() !== blocked);
