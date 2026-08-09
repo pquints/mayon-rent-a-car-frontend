@@ -439,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 console.error('Error submitting to backend:', error);
-                alert('Hindi makakonekta sa server. Pakisubukan ulit maya-maya o i-check ang deployed API service.');
+                alert('Unable to connect to the server. Please try again shortly or check the deployed API service.');
             } finally {
                 setSubmitLoading(false);
             }
@@ -693,7 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cityColumnTitle = document.getElementById('cityColumnTitle');
     const plannerContinueBtn = document.getElementById('plannerContinueBtn');
     const routeQuickButtons = document.querySelectorAll('.airport-select-route');
-    const RATES_API_BASES = ['/api', 'https://api.mayonrentacar.com.ph/api'];
+    const RATES_API_BASES = ['http://127.0.0.1:3000/api', 'http://localhost:3000/api', '/api', 'https://api.mayonrentacar.com.ph/api'];
 
     const modal = document.getElementById('airportWizardModal');
     const modalOverlay = document.getElementById('airportWizardOverlay');
@@ -740,6 +740,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let liveAirportRates = [];
+    let liveInboundOutboundRates = [];
 
     let selectedProvince = 'Albay';
     let selectedCity = '';
@@ -753,6 +754,26 @@ document.addEventListener('DOMContentLoaded', () => {
     function getBaseFare(province, city) {
         const key = `${province}|${city}`;
         return baseFare[key] || 1800;
+    }
+
+    function getCurrentRouteCategory() {
+        const routeCategory = String(plannerFrom.dataset.routeCategory || '').trim();
+        if (routeCategory === 'inboundOutbound') {
+            return 'inboundOutbound';
+        }
+        if (routeCategory === 'airportTransfers') {
+            return 'airportTransfers';
+        }
+
+        const prefix = String(plannerFrom.dataset.servicePrefix || '').toLowerCase();
+        if (prefix.includes('inbound') || prefix.includes('outbound')) {
+            return 'inboundOutbound';
+        }
+        return 'airportTransfers';
+    }
+
+    function getLiveRouteArray(category) {
+        return category === 'inboundOutbound' ? liveInboundOutboundRates : liveAirportRates;
     }
 
     function toLowerTrim(value) {
@@ -790,10 +811,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return copy;
     }
 
-    function buildProvinceCitiesFromLiveRates() {
+    function buildProvinceCitiesFromLiveRates(routes) {
         const map = {};
-
-        liveAirportRates.forEach((route) => {
+        (routes || []).forEach((route) => {
             const province = normalizeTitleCase(route?.province);
             const destination = normalizeTitleCase(route?.destination);
             if (!province || !destination) return;
@@ -848,9 +868,12 @@ document.addEventListener('DOMContentLoaded', () => {
     async function refreshAirportPickerData() {
         const previousProvince = selectedProvince;
         const previousCity = selectedCity;
+        const routeCategory = getCurrentRouteCategory();
 
-        const loadedFromApi = await loadLiveAirportRates();
-        provinceCities = loadedFromApi ? buildProvinceCitiesFromLiveRates() : cloneDefaultProvinceCities();
+        const loadedFromApi = await loadLiveRouteRates(routeCategory);
+        provinceCities = loadedFromApi
+            ? buildProvinceCitiesFromLiveRates(routeCategory === 'airportTransfers' ? liveAirportRates : liveInboundOutboundRates)
+            : (routeCategory === 'airportTransfers' ? cloneDefaultProvinceCities() : {});
         renderProvinceButtons();
 
         const allProvinces = sortProvinceKeys(Object.keys(provinceCities));
@@ -878,12 +901,13 @@ document.addEventListener('DOMContentLoaded', () => {
         updateWizardPreview();
     }
 
-    function upsertLiveRouteRate(route) {
+    function upsertLiveRouteRate(route, category = 'airportTransfers') {
         const province = String(route?.province || '').trim();
         const destination = String(route?.destination || '').trim();
         if (!province || !destination) return;
 
-        const matchIndex = liveAirportRates.findIndex((item) =>
+        const routes = category === 'inboundOutbound' ? liveInboundOutboundRates : liveAirportRates;
+        const matchIndex = routes.findIndex((item) =>
             toLowerTrim(item.province) === toLowerTrim(province) &&
             toLowerTrim(item.destination) === toLowerTrim(destination)
         );
@@ -897,56 +921,75 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         if (matchIndex >= 0) {
-            liveAirportRates[matchIndex] = normalized;
+            routes[matchIndex] = normalized;
         } else {
-            liveAirportRates.push(normalized);
+            routes.push(normalized);
+        }
+
+        if (category === 'inboundOutbound') {
+            liveInboundOutboundRates = routes;
+        } else {
+            liveAirportRates = routes;
         }
     }
 
-    async function loadLiveAirportRates() {
+    async function loadLiveRouteRates(category) {
         for (const base of RATES_API_BASES) {
             try {
                 const response = await fetch(`${base}/rates`);
                 if (!response.ok) continue;
                 const payload = await response.json();
-                if (!payload?.success || !Array.isArray(payload?.rates?.airportTransfers)) continue;
+                if (!payload?.success || !Array.isArray(payload?.rates?.[category])) continue;
 
-                liveAirportRates = payload.rates.airportTransfers.map((item) => ({
+                const routes = payload.rates[category].map((item) => ({
                     province: item.province,
                     destination: item.destination,
                     sedan: Number(item.sedan) || 0,
                     mpv: Number(item.mpv) || 0,
                     ev: Number(item.ev) || 0
                 }));
+
+                if (category === 'inboundOutbound') {
+                    liveInboundOutboundRates = routes;
+                } else {
+                    liveAirportRates = routes;
+                }
+
                 return true;
             } catch (_) {
                 // ignore and try the next base URL
             }
         }
 
-        liveAirportRates = [];
+        if (category === 'inboundOutbound') {
+            liveInboundOutboundRates = [];
+        } else {
+            liveAirportRates = [];
+        }
         return false;
     }
 
-    function getLiveAirportRoute(province, city) {
+    function getLiveRoute(province, city, category = 'airportTransfers') {
+        const routes = category === 'inboundOutbound' ? liveInboundOutboundRates : liveAirportRates;
         const normProvince = toLowerTrim(province);
         const normCity = toLowerTrim(city);
-        if (!normProvince || !normCity || !liveAirportRates.length) return null;
+        if (!normProvince || !normCity || !routes.length) return null;
 
-        const exact = liveAirportRates.find((item) =>
+        const exact = routes.find((item) =>
             toLowerTrim(item.province) === normProvince &&
             toLowerTrim(item.destination) === normCity
         );
         if (exact) return exact;
 
-        return liveAirportRates.find((item) =>
+        return routes.find((item) =>
             toLowerTrim(item.province) === normProvince &&
             (toLowerTrim(item.destination).includes(normCity) || normCity.includes(toLowerTrim(item.destination)))
         ) || null;
     }
 
     function getRouteFares(province, city) {
-        const liveRoute = getLiveAirportRoute(province, city);
+        const category = getCurrentRouteCategory();
+        const liveRoute = getLiveRoute(province, city, category);
         if (liveRoute) {
             return {
                 sedan: Number(liveRoute.sedan) || 0,
@@ -968,6 +1011,54 @@ document.addEventListener('DOMContentLoaded', () => {
         if (vehicleType === 'MPV') return fares.mpv;
         if (vehicleType === 'Electric MPV') return fares.ev;
         return fares.sedan;
+    }
+
+    function groupRoutesByProvince(routes) {
+        return (routes || []).reduce((acc, route) => {
+            const province = normalizeTitleCase(route.province);
+            if (!province) return acc;
+            acc[province] = acc[province] || [];
+            acc[province].push(route);
+            return acc;
+        }, {});
+    }
+
+    async function renderInboundOutboundRouteCards() {
+        const cardsContainer = document.getElementById('inboundOutboundRouteCards');
+        if (!cardsContainer) return;
+
+        const routeCategory = getCurrentRouteCategory();
+        await loadLiveRouteRates(routeCategory);
+        const routes = getLiveRouteArray(routeCategory) || [];
+
+        if (!routes.length) {
+            cardsContainer.innerHTML = `
+                <div class="airport-rate-placeholder">
+                    <h3>No inbound/outbound routes are available yet.</h3>
+                    <p>Please check back later or contact us for custom routing.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const grouped = groupRoutesByProvince(routes);
+        cardsContainer.innerHTML = Object.entries(grouped)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([province, provinceRoutes]) => `
+                <article class="airport-region-card">
+                    <h2>${province}</h2>
+                    <ul class="airport-rate-list">
+                        ${provinceRoutes.map((route) => `
+                            <li>
+                                <h3>${plannerFrom.dataset.fixedOrigin} to ${route.destination}</h3>
+                                <p>Starting fare for one-way transfer.</p>
+                                <strong>From PHP ${Number(route.sedan).toLocaleString()}</strong>
+                                <button type="button" class="airport-card-book airport-select-route" data-route-category="${routeCategory}" data-province="${province}" data-city="${route.destination}" data-fare-sedan="${route.sedan}" data-fare-mpv="${route.mpv}" data-fare-ev="${route.ev}">Book Now</button>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </article>
+            `).join('');
     }
 
     function setWizardStatus(message, type) {
@@ -1042,11 +1133,21 @@ document.addEventListener('DOMContentLoaded', () => {
             wizardPickupGroup.style.display = 'none';
             wizardDropoffGroup.style.display = 'flex';
             wizardPickup.value = fixedOrigin;
+            wizardPickup.required = false;
+            wizardPickup.disabled = true;
+            wizardDropoff.required = true;
+            wizardDropoff.disabled = false;
+            wizardDropoff.value = '';
             wizardDropoff.placeholder = `Drop-off in ${selectedCity || 'destination city'}`;
         } else {
             wizardPickupGroup.style.display = 'flex';
             wizardDropoffGroup.style.display = 'none';
             wizardDropoff.value = fixedOrigin;
+            wizardDropoff.required = false;
+            wizardDropoff.disabled = true;
+            wizardPickup.required = true;
+            wizardPickup.disabled = false;
+            wizardPickup.value = '';
             wizardPickup.placeholder = `Pick-up in ${selectedCity || 'destination city'}`;
         }
     }
@@ -1133,13 +1234,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const city = button?.dataset?.city;
         if (!province || !city) return;
 
+        const routeCategory = button?.dataset?.routeCategory || getCurrentRouteCategory();
         upsertLiveRouteRate({
             province,
             destination: city,
             sedan: Number(button.dataset.fareSedan || button.dataset.fare || 0),
             mpv: Number(button.dataset.fareMpv || 0),
             ev: Number(button.dataset.fareEv || 0)
-        });
+        }, routeCategory);
 
         selectedProvince = normalizeTitleCase(province);
         selectedCity = normalizeTitleCase(city);
@@ -1292,6 +1394,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     refreshAirportPickerData();
+    if (document.getElementById('inboundOutboundRouteCards')) {
+        renderInboundOutboundRouteCards();
+    }
 });
 
 // --- NAV HIGHLIGHT (active link) ---

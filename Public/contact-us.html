@@ -57,11 +57,11 @@
                     <span class="dropdown__title">Self-Drive Rentals</span>
                     <span class="dropdown__desc">Drive yourself around Bicol</span>
                   </a>
-                  <a href="services.html#long-term-car-rental" class="dropdown__link">
+                  <a href="#" class="dropdown__link disabled" aria-disabled="true" tabindex="-1">
                     <span class="dropdown__title">Long-Term Car Lease</span>
                     <span class="dropdown__desc">Monthly or yearly vehicle rentals</span>
                   </a>
-                  <a href="services.html#corporate-fleet-leasing" class="dropdown__link">
+                  <a href="#" class="dropdown__link disabled" aria-disabled="true" tabindex="-1">
                     <span class="dropdown__title">Corporate Fleet Leasing</span>
                     <span class="dropdown__desc">Multi-vehicle solutions for businesses</span>
                   </a>
@@ -83,7 +83,15 @@
               </div>
             </div>
           </li>
-          <li class="navbar__item"><a href="fleet.html" class="navbar__links">Our Fleet</a></li>
+          <li class="navbar__item navbar__item--dropdown">
+            <a href="#" class="navbar__links navbar__links--dropdown">Guide <i class="fas fa-chevron-down dropdown__icon" aria-hidden="true"></i></a>
+            <div class="dropdown__menu">
+              <a href="#" class="dropdown__link disabled" aria-disabled="true" tabindex="-1">Blog</a>
+              <a href="faq.html" class="dropdown__link">FAQ</a>
+              <a href="terms-of-use.html" class="dropdown__link">Terms of Use</a>
+              <a href="fleet.html" class="dropdown__link">Our Fleet</a>
+            </div>
+          </li>
           <li class="navbar__item"><a href="contact-us.html" class="navbar__links">Contact Us</a></li>
           <li class="navbar__btn"><a href="index.html#booking" class="button button--quote">REQUEST A QUOTE</a></li>
         </ul>
@@ -188,10 +196,51 @@
     </div>
   </main>
 
-  <footer class="footer">
+    <footer class="footer">
     <div class="footer__container">
-      <img src="images/Mayon-footer.svg" alt="Mayon" class="footer__logo">
-      <p>Contact us: <a href="tel:+639369938179">+63 936 993 8179</a> • <a href="mailto:mayonrentacar@gmail.com">mayonrentacar@gmail.com</a></p>
+      <div class="footer__brand-side">
+        <img src="images/Mayon-footer.svg" alt="Mayon" class="footer__logo">
+        <p class="footer__desc">Your gateway to the Bicol Region. Providing affordable, reliable, and premium car rental and transfer services across Albay and beyond.</p>
+      </div>
+      <div class="footer__links-side">
+        <div class="footer__link-group">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="/">About Us</a></li>
+            <li><a href="/services.html">Our Services</a></li>
+            <li><a href="#our-fleet">Our Fleet</a></li>
+            <li><a href="contact-us.html">Contact Us</a></li>
+          </ul>
+        </div>
+        <div class="footer__link-group">
+          <h4>Our Services</h4>
+          <ul>
+            <li><a href="airport-transfers.html">Airport Transfers</a></li>
+            <li><a href="#">Bicol Regional Transfers</a></li>
+            <li><a href="#">Corporate Rentals</a></li>
+            <li><a href="#">Self-Drive Options</a></li>
+          </ul>
+        </div>
+        <div class="footer__link-group">
+          <h4>Contact Details</h4>
+          <ul class="footer__contact-info">
+            <li>📍 162 Purok 3, Brgy 17, Legazpi City 4500</li>
+            <li>📞 <a href="tel:+639369938179">+63 936 993 8179</a></li>
+            <li>✉️ <a href="mailto:mayonrentacar@gmail.com">mayonrentacar@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer__link-group footer__follow-us">
+          <h4>Follow Us</h4>
+          <div class="footer__social-links">
+            <a href="https://www.facebook.com/mayonrentacar/" class="footer__social-link" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook-f"></i>Facebook</a>
+            <a href="https://www.instagram.com/mayonrentacar/" class="footer__social-link" target="_blank" rel="noopener noreferrer"><i class="fab fa-instagram"></i>Instagram</a>
+            <a href="https://m.me/mayonrentacar" class="footer__social-link" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook-messenger"></i>Messenger</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <p>&copy; 2026 Mayon Rent a Car, Inc. All Rights Reserved.</p>
     </div>
   </footer>
 

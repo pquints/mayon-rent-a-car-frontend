@@ -50,6 +50,9 @@
 
 /* Responsive adjustment para sa mobile */
 @media screen and (max-width: 768px) {
+    .top-bar {
+        display: none;
+    }
     .top-bar__container {
         flex-direction: column;
         gap: 10px;
@@ -234,6 +237,15 @@ section {
     z-index: 1000;
 }
 
+.dropdown__menu:not(.dropdown__menu--mega) {
+    width: min(240px, 90vw);
+    padding: 6px 0;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+    top: calc(100% + 6px);
+    transform: translateX(-50%);
+}
+
 .dropdown__columns {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -251,9 +263,13 @@ section {
     font-size: 14px;
     font-weight: 500;
     text-align: left;
-    padding: 14px 0;
+    padding: 12px 16px;
     border-top: 1px solid #e2e8f0;
     transition: color 0.2s ease;
+}
+
+.dropdown__menu:not(.dropdown__menu--mega) .dropdown__link:first-of-type {
+    border-top: none;
 }
 
 .dropdown__column .dropdown__link:first-of-type {
@@ -955,9 +971,37 @@ section {
 .fleet-grid {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center; 
+    justify-content: center;
     gap: 30px;
     width: 100%;
+}
+
+.fleet-grid--preview {
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.fleet-grid--preview .fleet-card {
+    flex: 1 1 calc(33.333% - 18px);
+    max-width: calc(33.333% - 18px);
+    min-width: 280px;
+}
+
+@media screen and (max-width: 1024px) {
+    .fleet-grid--preview .fleet-card {
+        flex: 1 1 calc(50% - 20px);
+        max-width: calc(50% - 20px);
+    }
+}
+
+@media screen and (max-width: 720px) {
+    .fleet-grid--preview {
+        justify-content: center;
+    }
+    .fleet-grid--preview .fleet-card {
+        flex: 1 1 100%;
+        max-width: 100%;
+    }
 }
 
 .fleet-card {
@@ -1302,10 +1346,48 @@ section {
 /* --- FAQ STYLES --- */
 .faq-section {
     background-color: #ffffff;
-    padding: 80px 20px;
+    padding: 60px 20px;
     font-family: 'Arial', sans-serif;
     width: 100%;
     border-top: 1px solid #e2e8f0;
+}
+
+.faq-container {
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.faq-list {
+    display: grid;
+    gap: 16px;
+    margin-top: 30px;
+}
+
+.faq-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 18px 20px;
+}
+
+.faq-item summary {
+    cursor: pointer;
+    list-style: none;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 16px;
+}
+
+.faq-item p {
+    margin-top: 14px;
+    color: #475569;
+    line-height: 1.75;
+    font-size: 15px;
 }
 
 .faq-container {
@@ -1621,28 +1703,41 @@ section {
     border-top: 1px solid #e2e8f0;
 }
 
-/* --- WHATSAPP FLOATING BUTTON --- */
-.whatsapp-float {
+/* --- CONTACT FLOATING BUTTONS --- */
+.contact-float-container {
     position: fixed;
     right: 22px;
     bottom: 22px;
     z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.contact-float {
     width: 58px;
     height: 58px;
     border-radius: 50%;
-    background: #25d366;
     color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 28px;
-    box-shadow: 0 10px 24px rgba(37, 211, 102, 0.3);
+    font-size: 24px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.whatsapp-float:hover {
+.contact-float:hover {
     transform: translateY(-2px);
-    box-shadow: 0 14px 28px rgba(37, 211, 102, 0.35);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+}
+
+.whatsapp-float {
+    background: #25d366;
+}
+
+.messenger-float {
+    background: #0084ff;
 }
 
 .partner-container {
@@ -1870,6 +1965,34 @@ section {
     color: #178ca4 !important;
 }
 
+.footer__link-group {
+    flex: 1 1 180px;
+}
+
+.footer__social-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.footer__social-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.3s ease;
+}
+
+.footer__social-link:hover {
+    color: #178ca4;
+}
+
+.footer__social-link i {
+    font-size: 14px;
+}
+
 .footer__bottom {
     max-width: 1100px;
     margin: 40px auto 0 auto;
@@ -1883,19 +2006,106 @@ section {
     color: #64748b;
 }
 
+.footer__bottom p {
+    font-size: 12px;
+    color: #64748b;
+}
+
 @media screen and (max-width: 768px) {
+    .footer {
+        padding: 40px 20px 16px 20px;
+    }
+
     .footer__container {
         flex-direction: column;
-        gap: 35px;
+        gap: 20px;
     }
     
     .footer__links-side {
         flex-direction: column;
-        gap: 30px;
+        gap: 24px;
     }
     
     .footer__link-group h4 {
-        margin-bottom: 12px;
+        margin-bottom: 10px;
+    }
+    
+    .footer__social-links {
+        justify-content: flex-start;
+    }
+
+    .footer__follow-us {
+        order: -1;
+        margin-top: 0;
+        padding-bottom: 10px;
+    }
+
+    .footer__bottom {
+        margin: 26px auto 0 auto;
+        padding-top: 12px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .footer {
+        padding: 20px 12px 10px 12px;
+    }
+
+    .footer__container {
+        gap: 6px;
+    }
+
+    .footer__logo {
+        height: 44px;
+        margin: 0 auto 10px auto;
+        display: block;
+    }
+
+    .footer__brand-side {
+        text-align: center;
+        margin-bottom: 4px;
+    }
+
+    .footer__desc {
+        font-size: 12px;
+        line-height: 1.4;
+        margin-bottom: 6px;
+    }
+
+    .footer__links-side {
+        gap: 8px;
+    }
+
+    .footer__link-group {
+        flex: 1 1 100%;
+        width: 100%;
+        text-align: left;
+        margin-bottom: 4px;
+        padding-left: 6px;
+    }
+
+    .footer__link-group h4 {
+        font-size: 13px;
+        margin-bottom: 4px;
+    }
+
+    .footer__link-group ul li a,
+    .footer__contact-info li {
+        font-size: 12px;
+    }
+
+    .footer__link-group ul li {
+        margin-bottom: 6px;
+    }
+
+    .footer__social-links {
+        justify-content: flex-start;
+        gap: 6px;
+    }
+
+    .footer__bottom {
+        margin: 12px auto 0 auto;
+        padding-top: 6px;
     }
 }
 
@@ -2455,4 +2665,15 @@ section {
     .airport-wizard-actions {
         flex-direction: column;
     }
+}
+.dropdown__link.disabled {
+    cursor: default;
+    color: #64748b;
+    pointer-events: none;
+}
+.dropdown__link.disabled .dropdown__title {
+    color: #475569;
+}
+.dropdown__link.disabled .dropdown__desc {
+    color: #94a3b8;
 }

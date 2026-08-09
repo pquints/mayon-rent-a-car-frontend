@@ -2,3 +2,10 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# Runtime data — never overwrite production
+bookings.json
+quotes.json
+users.json
+vehicles.json
+server.pid

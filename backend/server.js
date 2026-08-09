@@ -234,6 +234,7 @@ const saveQuotes = (quotes) => {
 // ========================================================
 const DEFAULT_RATES = {
     airportTransfers: [],
+    inboundOutbound: [],
     withDriver: [],
     selfDrive: []
 };
@@ -245,7 +246,14 @@ const getRates = () => {
             return DEFAULT_RATES;
         }
         const data = fs.readFileSync(RATES_FILE_PATH, 'utf8');
-        return JSON.parse(data);
+        const parsed = JSON.parse(data);
+        return {
+            airportTransfers: [],
+            inboundOutbound: [],
+            withDriver: [],
+            selfDrive: [],
+            ...parsed
+        };
     } catch (err) {
         return DEFAULT_RATES;
     }

@@ -88,10 +88,17 @@
                     <span class="nav-text">Fleet</span>
                 </a>
                 
-                <a href="#" class="nav-item" onclick="showView('ratesManagement'); loadRates(); return false;">
+                <a href="#" class="nav-item nav-item--dropdown" onclick="toggleRatesSubmenu(event); return false;" aria-expanded="false">
                     <i class="fa-solid fa-tags"></i>
                     <span class="nav-text">Rates</span>
+                    <i class="fa-solid fa-chevron-down nav-item-chevron"></i>
                 </a>
+                <div id="ratesSubmenu" class="nav-submenu hidden" aria-label="Rate categories submenu">
+                    <a href="#" class="nav-submenu-item" data-tab="selfDrive" onclick="openRatesTab('selfDrive'); return false;">Self-Drive</a>
+                    <a href="#" class="nav-submenu-item" data-tab="withDriver" onclick="openRatesTab('withDriver'); return false;">With Driver</a>
+                    <a href="#" class="nav-submenu-item" data-tab="airport" onclick="openRatesTab('airport'); return false;">Airport Transfers</a>
+                    <a href="#" class="nav-submenu-item" data-tab="inboundOutbound" onclick="openRatesTab('inboundOutbound'); return false;">Inbound/Outbound</a>
+                </div>
                 
                 <a href="#" class="nav-item" onclick="showView('userManagement'); loadUsers(); return false;">
                     <i class="fa-solid fa-users"></i>
@@ -168,10 +175,9 @@
         </select>
         <select id="filterArea">
             <option value="">All Areas / Regions</option>
-            <option value="legazpi">Legazpi City</option>
-            <option value="daraga">Daraga</option>
-            <option value="tabaco">Tabaco City</option>
-            <option value="Sorsogon">Sorsogon City</option> <option value="others">Other Bicol Areas</option>
+            <option value="Albay">Albay</option>
+            <option value="Sorsogon">Sorsogon</option>
+            <option value="Camarines Sur">Camarines Sur</option>
         </select>
         <button class="btn-more">
             More Filters <i class="fa-solid fa-chevron-down"></i>
@@ -342,11 +348,9 @@
                         <div style="position: relative; width: 100%;">
                         <select id="fpArea" style="width: 100%; background: #fff; border: 1px solid var(--border-color); color: var(--text-main); padding: 12px; border-radius: 6px; font-weight: bold; box-sizing: border-box; font-size: 0.95rem; appearance: none; -webkit-appearance: none; cursor: pointer; background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%2306b6d4%22 stroke-width=%223%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><polyline points=%226 9 12 15 18 9%22></polyline></svg>'); background-repeat: no-repeat; background-position: calc(100% - 15px) center;">
                             <option value="">-- Select Area --</option>
-                            <option value="legazpi">Legazpi City</option>
-                            <option value="daraga">Daraga</option>
-                            <option value="tabaco">Tabaco City</option>
-                            <option value="sorsogon">Sorsogon City</option> 
-                            <option value="others">Other Bicol Areas</option>
+                            <option value="Albay">Albay</option>
+                            <option value="Sorsogon">Sorsogon</option>
+                            <option value="Camarines Sur">Camarines Sur</option>
                         </select>
                         </div>
                     </div>
@@ -526,10 +530,11 @@
                 <div id="ratesStatusMsg" style="display:none; margin-bottom:16px; padding:12px 16px; border-radius:8px; font-weight:600; font-size:14px;"></div>
 
                 <!-- Tabs -->
-                <div style="display:flex; gap:8px; margin-bottom:24px; border-bottom:2px solid #e2e8f0;">
-                    <button class="rates-tab active" data-tab="airport" onclick="switchRatesTab('airport')">✈️ Airport Transfers</button>
-                    <button class="rates-tab" data-tab="withDriver" onclick="switchRatesTab('withDriver')">🚗 With Driver</button>
-                    <button class="rates-tab" data-tab="selfDrive" onclick="switchRatesTab('selfDrive')">🔑 Self-Drive</button>
+                <div id="ratesTabControls" style="display:flex; gap:8px; margin-bottom:24px; border-bottom:2px solid #e2e8f0;">
+                    <button class="rates-tab active" data-tab="airport" onclick="switchRatesTab('airport')" type="button">✈️ Airport Transfers</button>
+                    <button class="rates-tab" data-tab="withDriver" onclick="switchRatesTab('withDriver')" type="button">🚗 With Driver</button>
+                    <button class="rates-tab" data-tab="selfDrive" onclick="switchRatesTab('selfDrive')" type="button">🔑 Self-Drive</button>
+                    <button class="rates-tab" data-tab="inboundOutbound" onclick="switchRatesTab('inboundOutbound')" type="button">↔️ Inbound/Outbound</button>
                 </div>
 
                 <!-- Airport Transfers Tab -->
@@ -558,8 +563,6 @@
                         </div>
                         <div style="display:flex; gap:8px; align-items:center;">
                             <button class="btn-secondary" onclick="addAirportRoute()" style="height:38px; white-space:nowrap;">+ Add Route</button>
-                            <button class="btn-secondary" onclick="populateSuggestedAirportRoutes()" style="height:38px; white-space:nowrap;">Sync Cities/Towns</button>
-                            <button class="btn-secondary" onclick="removeUnsupportedAirportRoutes()" style="height:38px; white-space:nowrap;">Remove Non-Frontend Routes</button>
                         </div>
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr; gap:10px; margin-bottom:16px; align-items:end; max-width:380px;">
@@ -583,6 +586,43 @@
                 <div id="rates-tab-selfDrive" class="rates-tab-pane" style="display:none;">
                     <p style="color:#64748b; font-size:13px; margin-bottom:16px;">Daily rental rate per vehicle. This reflects the base price shown on the fleet page.</p>
                     <div id="selfDriveRatesTable"></div>
+                </div>
+
+                <!-- Inbound/Outbound Tab -->
+                <div id="rates-tab-inboundOutbound" class="rates-tab-pane" style="display:none;">
+                    <p style="color:#64748b; font-size:13px; margin-bottom:16px;">Rates for inbound and outbound transfers to and from Legazpi-Daraga. Set prices per vehicle type (Sedan, MPV, Electric MPV).</p>
+                    <div style="display:grid; grid-template-columns: 1.1fr 1.1fr 0.7fr 0.7fr 0.9fr auto; gap:10px; margin-bottom:16px; align-items:end;">
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-size:12px; color:#64748b; font-weight:600;">Province</label>
+                            <input type="text" id="ibRateProvince" class="rates-input" placeholder="e.g. Albay" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-size:12px; color:#64748b; font-weight:600;">Destination</label>
+                            <input type="text" id="ibRateDestination" class="rates-input" placeholder="e.g. Ligao City" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-size:12px; color:#64748b; font-weight:600;">Sedan</label>
+                            <input type="number" id="ibRateSedan" class="rates-input" min="0" placeholder="0" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-size:12px; color:#64748b; font-weight:600;">MPV</label>
+                            <input type="number" id="ibRateMpv" class="rates-input" min="0" placeholder="0" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-size:12px; color:#64748b; font-weight:600;">Electric MPV</label>
+                            <input type="number" id="ibRateEv" class="rates-input" min="0" placeholder="0" style="width:100%;">
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button class="btn-secondary" onclick="addInboundOutboundRoute()" style="height:38px; white-space:nowrap;">+ Add Route</button>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr; gap:10px; margin-bottom:16px; align-items:end; max-width:380px;">
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-size:12px; color:#64748b; font-weight:600;">Filter by Province</label>
+                            <select id="ibRateProvinceQuick" class="rates-input" style="width:100%;"></select>
+                        </div>
+                    </div>
+                    <div id="inboundOutboundRatesTable"></div>
                 </div>
             </div>
 
@@ -636,8 +676,8 @@
             });
         });
     </script>
-    <script src="auth-utils.js?v=20260712-1"></script>
-    <script src="dashboard.js?v=20260712-1"></script>  
+    <script src="auth-utils.js?v=20260808-1"></script>
+    <script src="dashboard.js?v=20260808-1"></script>
     
     <!-- USER MODAL -->
     <div id="userModal" style="display: none !important; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">

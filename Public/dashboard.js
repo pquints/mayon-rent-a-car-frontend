@@ -180,7 +180,14 @@ async function requestWithFallback(path, options = {}) {
             const data = await response.json();
 
             // If endpoint exists and validated credentials fail, return immediately.
-            if (!response.ok && response.status !== 404) {
+            if (!response.ok) {
+                if (response.status === 404) {
+                    continue;
+                }
+                if (response.status === 429 || response.status >= 500) {
+                    lastError = new Error(`Temporary server error from ${base}${path}: ${response.status}`);
+                    continue;
+                }
                 return { response, data, base };
             }
 
@@ -341,10 +348,11 @@ function decodeJwtPayload(token) {
 
 function getAuthHeaders() {
     const token = localStorage.getItem('authToken') || authToken || '';
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
 }
 
 function ensureAuth() {
@@ -515,7 +523,7 @@ async function fetchBookings() {
     } catch (error) {
         console.error("Error fetching bookings:", error);
         if (tableBody) {
-            tableBody.innerHTML = `<tr><td colspan="7" class="error-text" style="color: #ff4d4d; text-align: center; padding: 20px;">Nasira ang koneksyon sa server. Pakisubukan muli.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="7" class="error-text" style="color: #ff4d4d; text-align: center; padding: 20px;">Server connection lost. Please try again.</td></tr>`;
         }
     }
 }
@@ -802,7 +810,7 @@ async function deleteBooking(ref) {
                 fetchStatusCounts();
                 await fetchBookings();
             } else {
-                alert('Hindi nabura: ' + (result.error || 'Server rejected the request.'));
+                alert('Delete failed: ' + (result.error || 'Server rejected the request.'));
             }
         } catch (error) {
             console.error("Error deleting booking:", error);
@@ -1199,7 +1207,7 @@ function renderTableFiltered(filteredList) {
     tableBody.innerHTML = '';
 
     if (!filteredList || filteredList.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="7" class="no-data" style="text-align: center; padding: 30px; color: #888;">Walang nahanap na booking.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="7" class="no-data" style="text-align: center; padding: 30px; color: #888;">No bookings found.</td></tr>`;
         renderPagination([]);
         return;
     }
@@ -1298,7 +1306,7 @@ document.getElementById("btnCopyDetails").addEventListener("click", async () => 
         copyBtn.innerHTML = `<i class="fa-solid fa-check" style="color: #10b981;"></i>`;
         setTimeout(() => { copyBtn.innerHTML = `<i class="fa-solid fa-copy"></i>`; }, 2000);
     } catch (err) {
-        alert("Hindi nagawang i-copy ang detalye. Pakisubukang muli.");
+        alert("Unable to copy details. Please try again.");
     }
 });
 
@@ -1325,7 +1333,7 @@ function handleRentalTypeChange() {
 
 function openQuickQuote(refNum) {
     const booking = currentBookingsList.find(b => b.ref === refNum);
-    if (!booking) return alert("Hindi mahanap ang data ng booking reference.");
+    if (!booking) return alert("Booking reference data could not be found.");
 
     currentQuotingRef = refNum;
     currentQuotingType = booking.rentalType ? booking.rentalType.toLowerCase() : "with-driver";
@@ -2249,6 +2257,9 @@ function toggleReturnScheduleVisibility(rentalType) {
 // ========================================================
 
 function showView(viewType) {
+    if (viewType !== 'ratesManagement') {
+        _ratesSubmenuMode = false;
+    }
     localStorage.setItem('adminActiveView', viewType);
 
     const mainDashboardView = document.getElementById('mainDashboardView');
@@ -2286,6 +2297,7 @@ function showView(viewType) {
     } else if (viewType === 'ratesManagement') {
         const item = getNavItemByIcon('fa-tags');
         if (item) item.classList.add('active');
+        syncRatesTabControls();
     }
 }
 
@@ -2781,6 +2793,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 let _currentRates = null;
 let _activeRatesTab = 'airport';
+let _ratesSubmenuMode = false;
 let _airportRatesSuggestionsBound = false;
 let _airportProvinceFilter = '';
 
@@ -2833,15 +2846,17 @@ function isSupportedAirportDestination(province, destination) {
 
 async function loadRates() {
     const { response, data } = await requestWithFallback('/rates', {
-        headers: { 'Authorization': `Bearer ${authToken}` }
+        headers: getAuthHeaders()
     });
     if (!response.ok) {
         showRatesStatus('Failed to load rates.', 'error');
         return;
     }
-    _currentRates = data.rates;
+    _currentRates = data.rates || {};
+    _currentRates.inboundOutbound = _currentRates.inboundOutbound || [];
     initializeAirportRatesSuggestions();
     renderRatesTables(_currentRates);
+    renderInboundOutboundProvinceOptions(_currentRates);
     switchRatesTab(_activeRatesTab);
 }
 
@@ -2850,6 +2865,10 @@ function normalizeTitleCase(text) {
         .trim()
         .toLowerCase()
         .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function toLowerTrim(value) {
+    return String(value || '').trim().toLowerCase();
 }
 
 function getDefaultAirportSedanRate(province, destination) {
@@ -2861,7 +2880,7 @@ function getAirportSuggestionMapFromData() {
     const map = {};
 
     Object.entries(FRONTEND_AIRPORT_DESTINATIONS).forEach(([province, cities]) => {
-        map[province] = [...cities];
+        map[province] = [...new Set(cities)];
     });
 
     if (_currentRates?.airportTransfers) {
@@ -2869,8 +2888,6 @@ function getAirportSuggestionMapFromData() {
             const province = normalizeTitleCase(row.province);
             const destination = normalizeTitleCase(row.destination);
             if (!province || !destination) return;
-            if (!isSupportedAirportProvince(province)) return;
-            if (!isSupportedAirportDestination(province, destination)) return;
             if (!map[province]) map[province] = [];
             if (!map[province].includes(destination)) map[province].push(destination);
         });
@@ -2899,6 +2916,11 @@ function renderDestinationOptions(suggestionMap, selectedProvince) {
 function getAirportProvinceFilterValue() {
     const quickProvince = document.getElementById('rateProvinceQuick');
     return normalizeTitleCase(quickProvince?.value || _airportProvinceFilter || '');
+}
+
+function getInboundOutboundProvinceFilterValue() {
+    const quickProvince = document.getElementById('ibRateProvinceQuick');
+    return normalizeTitleCase(quickProvince?.value || '');
 }
 
 function initializeAirportRatesSuggestions() {
@@ -2954,11 +2976,23 @@ function initializeAirportRatesSuggestions() {
     _airportRatesSuggestionsBound = true;
 }
 
+function renderInboundOutboundProvinceOptions(rates) {
+    const quickProvince = document.getElementById('ibRateProvinceQuick');
+    if (!quickProvince || !rates || !rates.inboundOutbound) return;
+
+    const provinces = Array.from(new Set(rates.inboundOutbound.map((row) => normalizeTitleCase(row.province)).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    quickProvince.innerHTML = ['<option value="">All Provinces</option>', ...provinces.map((province) => `<option value="${province}">${province}</option>`)].join('');
+    quickProvince.onchange = () => renderRatesTables(_currentRates);
+}
+
 async function saveRates() {
+    authToken = localStorage.getItem('authToken') || authToken;
+    if (!ensureAuth()) return false;
+
     collectRatesFromInputs();
     const { response, data } = await requestWithFallback('/rates', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ rates: _currentRates })
     });
     if (response.ok) {
@@ -2982,6 +3016,16 @@ function collectRatesFromInputs() {
         });
     });
 
+    // Inbound/Outbound transfers
+    if (_currentRates.inboundOutbound) {
+        _currentRates.inboundOutbound.forEach(row => {
+            ['sedan', 'mpv', 'ev'].forEach(key => {
+                const el = document.getElementById(`ib-${row.id}-${key}`);
+                if (el) row[key] = parseInt(el.value, 10) || 0;
+            });
+        });
+    }
+
     // With driver
     _currentRates.withDriver.forEach(row => {
         ['sedan', 'mpv', 'ev'].forEach(key => {
@@ -2995,6 +3039,77 @@ function collectRatesFromInputs() {
         const el = document.getElementById(`sd-${row.id}-daily`);
         if (el) row.dailyRate = parseInt(el.value, 10) || 0;
     });
+}
+
+function toggleRatesSubmenu(event) {
+    event.preventDefault();
+    const submenu = document.getElementById('ratesSubmenu');
+    const button = event.currentTarget;
+    if (!submenu || !button) return;
+
+    if (submenu.classList.contains('hidden')) {
+        submenu.classList.remove('hidden');
+        submenu.style.display = 'flex';
+        const isOpen = submenu.classList.toggle('is-open');
+        button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        button.querySelector('.nav-item-chevron')?.classList.toggle('is-open', isOpen);
+    } else {
+        const isOpen = submenu.classList.toggle('is-open');
+        button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        button.querySelector('.nav-item-chevron')?.classList.toggle('is-open', isOpen);
+    }
+}
+
+async function openRatesTab(tab) {
+    _ratesSubmenuMode = true;
+    showView('ratesManagement');
+    await loadRates();
+    switchRatesTab(tab);
+    syncRatesTabControls();
+
+    document.querySelectorAll('.nav-submenu-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.tab === tab);
+    });
+
+    const submenu = document.getElementById('ratesSubmenu');
+    const button = document.querySelector('.nav-item--dropdown');
+    if (submenu) {
+        submenu.classList.remove('is-open');
+        submenu.classList.add('hidden');
+        submenu.style.display = 'none';
+    }
+    if (button) {
+        button.setAttribute('aria-expanded', 'false');
+        button.querySelector('.nav-item-chevron')?.classList.remove('is-open');
+    }
+}
+
+function syncRatesTabControls() {
+    const controls = document.getElementById('ratesTabControls');
+    if (!controls) return;
+
+    const tabs = controls.querySelectorAll('.rates-tab');
+    if (_ratesSubmenuMode) {
+        controls.classList.add('hidden');
+        controls.style.display = 'none';
+        controls.style.pointerEvents = 'none';
+        tabs.forEach((tab) => {
+            tab.disabled = true;
+            tab.classList.add('disabled');
+            tab.style.pointerEvents = 'none';
+            tab.style.opacity = '0.5';
+        });
+    } else {
+        controls.classList.remove('hidden');
+        controls.style.display = 'flex';
+        controls.style.pointerEvents = 'auto';
+        tabs.forEach((tab) => {
+            tab.disabled = false;
+            tab.classList.remove('disabled');
+            tab.style.pointerEvents = 'auto';
+            tab.style.opacity = '1';
+        });
+    }
 }
 
 function renderRatesTables(rates) {
@@ -3021,6 +3136,34 @@ function renderRatesTables(rates) {
                             <td><input type="number" id="at-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input"></td>
                             <td><input type="number" id="at-${r.id}-ev" value="${r.ev}" min="0" class="rates-input"></td>
                             <td><button type="button" class="btn-secondary" onclick="removeAirportRoute('${r.id}')" style="padding:6px 10px; font-size:12px;">Remove</button></td>
+                        </tr>`).join('') || '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:18px;">No routes for selected province.</td></tr>'}
+                </tbody>
+            </table>`;
+    }
+
+    // Inbound/Outbound table
+    const ibEl = document.getElementById('inboundOutboundRatesTable');
+    if (ibEl && rates.inboundOutbound) {
+        const activeProvinceFilter = normalizeTitleCase(document.getElementById('ibRateProvinceQuick')?.value || '');
+        const inboundRows = activeProvinceFilter
+            ? rates.inboundOutbound.filter((row) => normalizeTitleCase(row.province) === activeProvinceFilter)
+            : rates.inboundOutbound;
+
+        ibEl.innerHTML = `
+            <table class="rates-table">
+                <thead><tr>
+                    <th>Province</th><th>Destination</th>
+                    <th>Sedan (₱)</th><th>MPV (₱)</th><th>Electric MPV (₱)</th><th>Action</th>
+                </tr></thead>
+                <tbody>
+                    ${inboundRows.map(r => `
+                        <tr>
+                            <td><span class="rates-badge">${r.province}</span></td>
+                            <td><strong>${r.destination}</strong></td>
+                            <td><input type="number" id="ib-${r.id}-sedan" value="${r.sedan}" min="0" class="rates-input"></td>
+                            <td><input type="number" id="ib-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input"></td>
+                            <td><input type="number" id="ib-${r.id}-ev" value="${r.ev}" min="0" class="rates-input"></td>
+                            <td><button type="button" class="btn-secondary" onclick="removeInboundOutboundRoute('${r.id}')" style="padding:6px 10px; font-size:12px;">Remove</button></td>
                         </tr>`).join('') || '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:18px;">No routes for selected province.</td></tr>'}
                 </tbody>
             </table>`;
@@ -3128,6 +3271,72 @@ function addAirportRoute() {
     showRatesStatus('Route added. Click Save All Rates to apply live.', 'success');
 }
 
+function addInboundOutboundRoute() {
+    if (!_currentRates) {
+        showRatesStatus('Unable to add route. Please open the rates tab and try again.', 'error');
+        return;
+    }
+    _currentRates.inboundOutbound = _currentRates.inboundOutbound || [];
+
+    const provinceEl = document.getElementById('ibRateProvince');
+    const destinationEl = document.getElementById('ibRateDestination');
+    const sedanEl = document.getElementById('ibRateSedan');
+    const mpvEl = document.getElementById('ibRateMpv');
+    const evEl = document.getElementById('ibRateEv');
+
+    const province = normalizeTitleCase(provinceEl?.value || '');
+    const destination = normalizeTitleCase(destinationEl?.value || '');
+    const sedan = parseInt(sedanEl?.value || '0', 10);
+    const mpv = parseInt(mpvEl?.value || '0', 10);
+    const ev = parseInt(evEl?.value || '0', 10);
+
+    if (!province || !destination) {
+        showRatesStatus('Province and destination are required.', 'error');
+        return;
+    }
+
+    const exists = _currentRates.inboundOutbound.some(r =>
+        toLowerTrim(r.province) === toLowerTrim(province) &&
+        toLowerTrim(r.destination) === toLowerTrim(destination)
+    );
+
+    if (exists) {
+        showRatesStatus('Route already exists.', 'error');
+        return;
+    }
+
+    _currentRates.inboundOutbound.push({
+        id: `ib${Date.now()}`,
+        province,
+        destination,
+        sedan: Number.isFinite(sedan) ? sedan : 0,
+        mpv: Number.isFinite(mpv) ? mpv : 0,
+        ev: Number.isFinite(ev) ? ev : 0
+    });
+
+    renderRatesTables(_currentRates);
+    renderInboundOutboundProvinceOptions(_currentRates);
+    switchRatesTab('inboundOutbound');
+
+    if (provinceEl) provinceEl.value = '';
+    if (destinationEl) destinationEl.value = '';
+    if (sedanEl) sedanEl.value = '';
+    if (mpvEl) mpvEl.value = '';
+    if (evEl) evEl.value = '';
+
+    showRatesStatus('Route added. Click Save All Rates to apply live.', 'success');
+}
+
+function removeInboundOutboundRoute(routeId) {
+    if (!_currentRates || !_currentRates.inboundOutbound) return;
+    if (!confirm('Remove this route?')) return;
+
+    _currentRates.inboundOutbound = _currentRates.inboundOutbound.filter(r => r.id !== routeId);
+    renderRatesTables(_currentRates);
+    renderInboundOutboundProvinceOptions(_currentRates);
+    showRatesStatus('Route removed. Click Save All Rates to apply live.', 'success');
+}
+
 function populateSuggestedAirportRoutes() {
     if (!_currentRates || !_currentRates.airportTransfers) return;
 
@@ -3210,6 +3419,8 @@ async function removeAirportRoute(routeId) {
     switchRatesTab('airport');
 
     const didSave = await saveRates();
+    showView('ratesManagement');
+
     if (didSave) {
         showRatesStatus('Route removed and saved. Frontend will update on next fetch.', 'success');
     }

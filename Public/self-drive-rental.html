@@ -51,11 +51,11 @@
                     <span class="dropdown__title">Self-Drive Rentals</span>
                     <span class="dropdown__desc">Drive yourself around Bicol</span>
                   </a>
-                  <a href="services.html#long-term-car-rental" class="dropdown__link">
+                  <a href="#" class="dropdown__link disabled" aria-disabled="true" tabindex="-1">
                     <span class="dropdown__title">Long-Term Car Lease</span>
                     <span class="dropdown__desc">Monthly or yearly vehicle rentals</span>
                   </a>
-                  <a href="services.html#corporate-fleet-leasing" class="dropdown__link">
+                  <a href="#" class="dropdown__link disabled" aria-disabled="true" tabindex="-1">
                     <span class="dropdown__title">Corporate Fleet Leasing</span>
                     <span class="dropdown__desc">Multi-vehicle solutions for businesses</span>
                   </a>
@@ -77,7 +77,15 @@
               </div>
             </div>
           </li>
-          <li class="navbar__item"><a href="fleet.html" class="navbar__links">Our Fleet</a></li>
+          <li class="navbar__item navbar__item--dropdown">
+            <a href="#" class="navbar__links navbar__links--dropdown">Guide <i class="fas fa-chevron-down dropdown__icon" aria-hidden="true"></i></a>
+            <div class="dropdown__menu">
+              <a href="#" class="dropdown__link disabled" aria-disabled="true" tabindex="-1">Blog</a>
+              <a href="faq.html" class="dropdown__link">FAQ</a>
+              <a href="terms-of-use.html" class="dropdown__link">Terms of Use</a>
+              <a href="fleet.html" class="dropdown__link">Our Fleet</a>
+            </div>
+          </li>
           <li class="navbar__item"><a href="contact-us.html" class="navbar__links">Contact Us</a></li>
           <li class="navbar__btn"><a href="#self-drive-booking" class="button button--quote">BOOK SELF-DRIVE</a></li>
         </ul>
@@ -95,8 +103,8 @@
 
     <section id="self-drive-booking" class="booking-section">
       <div class="booking-container">
-        <h2>Book Your Self-Drive Vehicle</h2>
-        <p class="booking-subtitle">Same booking flow as homepage, focused for self-drive rentals.</p>
+        <h2>Reserve Your Self-Drive Rental</h2>
+        <p class="booking-subtitle">Use the dedicated self-drive booking form below to request a vehicle for your Bicol trip.</p>
 
         <div class="step-indicator">
           <div class="step step--active">1. Area</div>
@@ -114,11 +122,9 @@
               <label for="self-booking-area">Booking Area *</label>
               <select id="self-booking-area" name="area" required>
                 <option value="" disabled selected>-- Select an Area --</option>
-                <option value="legazpi">Legazpi City</option>
-                <option value="daraga">Daraga</option>
-                <option value="tabaco">Tabaco City</option>
-                <option value="Sorsogon">Sorsogon City</option>
-                <option value="others">Other Bicol Areas</option>
+                <option value="Albay">Albay</option>
+                <option value="Sorsogon">Sorsogon</option>
+                <option value="Camarines Sur">Camarines Sur</option>
               </select>
             </div>
           </div>
@@ -195,14 +201,141 @@
             <button type="button" id="next-btn" class="nav-btn btn-next">Next</button>
           </div>
         </form>
+
+      </div>
+    </section>
+
+    <section class="fleet-section">
+      <div class="fleet-container">
+        <h2 class="fleet-title">Fleet Preview</h2>
+        <p class="fleet-subtitle">Available self-drive vehicles for your Bicol trip. Choose the right class and book with confidence.</p>
+        <div class="fleet-grid fleet-grid--preview">
+          <div class="fleet-card" data-category="Sedan">
+              <div class="fleet-img-container">
+                <img src="images/vios.png" alt="Toyota Vios" class="fleet-img">
+              </div>
+              <div class="fleet-details">
+                <h3>Toyota Vios</h3>
+                <p class="fleet-class">Economy Sedan</p>
+                <div class="fleet-specs">
+                  <span class="spec-item">👥 4 Seats</span>
+                  <span class="spec-item">2 Bags</span>
+                </div>
+                <div class="fleet-footer">
+                  <a href="#self-drive-booking" class="fleet-book-btn">Select Sedan</a>
+                </div>
+              </div>
+            </div>
+            <div class="fleet-card" data-category="MPV">
+              <div class="fleet-img-container">
+                <img src="images/innova.png" alt="Toyota Innova" class="fleet-img">
+              </div>
+              <div class="fleet-details">
+                <h3>Toyota Innova</h3>
+                <p class="fleet-class">MPV</p>
+                <div class="fleet-specs">
+                  <span class="spec-item">👥 6 Seats</span>
+                  <span class="spec-item">4 Bags</span>
+                </div>
+                <div class="fleet-footer">
+                  <a href="#self-drive-booking" class="fleet-book-btn">Select MPV</a>
+                </div>
+              </div>
+            </div>
+            <div class="fleet-card" data-category="EV">
+              <div class="fleet-img-container">
+                <img src="images/limogreen.png" alt="VinFast Limo Green" class="fleet-img">
+              </div>
+              <div class="fleet-details">
+                <h3>VinFast Limo Green</h3>
+                <p class="fleet-class">Electric MPV</p>
+                <div class="fleet-specs">
+                  <span class="spec-item">👥 6 Seats</span>
+                  <span class="spec-item">4 Bags</span>
+                </div>
+                <div class="fleet-footer">
+                  <a href="#self-drive-booking" class="fleet-book-btn">Select EV</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="faq-section">
+      <div class="faq-container">
+            <h2 class="section-title">Frequently Asked Questions</h2>
+            <p class="section-subtitle">Answers to the most common questions about self-drive rentals at Mayon Rent a Car.</p>
+            <div class="faq-list">
+              <details class="faq-item">
+                <summary>What is included in the self-drive rental?</summary>
+                <p>Self-drive rentals include the vehicle, insurance coverage for standard use, and unlimited mileage within the agreed service area. Fuel and tolls are not included unless otherwise stated.</p>
+              </details>
+              <details class="faq-item">
+                <summary>Do I need a special license to drive?</summary>
+                <p>You must have a valid Philippine driver’s license or an international driving permit that is accepted in the Philippines. The driver must be at least 21 years old.</p>
+              </details>
+              <details class="faq-item">
+                <summary>Can I pick up and return the vehicle at different locations?</summary>
+                <p>Yes, we can arrange different pick-up and return locations for an additional fee. Please include your preferred details in the itinerary or contact us directly for a custom quote.</p>
+              </details>
+              <details class="faq-item">
+                <summary>How do I book a self-drive rental?</summary>
+                <p>Fill out the self-drive booking form above with your contact details, rental dates, selected vehicle type, and itinerary. Our team will get back to you with confirmation and payment instructions.</p>
+              </details>
+            </div>
+          </div>
+        </section>
       </div>
     </section>
   </main>
 
-  <footer class="footer">
+    <footer class="footer">
     <div class="footer__container">
-      <img src="images/Mayon-footer.svg" alt="Mayon" class="footer__logo">
-      <p>Contact us: <a href="tel:+639369938179">+63 936 993 8179</a> • <a href="mailto:mayonrentacar@gmail.com">mayonrentacar@gmail.com</a></p>
+      <div class="footer__brand-side">
+        <img src="images/Mayon-footer.svg" alt="Mayon" class="footer__logo">
+        <p class="footer__desc">Your gateway to the Bicol Region. Providing affordable, reliable, and premium car rental and transfer services across Albay and beyond.</p>
+      </div>
+      <div class="footer__links-side">
+        <div class="footer__link-group">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="/">About Us</a></li>
+            <li><a href="/services.html">Our Services</a></li>
+            <li><a href="#our-fleet">Our Fleet</a></li>
+            <li><a href="contact-us.html">Contact Us</a></li>
+          </ul>
+        </div>
+        <div class="footer__link-group">
+          <h4>Our Services</h4>
+          <ul>
+            <li><a href="airport-transfers.html">Airport Transfers</a></li>
+            <li><a href="#">Bicol Regional Transfers</a></li>
+            <li><a href="#">Corporate Rentals</a></li>
+            <li><a href="#">Self-Drive Options</a></li>
+          </ul>
+        </div>
+        <div class="footer__link-group">
+          <h4>Contact Details</h4>
+          <ul class="footer__contact-info">
+            <li>📍 162 Purok 3, Brgy 17, Legazpi City 4500</li>
+            <li>📞 <a href="tel:+639369938179">+63 936 993 8179</a></li>
+            <li>✉️ <a href="mailto:mayonrentacar@gmail.com">mayonrentacar@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer__link-group footer__follow-us">
+          <h4>Follow Us</h4>
+          <div class="footer__social-links">
+            <a href="https://www.facebook.com/mayonrentacar/" class="footer__social-link" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook-f"></i>Facebook</a>
+            <a href="https://www.instagram.com/mayonrentacar/" class="footer__social-link" target="_blank" rel="noopener noreferrer"><i class="fab fa-instagram"></i>Instagram</a>
+            <a href="https://m.me/mayonrentacar" class="footer__social-link" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook-messenger"></i>Messenger</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <p>&copy; 2026 Mayon Rent a Car, Inc. All Rights Reserved.</p>
     </div>
   </footer>
 
