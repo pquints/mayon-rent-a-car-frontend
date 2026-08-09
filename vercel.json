@@ -26,6 +26,26 @@
       "destination": "/Public/contact-us"
     },
     {
+      "source": "/faq",
+      "destination": "/Public/faq"
+    },
+    {
+      "source": "/self-drive-rental",
+      "destination": "/Public/self-drive-rental"
+    },
+    {
+      "source": "/with-driver-rental",
+      "destination": "/Public/with-driver-rental"
+    },
+    {
+      "source": "/airport-transfers",
+      "destination": "/Public/airport-transfers"
+    },
+    {
+      "source": "/inbound-outbound-transfers",
+      "destination": "/Public/inbound-outbound-transfers"
+    },
+    {
       "source": "/app.js",
       "destination": "/Public/app.js"
     },
