@@ -6,9 +6,13 @@ if (window.location.hostname === 'mayonrentacar.com.ph') {
 
 const menu = document.querySelector('#mobile-menu');
 const menuLinks = document.querySelector('.navbar__menu');
-const servicesDropdown = document.querySelector('.navbar__item--dropdown');
-const servicesDropdownTrigger = document.querySelector('.navbar__links--dropdown');
-const servicesDropdownMenu = servicesDropdown ? servicesDropdown.querySelector('.dropdown__menu') : null;
+// Support every navbar dropdown (Services, Guide, etc.), not just the first one.
+const navDropdowns = Array.from(document.querySelectorAll('.navbar__item--dropdown')).map((dropdown) => ({
+    dropdown,
+    trigger: dropdown.querySelector('.navbar__links--dropdown'),
+    dropdownMenu: dropdown.querySelector('.dropdown__menu')
+})).filter((entry) => entry.trigger && entry.dropdownMenu);
+const dropdownTriggers = navDropdowns.map((entry) => entry.trigger);
 
 function isMobileNavViewport() {
     return window.matchMedia('(max-width: 960px)').matches;
@@ -31,30 +35,44 @@ function syncMenuState(isOpen) {
     }
 
     if (!isOpen) {
-        syncServicesDropdownState(false);
+        closeAllDropdowns();
     }
 }
 
-function syncServicesDropdownState(isOpen) {
-    if (!servicesDropdown || !servicesDropdownMenu) return;
+function syncDropdownState(entry, isOpen) {
+    const { dropdown, dropdownMenu } = entry;
+    if (!dropdown || !dropdownMenu) return;
 
-    servicesDropdown.classList.toggle('is-open', isOpen);
+    dropdown.classList.toggle('is-open', isOpen);
 
     if (isMobileNavViewport()) {
-        servicesDropdownMenu.style.maxHeight = isOpen ? '760px' : '0px';
-        servicesDropdownMenu.style.padding = isOpen ? '12px 14px' : '0';
-        servicesDropdownMenu.style.opacity = '1';
-        servicesDropdownMenu.style.visibility = 'visible';
-        servicesDropdownMenu.style.pointerEvents = 'auto';
-        servicesDropdownMenu.style.transform = 'none';
+        dropdownMenu.style.maxHeight = isOpen ? '760px' : '0px';
+        dropdownMenu.style.padding = isOpen ? '12px 14px' : '0';
+        dropdownMenu.style.opacity = '1';
+        dropdownMenu.style.visibility = 'visible';
+        dropdownMenu.style.pointerEvents = 'auto';
+        dropdownMenu.style.transform = 'none';
     } else {
-        servicesDropdownMenu.style.maxHeight = '';
-        servicesDropdownMenu.style.padding = '';
-        servicesDropdownMenu.style.opacity = isOpen ? '1' : '0';
-        servicesDropdownMenu.style.visibility = isOpen ? 'visible' : 'hidden';
-        servicesDropdownMenu.style.pointerEvents = isOpen ? 'auto' : 'none';
-        servicesDropdownMenu.style.transform = isOpen ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(8px)';
+        dropdownMenu.style.maxHeight = '';
+        dropdownMenu.style.padding = '';
+        dropdownMenu.style.opacity = isOpen ? '1' : '0';
+        dropdownMenu.style.visibility = isOpen ? 'visible' : 'hidden';
+        dropdownMenu.style.pointerEvents = isOpen ? 'auto' : 'none';
+        dropdownMenu.style.transform = isOpen ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(8px)';
     }
+}
+
+function closeAllDropdowns(except) {
+    navDropdowns.forEach((entry) => {
+        if (entry.dropdown !== except) {
+            syncDropdownState(entry, false);
+        }
+    });
+}
+
+// Kept for compatibility with any other callers expecting the old name.
+function syncServicesDropdownState(isOpen) {
+    if (navDropdowns[0]) syncDropdownState(navDropdowns[0], isOpen);
 }
 
 if (menu) {
@@ -64,32 +82,39 @@ if (menu) {
     });
 }
 
-if (servicesDropdown && servicesDropdownTrigger) {
-    servicesDropdownTrigger.addEventListener('click', (e) => {
+navDropdowns.forEach((entry) => {
+    const { dropdown, trigger, dropdownMenu } = entry;
+
+    trigger.addEventListener('click', (e) => {
         e.preventDefault();
-        syncServicesDropdownState(!servicesDropdown.classList.contains('is-open'));
+        const willOpen = !dropdown.classList.contains('is-open');
+        closeAllDropdowns(dropdown);
+        syncDropdownState(entry, willOpen);
     });
 
-    document.addEventListener('click', (e) => {
-        if (!servicesDropdown.contains(e.target)) {
-            syncServicesDropdownState(false);
-        }
-    });
-
-    window.addEventListener('resize', () => {
-        syncServicesDropdownState(false);
-        if (!isMobileNavViewport()) {
-            syncMenuState(false);
-        }
-    });
-
-    servicesDropdownMenu?.querySelectorAll('.dropdown__link').forEach((link) => {
+    dropdownMenu.querySelectorAll('.dropdown__link').forEach((link) => {
         link.addEventListener('click', () => {
-            syncServicesDropdownState(false);
+            syncDropdownState(entry, false);
             if (isMobileNavViewport()) {
                 syncMenuState(false);
             }
         });
+    });
+});
+
+if (navDropdowns.length) {
+    document.addEventListener('click', (e) => {
+        const clickedInsideAnyDropdown = navDropdowns.some((entry) => entry.dropdown.contains(e.target));
+        if (!clickedInsideAnyDropdown) {
+            closeAllDropdowns();
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        closeAllDropdowns();
+        if (!isMobileNavViewport()) {
+            syncMenuState(false);
+        }
     });
 }
 
@@ -1415,7 +1440,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Close mobile menu after clicking a link
         link.addEventListener('click', () => {
-            if (link === servicesDropdownTrigger) {
+            if (dropdownTriggers.includes(link)) {
                 return;
             }
 
@@ -1424,8 +1449,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Smooth scroll for anchors
-        if (href.startsWith('#')) {
+        // Smooth scroll for anchors (skip bare '#' used by dropdown triggers)
+        if (href.startsWith('#') && href.length > 1) {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 const target = document.querySelector(href);
