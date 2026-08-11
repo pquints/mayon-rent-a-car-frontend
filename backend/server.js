@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
 const { Resend } = require('resend');
+const { sendBookingNotification } = require('./notifications');
 const app = express();
 const PORT = 3000;
 
@@ -389,6 +390,13 @@ app.post('/api/bookings', bookingLimiter, async (req, res) => {
 
         bookings.push(newBookingRecord);
         saveBookings(bookings);
+
+        try {
+            await sendBookingNotification(newBookingRecord);
+        } catch (notificationError) {
+            console.warn('[NOTIFICATION] Booking saved, but notification failed:', notificationError.message);
+        }
+
         res.status(201).json({ success: true, booking: newBookingRecord });
     } catch (error) {
         console.error(error);
