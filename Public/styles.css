@@ -206,15 +206,21 @@ section {
 
 .navbar__item--dropdown {
     position: relative;
+    padding-right: 31px; /* 50px base minus the 19px reserved for the chevron below, keeps spacing even with plain nav links */
 }
 
 .navbar__links--dropdown {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    position: relative;
+    padding-right: 19px; /* reserves room for the absolutely-positioned chevron so it doesn't add extra width */
 }
 
 .dropdown__icon {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
     font-size: 11px;
     transition: transform 0.25s ease;
 }
@@ -315,7 +321,7 @@ section {
 
 .navbar__item--dropdown:focus-within .dropdown__icon,
 .navbar__item--dropdown.is-open .dropdown__icon {
-    transform: rotate(180deg);
+    transform: translateY(-50%) rotate(180deg);
 }
 
 /* DESKTOP BUTTONS CONTAINER */
