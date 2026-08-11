@@ -1094,8 +1094,9 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
             replyTo: 'mayonrentacar@gmail.com',                      // Kapag nag-reply si client, rekta sa normal gmail niyo!
             html: htmlTemplate,
             headers: {
-                'X-Mailer': 'Mayon Rent a Car Booking System',
-                'Precedence': 'bulk'
+                'X-Mailer': 'Mayon Rent a Car Booking System'
+                // Note: 'Precedence: bulk' removed — this is a 1:1 transactional email,
+                // and that header made Yahoo's spam filter treat it as mass mail.
             }
         });
 
