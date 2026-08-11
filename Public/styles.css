@@ -2024,6 +2024,9 @@ section {
     
     .footer__links-side {
         flex-direction: column;
+        flex-wrap: nowrap;
+        flex-basis: auto;
+        height: auto;
         gap: 24px;
     }
     
