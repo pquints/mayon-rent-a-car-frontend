@@ -425,6 +425,19 @@ section {
 
     .navbar__links--dropdown {
         justify-content: center;
+        gap: 8px;
+        padding-right: 0; /* desktop reserve not needed; icon sits inline again on mobile */
+    }
+
+    /* Mobile items are full-width and centered, so the chevron must stay inline next to the text instead of absolute-right (desktop-only trick) */
+    .dropdown__icon {
+        position: static;
+        transform: none;
+    }
+
+    .navbar__item--dropdown:focus-within .dropdown__icon,
+    .navbar__item--dropdown.is-open .dropdown__icon {
+        transform: rotate(180deg);
     }
 
     .dropdown__menu {
