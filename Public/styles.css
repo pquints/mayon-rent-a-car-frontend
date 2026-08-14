@@ -103,7 +103,7 @@ body {
 
 .content {
     width: 100%;
-    padding: 60px 0;
+    padding: 0 0 60px;
 }
 
 section {
@@ -111,12 +111,16 @@ section {
 }
 
 .hero.small-hero {
-    padding: 110px 0 90px;
+    padding: 0;
 }
 
 .hero-inner {
     max-width: 820px;
     margin: 0 auto;
+}
+
+.hero.small-hero .hero-inner {
+    padding: 90px 24px 70px;
 }
 
 .hero-small .hero-inner {
@@ -197,6 +201,14 @@ section {
 .navbar__links:hover,
 .navbar__links.active {
     color: var(--brand);
+}
+
+.navbar__links[href="about.html"],
+.navbar__links[href="/about.html"] {
+    pointer-events: none;
+    cursor: not-allowed;
+    color: #8aa0af;
+    opacity: 0.7;
 }
 
 .navbar__links.active {
@@ -390,43 +402,53 @@ section {
     .navbar__menu {
         display: flex;
         flex-direction: column;
-        width: 100%;
+        width: calc(100% - 28px);
+        max-width: 420px;
         height: auto;
         position: absolute;
-        top: 90px; 
-        left: -100%; 
+        top: 90px;
+        left: 14px;
+        right: auto;
         opacity: 0;
         transition: all 0.4s ease;
-        background: #ffffff; 
+        background: #ffffff;
         box-shadow: 0 5px 10px rgba(0,0,0,0.1);
-        padding: 30px 0;
-        gap: 20px; /* Spacing ng mga items kapag nasa loob ng sandwich */
-        margin-left: 0; /* Panatilihin natin ito */
+        padding: 22px 0 18px;
+        gap: 14px;
+        margin-left: 0;
+        border-radius: 14px;
+        /* allow vertical scrolling on tall menus while clipping horizontal overflow */
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        /* limit menu height to viewport so it can scroll on small screens */
+        max-height: calc(100vh - 110px);
     }
 
     .navbar__menu.active {
-        left: 0;
-        /* Alisin muna natin ang right: 0; dito dahil sumusobra ang hatak */
+        left: 14px;
         opacity: 1;
-        z-index: 99;
+        z-index: 9999;
+        /* ensure active menu uses the same max-height and can scroll */
+        max-height: calc(100vh - 110px);
     }
 
     .navbar__item {
         width: 100%;
         height: auto;
-        justify-content: center;
-        padding: 0;
+        justify-content: flex-start;
+        padding: 0 14px;
     }
 
     .navbar__item--dropdown {
         flex-direction: column;
-        align-items: center;
+        align-items: flex-start;
     }
 
     .navbar__links--dropdown {
-        justify-content: center;
+        justify-content: flex-start;
         gap: 8px;
-        padding-right: 0; /* desktop reserve not needed; icon sits inline again on mobile */
+        padding-right: 0;
     }
 
     /* Mobile items are full-width and centered, so the chevron must stay inline next to the text instead of absolute-right (desktop-only trick) */
@@ -447,32 +469,35 @@ section {
         transform: none;
         width: min(94%, 560px);
         max-height: 0;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
+        border: none;
+        border-radius: 0;
         box-shadow: none;
-        background: #ffffff;
-        margin-top: 6px;
+        background: transparent;
+        margin-top: 0;
         padding: 0;
         transition: max-height 0.25s ease, padding 0.2s ease;
     }
 
     .navbar__item--dropdown.is-open .dropdown__menu {
-        max-height: 760px;
-        padding: 12px 14px;
+        max-height: 260px;
+        padding: 8px 0 0;
     }
 
     .dropdown__columns {
         grid-template-columns: 1fr;
-        gap: 16px;
+        gap: 0;
     }
 
     .dropdown__link {
         text-align: left;
-        padding: 10px 0;
+        padding: 10px 8px;
+        border-bottom: none;
+        margin-bottom: 0;
     }
 
     .dropdown__title {
@@ -484,10 +509,10 @@ section {
     }
 
     .navbar__links {
-        text-align: center;
-        padding: 5px 0;
+        text-align: left;
+        padding: 5px 0 5px 8px;
         width: 100%;
-        font-size: 18px;
+        font-size: 17px;
     }
 
     /* Tatanggalin ang desktop pushes para pantay sila sa mobile dropdown */
@@ -1201,6 +1226,46 @@ section {
     color: #475569;
     font-size: 14px;
     line-height: 1.6;
+}
+
+@media screen and (max-width: 768px) {
+    .features-grid,
+    .services-summary-grid,
+    .testimonials-grid,
+    .choose-us-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .feature-card,
+    .service-summary-card,
+    .testimonial-card,
+    .choose-us-card {
+        padding: 22px 18px;
+    }
+
+    .section-title {
+        font-size: 28px;
+    }
+
+    .section-subtitle {
+        font-size: 14px;
+        margin-bottom: 28px;
+    }
+
+    .testimonial-links {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .testimonial-link {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .faq-item summary {
+        font-size: 14px;
+    }
 }
 
 /* --- SUMMARY OF SERVICES STYLES --- */
@@ -2133,19 +2198,44 @@ section {
 }
 
 /* --- AIRPORT TRANSFER RATES PAGE --- */
+.self-drive-page .content {
+    padding-top: 0;
+}
+
+.self-drive-page .hero.small-hero {
+    padding: 0;
+}
+
+.airport-hero {
+    background: linear-gradient(rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.5)),
+                url('images/self-drive.jpg') center center/cover no-repeat;
+    min-height: 540px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+}
+
 .airport-hero .hero-inner {
     text-align: center;
+    max-width: 1100px;
+    padding: 120px 24px 90px;
+    color: #ffffff;
 }
 
 .airport-hero h1 {
-    font-size: clamp(2rem, 4vw, 3rem);
-    margin-bottom: 12px;
-    color: #0f172a;
+    font-size: clamp(2.5rem, 5vw, 5rem);
+    margin-bottom: 14px;
+    color: #ffffff;
+    line-height: 1.08;
 }
 
 .airport-hero p {
-    color: #475569;
-    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: clamp(1rem, 1.5vw, 1.2rem);
+    max-width: 760px;
+    margin: 0 auto;
 }
 
 .airport-rates {
