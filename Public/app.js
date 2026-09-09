@@ -14,6 +14,171 @@ const navDropdowns = Array.from(document.querySelectorAll('.navbar__item--dropdo
 })).filter((entry) => entry.trigger && entry.dropdownMenu);
 const dropdownTriggers = navDropdowns.map((entry) => entry.trigger);
 
+const PHONE_COUNTRIES = [
+    { code: 'INT', name: 'International', dial: '+', flag: 'fa-solid fa-phone' },
+    { code: 'PH', name: 'Philippines', dial: '+63', flag: '🇵🇭' },
+    { code: 'US', name: 'United States', dial: '+1', flag: '🇺🇸' },
+    { code: 'CA', name: 'Canada', dial: '+1', flag: '🇨🇦' },
+    { code: 'AU', name: 'Australia', dial: '+61', flag: '🇦🇺' },
+    { code: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧' },
+    { code: 'SG', name: 'Singapore', dial: '+65', flag: '🇸🇬' },
+    { code: 'MY', name: 'Malaysia', dial: '+60', flag: '🇲🇾' },
+    { code: 'TH', name: 'Thailand', dial: '+66', flag: '🇹🇭' },
+    { code: 'ID', name: 'Indonesia', dial: '+62', flag: '🇮🇩' },
+    { code: 'JP', name: 'Japan', dial: '+81', flag: '🇯🇵' },
+    { code: 'KR', name: 'South Korea', dial: '+82', flag: '🇰🇷' },
+    { code: 'CN', name: 'China', dial: '+86', flag: '🇨🇳' },
+    { code: 'NZ', name: 'New Zealand', dial: '+64', flag: '🇳🇿' },
+    { code: 'AE', name: 'United Arab Emirates', dial: '+971', flag: '🇦🇪' },
+    { code: 'SA', name: 'Saudi Arabia', dial: '+966', flag: '🇸🇦' }
+];
+
+function findPhoneCountry(value) {
+    const digits = String(value || '').replace(/[^\d+]/g, '');
+    if (digits === '+') return PHONE_COUNTRIES[0];
+    return PHONE_COUNTRIES
+        .filter(country => digits.startsWith(country.dial))
+        .sort((a, b) => b.dial.length - a.dial.length)[0] || PHONE_COUNTRIES[0];
+}
+
+function normalizePhoneValue(input, country) {
+    const rawValue = String(input.value || '').trim().replace(/[^\d+]/g, '');
+    if (!rawValue) return '';
+    if (rawValue.startsWith('+')) return rawValue;
+    if (rawValue.startsWith('0')) return `${country.dial}${rawValue.slice(1)}`;
+    return `${country.dial}${rawValue}`;
+}
+
+function renderPhoneCountryIcon(button, country) {
+    if (country.code === 'INT') {
+        button.innerHTML = '<i class="fa-solid fa-phone" aria-hidden="true"></i>';
+    } else {
+        button.textContent = country.flag;
+    }
+}
+
+function getPhoneDigitsWithoutCountryCode(value) {
+    const typedCountry = findPhoneCountry(value);
+    const cleanedValue = String(value || '').trim().replace(/[^\d+]/g, '');
+    if (cleanedValue.startsWith(typedCountry.dial)) {
+        return cleanedValue.slice(typedCountry.dial.length).replace(/^0+/, '');
+    }
+    return cleanedValue.replace(/^\+/, '').replace(/^0+/, '');
+}
+
+function enhancePhoneInputs() {
+    document.querySelectorAll('input[type="tel"]').forEach(input => {
+        if (input.dataset.countryPickerReady === 'true') return;
+        input.dataset.countryPickerReady = 'true';
+
+        const country = findPhoneCountry(input.value || input.placeholder);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'phone-input-group';
+        input.parentNode.insertBefore(wrapper, input);
+        wrapper.appendChild(input);
+
+        const countryPicker = document.createElement('div');
+        countryPicker.className = 'phone-country-picker';
+
+        const countryButton = document.createElement('button');
+        countryButton.type = 'button';
+        countryButton.className = 'phone-country-button';
+        countryButton.setAttribute('aria-label', `Selected country: ${country.name}`);
+        countryButton.setAttribute('aria-expanded', 'false');
+        countryButton.title = 'Select country';
+        renderPhoneCountryIcon(countryButton, country);
+
+        const countryMenu = document.createElement('div');
+        countryMenu.className = 'phone-country-menu';
+        countryMenu.setAttribute('role', 'listbox');
+
+        const setCountry = selectedCountry => {
+            const localDigits = getPhoneDigitsWithoutCountryCode(input.value);
+            input.dataset.countryCode = selectedCountry.code;
+            renderPhoneCountryIcon(countryButton, selectedCountry);
+            countryButton.setAttribute('aria-label', `Selected country: ${selectedCountry.name}`);
+            input.value = `${selectedCountry.dial}${localDigits}`;
+            countryMenu.classList.remove('is-open');
+            countryButton.setAttribute('aria-expanded', 'false');
+        };
+
+        PHONE_COUNTRIES.forEach(optionCountry => {
+            const option = document.createElement('button');
+            option.type = 'button';
+            option.className = 'phone-country-option';
+            option.textContent = optionCountry.name;
+            option.setAttribute('role', 'option');
+            option.addEventListener('click', () => setCountry(optionCountry));
+            countryMenu.appendChild(option);
+        });
+
+        countryButton.addEventListener('click', () => {
+            const isOpen = countryMenu.classList.toggle('is-open');
+            countryButton.setAttribute('aria-expanded', String(isOpen));
+        });
+
+        countryPicker.append(countryButton, countryMenu);
+
+        const initialValue = String(input.value || '').trim();
+        if (initialValue.startsWith(country.dial)) {
+            input.value = initialValue.slice(country.dial.length).replace(/^[\s-]+/, '');
+        }
+
+        wrapper.insertBefore(countryPicker, input);
+        input.dataset.countryCode = country.code;
+        input.removeAttribute('placeholder');
+        input.value = `${country.dial}${input.value}`;
+
+        input.addEventListener('input', () => {
+            const selectedCountry = PHONE_COUNTRIES.find(item => item.code === input.dataset.countryCode) || PHONE_COUNTRIES[0];
+            if (!input.value.startsWith('+')) {
+                const digitsOnly = input.value.replace(/\D/g, '');
+                const dialDigits = selectedCountry.dial.slice(1);
+                const localDigits = digitsOnly.startsWith(dialDigits) ? digitsOnly.slice(dialDigits.length) : digitsOnly;
+                input.value = `${selectedCountry.dial}${localDigits}`;
+            }
+
+            const typedCountry = findPhoneCountry(input.value);
+            const hasRecognizedCountryCode = PHONE_COUNTRIES.some(item => input.value.trim().startsWith(item.dial));
+            if (hasRecognizedCountryCode) {
+                setCountry(typedCountry);
+            }
+        });
+
+        input.addEventListener('keydown', event => {
+            const selectionStart = input.selectionStart ?? 0;
+            const selectionEnd = input.selectionEnd ?? 0;
+            const deletesPlus = (event.key === 'Backspace' && selectionStart <= 1) ||
+                (event.key === 'Delete' && (selectionStart === 0 || (selectionStart === 0 && selectionEnd > 0)));
+
+            if (deletesPlus) {
+                event.preventDefault();
+                input.setSelectionRange(1, 1);
+            }
+        });
+
+        document.addEventListener('click', event => {
+            if (!countryPicker.contains(event.target)) {
+                countryMenu.classList.remove('is-open');
+                countryButton.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        const form = input.form;
+        if (form && form.dataset.phoneSubmitReady !== 'true') {
+            form.dataset.phoneSubmitReady = 'true';
+            form.addEventListener('submit', () => {
+                form.querySelectorAll('input[type="tel"]').forEach(phoneInput => {
+                    const selectedCountry = PHONE_COUNTRIES.find(item => item.code === phoneInput.dataset.countryCode) || PHONE_COUNTRIES[0];
+                    phoneInput.value = normalizePhoneValue(phoneInput, selectedCountry);
+                });
+            }, true);
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', enhancePhoneInputs);
+
 function isMobileNavViewport() {
     return window.matchMedia('(max-width: 960px)').matches;
 }
@@ -121,7 +286,8 @@ if (navDropdowns.length) {
 // Multi-step Booking Form Wizard Engine
 document.addEventListener('DOMContentLoaded', () => {
     const DEBUG = false;
-    const BOOKING_API_ENDPOINT = '/api/bookings';
+    const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const BOOKING_API_ENDPOINT = isLocalDevelopment ? 'http://127.0.0.1:3000/api/bookings' : '/api/bookings';
 
     const steps = document.querySelectorAll('.form-step');
     const stepIndicators = document.querySelectorAll('.step');
@@ -560,8 +726,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const normalizedContact = contact.replace(/[^\d+]/g, '');
-        if (!contact || !/^(\+?63\d{10}|0\d{10})$/.test(normalizedContact)) {
-            setFieldError(contactField, 'Use international format: +63.');
+        if (!contact || !/^(\+\d{7,15}|0\d{7,14})$/.test(normalizedContact)) {
+            setFieldError(contactField, 'Enter a valid international phone number.');
             isValid = false;
         }
 
@@ -738,7 +904,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!plannerFrom || !plannerDate || !plannerTime || !destinationPicker || !wizardForm || !modal) return;
 
-    const BOOKING_API_ENDPOINT = '/api/bookings';
+    const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const BOOKING_API_ENDPOINT = isLocalDevelopment ? 'http://127.0.0.1:3000/api/bookings' : '/api/bookings';
     const fixedOrigin = plannerFrom.dataset.fixedOrigin || plannerFrom.value || 'Bicol International Airport';
     const outLabel = plannerFrom.dataset.outLabel || 'Airport Transfer Out (Airport to City)';
     const inLabel = plannerFrom.dataset.inLabel || 'Airport Transfer In (City to Airport)';

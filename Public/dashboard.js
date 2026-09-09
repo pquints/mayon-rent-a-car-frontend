@@ -384,7 +384,7 @@ function ensureAuth() {
 }
 
 let API_URL = API_BASE_CANDIDATES[0];
-let activeStatus = localStorage.getItem('adminBookingStatus') || 'open';
+let activeStatus = 'open';
 let currentBookingsList = [];
 let currentFilteredList = []; // Track filtered results for pagination
 let currentPage = 1;
@@ -880,8 +880,17 @@ function openFullPageDetails(booking) {
         vehicleSelect.value = currentVehicle;
     }
 
-    const rawArea = (booking.area || "").toLowerCase().trim();
-    document.getElementById("fpArea").value = rawArea;
+    const areaSelect = document.getElementById("fpArea");
+    const currentArea = (booking.area || "").trim();
+    const matchingAreaOption = Array.from(areaSelect.options).find(option =>
+        option.value.toLowerCase() === currentArea.toLowerCase()
+    );
+
+    if (matchingAreaOption) {
+        areaSelect.value = matchingAreaOption.value;
+    } else {
+        areaSelect.value = currentArea;
+    }
     
     document.getElementById("fpServiceOption").value = booking.serviceOption || "—";
     document.getElementById("fpPassengers").value = booking.passengers && booking.passengers !== "—" ? booking.passengers : "";

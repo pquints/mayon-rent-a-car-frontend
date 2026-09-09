@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="images/Mayon.svg?v=20260713">
   <meta name="theme-color" content="#178ca4">
 </head>
-<body>
+<body class="self-drive-page">
   <header>
     <div class="top-bar">
       <div class="top-bar__container">
@@ -79,11 +79,27 @@
           </li>
           <li class="navbar__item navbar__item--dropdown">
             <a href="#" class="navbar__links navbar__links--dropdown">Guide <i class="fas fa-chevron-down dropdown__icon" aria-hidden="true"></i></a>
-            <div class="dropdown__menu">
-              <a href="#" class="dropdown__link disabled" aria-disabled="true" tabindex="-1">Blog</a>
-              <a href="faq.html" class="dropdown__link">FAQ</a>
-              <a href="terms-of-use.html" class="dropdown__link">Terms of Use</a>
-              <a href="fleet.html" class="dropdown__link">Our Fleet</a>
+            <div class="dropdown__menu dropdown__menu--mega">
+              <div class="dropdown__columns">
+                <div class="dropdown__column">
+                  <a href="#" class="dropdown__link disabled" aria-disabled="true" tabindex="-1">
+                    <span class="dropdown__title">Blog</span>
+                    <span class="dropdown__desc">Coming soon — articles & tips</span>
+                  </a>
+                  <a href="faq.html" class="dropdown__link">
+                    <span class="dropdown__title">FAQ</span>
+                    <span class="dropdown__desc">Common questions & answers</span>
+                  </a>
+                  <a href="terms-of-use.html" class="dropdown__link">
+                    <span class="dropdown__title">Terms of Use</span>
+                    <span class="dropdown__desc">Website rules and policies</span>
+                  </a>
+                  <a href="fleet.html" class="dropdown__link">
+                    <span class="dropdown__title">Our Fleet</span>
+                    <span class="dropdown__desc">Vehicle types & capacities</span>
+                  </a>
+                </div>
+              </div>
             </div>
           </li>
           <li class="navbar__item"><a href="contact-us.html" class="navbar__links">Contact Us</a></li>
@@ -106,13 +122,15 @@
         <h2>Reserve Your Self-Drive Rental</h2>
         <p class="booking-subtitle">Use the dedicated self-drive booking form below to request a vehicle for your Bicol trip.</p>
 
-        <div class="step-indicator">
-          <div class="step step--active">1. Area</div>
-          <div class="step">2. Vehicle</div>
-          <div class="step">3. Details</div>
-        </div>
+        <div class="self-drive-booking-layout">
+          <div class="self-drive-form-column">
+            <div class="step-indicator">
+              <div class="step step--active">1. Area</div>
+              <div class="step">2. Vehicle</div>
+              <div class="step">3. Details</div>
+            </div>
 
-        <form class="booking-form" id="selfDriveBookingForm">
+            <form class="booking-form" id="selfDriveBookingForm">
           <input type="hidden" name="rental_type" value="self-drive">
           <input type="hidden" name="driver_service" value="-">
 
@@ -200,7 +218,28 @@
             <button type="button" id="prev-btn" class="nav-btn btn-prev" disabled>Back</button>
             <button type="button" id="next-btn" class="nav-btn btn-next">Next</button>
           </div>
-        </form>
+            </form>
+          </div>
+
+          <aside class="self-drive-info-panel" aria-label="Self-drive rental information">
+            <section class="self-drive-info-block">
+              <h3><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Why Choose Us?</h3>
+              <ul>
+                <li>Flexible Cancellation</li>
+                <li>No Amendment Fees</li>
+                <li>Transparent Pricing</li>
+              </ul>
+            </section>
+            <section class="self-drive-info-block">
+              <h3><i class="fa-solid fa-list-check" aria-hidden="true"></i> Rental Inclusions:</h3>
+              <ul>
+                <li>Unlimited Mileage Within Bicol Region</li>
+                <li>1 Additional Driver</li>
+                <li>Car Wash</li>
+              </ul>
+            </section>
+          </aside>
+        </div>
 
       </div>
     </section>

@@ -122,13 +122,15 @@
         <h2>Reserve Your Self-Drive Rental</h2>
         <p class="booking-subtitle">Use the dedicated self-drive booking form below to request a vehicle for your Bicol trip.</p>
 
-        <div class="step-indicator">
-          <div class="step step--active">1. Area</div>
-          <div class="step">2. Vehicle</div>
-          <div class="step">3. Details</div>
-        </div>
+        <div class="self-drive-booking-layout">
+          <div class="self-drive-form-column">
+            <div class="step-indicator">
+              <div class="step step--active">1. Area</div>
+              <div class="step">2. Vehicle</div>
+              <div class="step">3. Details</div>
+            </div>
 
-        <form class="booking-form" id="selfDriveBookingForm">
+            <form class="booking-form" id="selfDriveBookingForm">
           <input type="hidden" name="rental_type" value="self-drive">
           <input type="hidden" name="driver_service" value="-">
 
@@ -216,7 +218,28 @@
             <button type="button" id="prev-btn" class="nav-btn btn-prev" disabled>Back</button>
             <button type="button" id="next-btn" class="nav-btn btn-next">Next</button>
           </div>
-        </form>
+            </form>
+          </div>
+
+          <aside class="self-drive-info-panel" aria-label="Self-drive rental information">
+            <section class="self-drive-info-block">
+              <h3><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Why Choose Us?</h3>
+              <ul>
+                <li>Flexible Cancellation</li>
+                <li>No Amendment Fees</li>
+                <li>Transparent Pricing</li>
+              </ul>
+            </section>
+            <section class="self-drive-info-block">
+              <h3><i class="fa-solid fa-list-check" aria-hidden="true"></i> Rental Inclusions:</h3>
+              <ul>
+                <li>Unlimited Mileage Within Bicol Region</li>
+                <li>1 Additional Driver</li>
+                <li>Car Wash</li>
+              </ul>
+            </section>
+          </aside>
+        </div>
 
       </div>
     </section>
