@@ -265,7 +265,10 @@ section {
 }
 
 .dropdown__menu--guide {
-    width: min(90vw, 430px);
+    width: 430px;
+    max-width: calc(100vw - 32px);
+    padding: 18px 22px;
+    box-sizing: border-box;
 }
 
 .dropdown__menu--guide .dropdown__columns {
@@ -279,6 +282,14 @@ section {
 .dropdown__menu--guide .dropdown__desc {
     font-size: 12px;
     line-height: 1.35;
+}
+
+.dropdown__menu--guide .dropdown__link {
+    padding: 12px 16px;
+}
+
+.dropdown__menu--guide .dropdown__column .dropdown__link:first-of-type {
+    padding-top: 0;
 }
 
 .dropdown__columns {
@@ -502,6 +513,7 @@ section {
 
     .dropdown__menu--guide {
         width: min(94%, 430px);
+        max-width: 430px;
     }
 
     .navbar__item--dropdown.is-open .dropdown__menu {
