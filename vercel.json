@@ -7,7 +7,7 @@
     },
     {
       "source": "/dashboard",
-      "destination": "/Public/dashboard.html"
+      "destination": "/Public/dashboard"
     },
     {
       "source": "/about",
