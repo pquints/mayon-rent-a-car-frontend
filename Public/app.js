@@ -325,7 +325,9 @@ document.addEventListener('DOMContentLoaded', () => {
         update();
     };
 
-    if (isLandingBookingForm) {
+    const hasSelfDriveLocationForm = Boolean(locationSelects.pickup.length || locationSelects.return.length);
+
+    if (hasSelfDriveLocationForm) {
         bindLocationDetailFields(
             document.getElementById('pickup_address'),
             'pickup_location_address',
@@ -432,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const typeWithDriver = document.getElementById('type-with-driver');
     const driverOptions = document.getElementById('options-with-driver');
     const driverSelect = document.getElementById('driver-service');
-    const pickupLocationSelect = isLandingBookingForm ? document.getElementById('pickup_address') : null;
+    const pickupLocationSelect = hasSelfDriveLocationForm ? document.getElementById('pickup_address') : null;
     const pickupManualInput = isLandingBookingForm ? document.getElementById('pickup_address_manual') : null;
 
     // Conditional Fields based on Choice
