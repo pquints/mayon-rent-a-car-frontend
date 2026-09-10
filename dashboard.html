@@ -397,14 +397,18 @@
                         <h4 style="color: var(--text-main); font-size: 0.9rem; margin-top: 0; margin-bottom: 15px; font-weight: bold; letter-spacing: 0.5px;">PICK-UP SCHEDULE</h4>
                         <div style="margin-bottom: 12px;"><span style="font-size: 0.85rem; color:var(--text-muted); display:block; margin-bottom:4px;">Date:</span> <input type="date" id="fpPickDate" style="background:#fff; border:1px solid var(--border-color); color:var(--text-main); font-size:0.95rem; padding:8px; border-radius:6px; width:100%; box-sizing: border-box;"></div>
                         <div style="margin-bottom: 12px;"><span style="font-size: 0.85rem; color:var(--text-muted); display:block; margin-bottom:4px;">Time:</span> <input type="time" id="fpPickTime" style="background:#fff; border:1px solid var(--border-color); color:var(--text-main); font-size:0.95rem; padding:8px; border-radius:6px; width:100%; box-sizing: border-box;"></div>
-                        <div><span style="font-size: 0.85rem; color:var(--text-muted); display:block; margin-bottom:4px;">Location Address:</span> <input type="text" id="fpPickAddr" style="background:#fff; border:1px solid var(--border-color); color:var(--text-main); font-size:0.95rem; padding:8px; border-radius:6px; width:100%; box-sizing: border-box;"></div>
+                        <div style="margin-bottom: 12px;"><span style="font-size: 0.85rem; color:var(--text-muted); display:block; margin-bottom:4px;">Delivery Location:</span> <input type="text" id="fpPickAddr" style="background:#fff; border:1px solid var(--border-color); color:var(--text-main); font-size:0.95rem; padding:8px; border-radius:6px; width:100%; box-sizing: border-box;"></div>
+                        <div><span style="font-size: 0.85rem; color:var(--text-muted); display:block; margin-bottom:4px;">Exact Pick-up Address:</span> <input type="text" id="fpPickLocationAddr" style="background:#fff; border:1px solid var(--border-color); color:var(--text-main); font-size:0.95rem; padding:8px; border-radius:6px; width:100%; box-sizing: border-box;"></div>
+                        <div style="margin-top: 12px;"><span style="font-size: 0.85rem; color:var(--text-muted); display:block; margin-bottom:4px;">Pick-up Flight Number:</span> <input type="text" id="fpPickFlightNumber" style="background:#fff; border:1px solid var(--border-color); color:var(--text-main); font-size:0.95rem; padding:8px; border-radius:6px; width:100%; box-sizing: border-box;"></div>
                     </div>
 
                     <div id="returnScheduleSection" style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-sizing: border-box;">
     <h4 style="color: var(--text-main); font-size: 0.9rem; margin-top: 0; margin-bottom: 15px; font-weight: bold; letter-spacing: 0.5px;">RETURN SCHEDULE</h4>
     <div style="margin-bottom: 12px;"><span style="font-size: 0.85rem; color:var(--text-muted); display:block; margin-bottom:4px;">Date:</span> <input type="date" id="fpReturnDate" style="background:#fff; border:1px solid var(--border-color); color:var(--text-main); font-size:0.95rem; padding:8px; border-radius:6px; width:100%; box-sizing: border-box;"></div>
     <div style="margin-bottom: 12px;"><span style="font-size: 0.85rem; color:var(--text-muted); display:block; margin-bottom:4px;">Time:</span> <input type="time" id="fpReturnTime" style="background:#fff; border:1px solid var(--border-color); color:var(--text-main); font-size:0.95rem; padding:8px; border-radius:6px; width:100%; box-sizing: border-box;"></div>
-    <div><span style="font-size: 0.85rem; color:var(--text-muted); display:block; margin-bottom:4px;">Location Address:</span> <input type="text" id="fpReturnAddr" style="background:#fff; border:1px solid var(--border-color); color:var(--text-main); font-size:0.95rem; padding:8px; border-radius:6px; width:100%; box-sizing: border-box;"></div>
+    <div style="margin-bottom: 12px;"><span style="font-size: 0.85rem; color:var(--text-muted); display:block; margin-bottom:4px;">Return Location:</span> <input type="text" id="fpReturnAddr" style="background:#fff; border:1px solid var(--border-color); color:var(--text-main); font-size:0.95rem; padding:8px; border-radius:6px; width:100%; box-sizing: border-box;"></div>
+    <div><span style="font-size: 0.85rem; color:var(--text-muted); display:block; margin-bottom:4px;">Exact Return Address:</span> <input type="text" id="fpReturnLocationAddr" style="background:#fff; border:1px solid var(--border-color); color:var(--text-main); font-size:0.95rem; padding:8px; border-radius:6px; width:100%; box-sizing: border-box;"></div>
+    <div style="margin-top: 12px;"><span style="font-size: 0.85rem; color:var(--text-muted); display:block; margin-bottom:4px;">Return Flight Number:</span> <input type="text" id="fpReturnFlightNumber" style="background:#fff; border:1px solid var(--border-color); color:var(--text-main); font-size:0.95rem; padding:8px; border-radius:6px; width:100%; box-sizing: border-box;"></div>
 </div>
                 </div>
 
@@ -586,6 +590,24 @@
                 <div id="rates-tab-selfDrive" class="rates-tab-pane" style="display:none;">
                     <p style="color:#64748b; font-size:13px; margin-bottom:16px;">Daily rental rate per vehicle. This reflects the base price shown on the fleet page.</p>
                     <div id="selfDriveRatesTable"></div>
+                    <div class="self-drive-location-rates">
+                        <h3>Delivery Rates</h3>
+                        <p>Additional charges based on the vehicle delivery or pick-up location.</p>
+                        <div id="selfDriveDeliveryRatesTable"></div>
+                        <div class="self-drive-location-add-form">
+                            <input type="text" id="newSelfDriveDeliveryLocation" class="rates-input" placeholder="New delivery location">
+                            <input type="number" id="newSelfDriveDeliveryRate" class="rates-input" min="0" placeholder="Rate (₱)">
+                            <button type="button" class="btn-secondary" onclick="addSelfDriveLocationRate('selfDriveDelivery')">+ Add Delivery Location</button>
+                        </div>
+                        <h3>Return Rates</h3>
+                        <p>Additional charges based on the vehicle return location.</p>
+                        <div id="selfDriveReturnRatesTable"></div>
+                        <div class="self-drive-location-add-form">
+                            <input type="text" id="newSelfDriveReturnLocation" class="rates-input" placeholder="New return location">
+                            <input type="number" id="newSelfDriveReturnRate" class="rates-input" min="0" placeholder="Rate (₱)">
+                            <button type="button" class="btn-secondary" onclick="addSelfDriveLocationRate('selfDriveReturn')">+ Add Return Location</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Inbound/Outbound Tab -->
