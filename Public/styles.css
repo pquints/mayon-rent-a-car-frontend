@@ -272,6 +272,15 @@ section {
     grid-template-columns: 1fr;
 }
 
+.dropdown__menu--guide .dropdown__title {
+    font-size: 15px;
+}
+
+.dropdown__menu--guide .dropdown__desc {
+    font-size: 12px;
+    line-height: 1.35;
+}
+
 .dropdown__columns {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
