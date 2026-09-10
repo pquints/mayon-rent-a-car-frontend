@@ -868,8 +868,8 @@ section {
     grid-column: span 2;
 }
 
-.landing-page .location-address-detail[hidden],
-.landing-page .location-flight-detail[hidden] {
+.location-address-detail[hidden],
+.location-flight-detail[hidden] {
     display: none !important;
 }
 
