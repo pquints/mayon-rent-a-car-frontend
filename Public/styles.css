@@ -491,6 +491,10 @@ section {
         transition: max-height 0.25s ease, padding 0.2s ease;
     }
 
+    .dropdown__menu--guide {
+        width: min(94%, 430px);
+    }
+
     .navbar__item--dropdown.is-open .dropdown__menu {
         max-height: 260px;
         padding: 8px 0 0;
