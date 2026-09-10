@@ -1671,7 +1671,11 @@ async function saveQuoteToServer(showNotification = true, keepViewOpen = false) 
         returnDate: document.getElementById("fpReturnDate").value,
         returnTime: document.getElementById("fpReturnTime").value,
         pickupAddress: document.getElementById("fpPickAddr")?.value || "—",
+        pickupLocationAddress: document.getElementById("fpPickLocationAddr")?.value || "",
+        pickupFlightNumber: document.getElementById("fpPickFlightNumber")?.value || "",
         returnAddress: document.getElementById("fpReturnAddr")?.value || "—",
+        returnLocationAddress: document.getElementById("fpReturnLocationAddr")?.value || "",
+        returnFlightNumber: document.getElementById("fpReturnFlightNumber")?.value || "",
         itinerary: document.getElementById("fpDetails")?.value || "",
         ...completeQuoteData  // Include rentalType, quantity, breakdownDetails, inclusionsList, exclusionsList
     };
@@ -1892,6 +1896,22 @@ async function executeQuoteAction(actionType) {
             const rawRetTime = document.getElementById("fpReturnTime")?.value || "";
             const pickupAddr = document.getElementById("fpPickAddr")?.value || "—";
             const returnAddr = document.getElementById("fpReturnAddr")?.value || "—";
+            const pickupLocationAddress = document.getElementById("fpPickLocationAddr")?.value.trim() || "";
+            const pickupFlightNumber = document.getElementById("fpPickFlightNumber")?.value.trim() || "";
+            const returnLocationAddress = document.getElementById("fpReturnLocationAddr")?.value.trim() || "";
+            const returnFlightNumber = document.getElementById("fpReturnFlightNumber")?.value.trim() || "";
+            const formatQuotationLocation = (location, exactAddress, flightNumber) => {
+                const normalizedLocation = location.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+                if (normalizedLocation.includes("citihardware")) return location;
+                if (normalizedLocation.includes("bicolinternationalairport")) {
+                    return flightNumber ? `${location} - Flight No. ${flightNumber}` : location;
+                }
+
+                return exactAddress || location;
+            };
+            const pickupDisplay = formatQuotationLocation(pickupAddr, pickupLocationAddress, pickupFlightNumber);
+            const returnDisplay = formatQuotationLocation(returnAddr, returnLocationAddress, returnFlightNumber);
             const itinerary = document.getElementById("fpDetails")?.value || "—";
             
             const fmtPickDate = rawPickDate ? new Date(rawPickDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : "—";
@@ -2140,7 +2160,7 @@ async function executeQuoteAction(actionType) {
                     </div>
                     <div class="point-info">
                         <h4>Pickup Details</h4>
-                        <p>${pickupAddr}</p>
+                        <p>${pickupDisplay}</p>
                     </div>
                     
                     ${rentalTypeRaw !== 'with-driver' ? `
@@ -2150,7 +2170,7 @@ async function executeQuoteAction(actionType) {
                         </div>
                         <div class="point-info">
                             <h4>Return Location</h4>
-                            <p>${returnAddr}</p>
+                            <p>${returnDisplay}</p>
                         </div>
                     ` : ''}
                     <div class="point-info">

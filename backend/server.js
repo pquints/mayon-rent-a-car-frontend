@@ -906,7 +906,11 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         const serviceOption = qd.serviceOption || '—';
         const itinerary     = qd.itinerary     || '';
         const pickupAddress = qd.pickupAddress || '—';
+        const pickupLocationAddress = qd.pickupLocationAddress || '';
+        const pickupFlightNumber = qd.pickupFlightNumber || '';
         const returnAddress = qd.returnAddress || '—';
+        const returnLocationAddress = qd.returnLocationAddress || '';
+        const returnFlightNumber = qd.returnFlightNumber || '';
 
         // Format dates & times
         const rawPickDate = qd.pickDate   || '';
@@ -988,6 +992,12 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
             <tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Return Date &amp; Time</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${fmtRetDate} at ${fmtRetTime}</td></tr>` : '';
         const returnLocationRow = rentalType === 'self-drive' ? `
             <tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Return Location</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${returnAddress}</td></tr>` : '';
+        const pickupDetailRows = rentalType === 'self-drive' ? `
+            ${pickupLocationAddress ? `<tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Exact Pick-up Address</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${pickupLocationAddress}</td></tr>` : ''}
+            ${pickupFlightNumber ? `<tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Pick-up Flight Number</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${pickupFlightNumber}</td></tr>` : ''}` : '';
+        const returnDetailRows = rentalType === 'self-drive' ? `
+            ${returnLocationAddress ? `<tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Exact Return Address</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${returnLocationAddress}</td></tr>` : ''}
+            ${returnFlightNumber ? `<tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Return Flight Number</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${returnFlightNumber}</td></tr>` : ''}` : '';
 
         const itinerarySection = itinerary ? `
             <div style="margin-bottom:20px;">
@@ -1051,7 +1061,9 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
       <div style="font-size:11px;text-transform:uppercase;font-weight:700;color:#0f172a;letter-spacing:0.5px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;margin-bottom:10px;">&#128205; Locations</div>
       <table style="width:100%;border-collapse:collapse;">
         <tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Pickup Location</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${pickupAddress}</td></tr>
+        ${pickupDetailRows}
         ${returnLocationRow}
+        ${returnDetailRows}
       </table>
     </div>
 
