@@ -237,7 +237,9 @@ const DEFAULT_RATES = {
     airportTransfers: [],
     inboundOutbound: [],
     withDriver: [],
-    selfDrive: []
+    selfDrive: [],
+    selfDriveDelivery: [],
+    selfDriveReturn: []
 };
 
 const getRates = () => {
@@ -253,6 +255,8 @@ const getRates = () => {
             inboundOutbound: [],
             withDriver: [],
             selfDrive: [],
+            selfDriveDelivery: [],
+            selfDriveReturn: [],
             ...parsed
         };
     } catch (err) {
@@ -380,9 +384,13 @@ app.post('/api/bookings', bookingLimiter, async (req, res) => {
             pickup_date: clientInput.pickup_date || '—',
             pickup_time: clientInput.pickup_time || '—',
             pickup_address: clientInput.pickup_address || '—',
+            pickup_location_address: clientInput.pickup_location_address || '—',
+            pickup_flight_number: clientInput.pickup_flight_number || '—',
             return_date: rentalType === 'self-drive' ? (clientInput.return_date || '—') : '—',
             return_time: rentalType === 'self-drive' ? (clientInput.return_time || '—') : '—',
             return_address: rentalType === 'self-drive' ? (clientInput.return_address || '—') : '—',
+            return_location_address: rentalType === 'self-drive' ? (clientInput.return_location_address || '—') : '—',
+            return_flight_number: rentalType === 'self-drive' ? (clientInput.return_flight_number || '—') : '—',
             itinerary: clientInput.itinerary || '—',
             status,
             created_at: new Date().toISOString()
@@ -426,9 +434,13 @@ app.put('/api/bookings/:ref', (req, res) => {
             pickup_date: updatedFields.pickup_date || bookings[index].pickup_date,
             pickup_time: updatedFields.pickup_time || bookings[index].pickup_time,
             pickup_address: updatedFields.pickup_address || bookings[index].pickup_address,
+            pickup_location_address: updatedFields.pickup_location_address || bookings[index].pickup_location_address,
+            pickup_flight_number: updatedFields.pickup_flight_number || bookings[index].pickup_flight_number,
             return_date: updatedFields.return_date || bookings[index].return_date,
             return_time: updatedFields.return_time || bookings[index].return_time,
             return_address: updatedFields.return_address || bookings[index].return_address,
+            return_location_address: updatedFields.return_location_address || bookings[index].return_location_address,
+            return_flight_number: updatedFields.return_flight_number || bookings[index].return_flight_number,
             itinerary: updatedFields.itinerary || bookings[index].itinerary
         };
         saveBookings(bookings);

@@ -1396,6 +1396,83 @@ body {
     color: #178ca4;
 }
 
+.self-drive-location-rates {
+    margin-top: 28px;
+}
+
+.self-drive-location-rates h3 {
+    margin: 24px 0 4px;
+    color: #0f172a;
+    font-size: 1rem;
+}
+
+.self-drive-location-rates p {
+    margin: 0 0 10px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.self-drive-location-add-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 10px 0 18px;
+}
+
+.self-drive-location-add-form .rates-input:first-child {
+    width: min(320px, 100%);
+}
+
+.rates-location-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.rates-remove-button {
+    padding: 7px 10px;
+    font-size: 12px;
+}
+
+.rates-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+.rates-move-button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.self-drive-location-rates .rates-table {
+    table-layout: fixed;
+}
+
+.self-drive-location-rates .rates-table th:first-child,
+.self-drive-location-rates .rates-table td:first-child {
+    width: 58%;
+}
+
+.self-drive-location-rates .rates-table th:nth-child(2),
+.self-drive-location-rates .rates-table td:nth-child(2) {
+    width: 24%;
+}
+
+.self-drive-location-rates .rates-table th:last-child,
+.self-drive-location-rates .rates-table td:last-child {
+    width: 18%;
+}
+
+.self-drive-location-rates .rates-table td:first-child .rates-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
 .rates-table {
     width: 100%;
     border-collapse: collapse;

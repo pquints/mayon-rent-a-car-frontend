@@ -58,7 +58,7 @@
         <!-- <script src="https://www.google.com/recaptcha/api.js?render=YOUR_RECAPTCHA_SITE_KEY"></script>
         <style>.grecaptcha-badge { visibility: hidden; }</style> -->
     </head>
-    <body>
+    <body class="landing-page">
         <!-- BAGONG DAGDAG: Top Bar para sa Contacts at Socials -->
         <div class="top-bar">
             <div class="top-bar__container">
@@ -124,7 +124,7 @@
             </li>
             <li class="navbar__item navbar__item--dropdown">
                 <a href="#" class="navbar__links navbar__links--dropdown">Guide <i class="fas fa-chevron-down dropdown__icon" aria-hidden="true"></i></a>
-                <div class="dropdown__menu dropdown__menu--mega">
+                <div class="dropdown__menu dropdown__menu--mega dropdown__menu--guide">
                     <div class="dropdown__columns">
                         <div class="dropdown__column">
                             <a href="#" class="dropdown__link disabled" aria-disabled="true" tabindex="-1">
@@ -279,7 +279,22 @@
                             </div>
                             <div class="input-group">
                                 <label>Pick up Address *</label>
-                                <input type="text" name="pickup_address" required placeholder="Hotel, Airport, or House Address">
+                                <select name="pickup_address" id="pickup_address" class="self-drive-location-select" required>
+                                    <option value="" disabled selected>-- Select Pick-up Location --</option>
+                                    <option value="Self pickup Citi Hardware">Self pickup Citi Hardware - Free</option>
+                                    <option value="Bicol International Airport (DRP)">Bicol International Airport (DRP) - ₱400</option>
+                                    <option value="Tabaco City Poblacion">Tabaco City Poblacion - ₱1,000</option>
+                                    <option value="Sorsogon City">Sorsogon City - ₱1,000</option>
+                                </select>
+                                <input type="text" name="pickup_address_manual" id="pickup_address_manual" placeholder="Enter your pick-up address" disabled hidden>
+                            </div>
+                            <div class="input-group location-address-detail" id="pickup-location-address-group" hidden>
+                                <label for="pickup_location_address">Exact Pick-up Address *</label>
+                                <input type="text" name="pickup_location_address" id="pickup_location_address" placeholder="Enter the exact address for delivery">
+                            </div>
+                            <div class="input-group location-flight-detail" id="pickup-location-flight-group" hidden>
+                                <label for="pickup_flight_number">Flight Number *</label>
+                                <input type="text" name="pickup_flight_number" id="pickup_flight_number" placeholder="e.g. 5J 321">
                             </div>
 
                             <div class="input-group self-drive-only">
@@ -292,7 +307,21 @@
                             </div>
                             <div class="input-group self-drive-only">
                                 <label>Return Address *</label>
-                                <input type="text" name="return_address" id="return_address" placeholder="Where to return the vehicle">
+                                <select name="return_address" id="return_address" class="self-drive-location-select" required>
+                                    <option value="" disabled selected>-- Select Return Location --</option>
+                                    <option value="Self-return Citi Hardware Legazpi">Self-return Citi Hardware Legazpi - Free</option>
+                                    <option value="Bicol International Airport (DRP)">Bicol International Airport (DRP) - ₱400</option>
+                                    <option value="Tabaco City">Tabaco City - ₱1,000</option>
+                                    <option value="Sorsogon City">Sorsogon City - ₱1,000</option>
+                                </select>
+                            </div>
+                            <div class="input-group self-drive-only location-address-detail" id="return-location-address-group" hidden>
+                                <label for="return_location_address">Exact Return Address *</label>
+                                <input type="text" name="return_location_address" id="return_location_address" placeholder="Enter the exact address for vehicle return">
+                            </div>
+                            <div class="input-group self-drive-only location-flight-detail" id="return-location-flight-group" hidden>
+                                <label for="return_flight_number">Flight Number *</label>
+                                <input type="text" name="return_flight_number" id="return_flight_number" placeholder="e.g. 5J 321">
                             </div>
 
                             <div class="input-group with-driver-only">
@@ -573,7 +602,7 @@
 
                 <div class="map-card">
                     <iframe
-                        src="https://www.google.com/maps?q=4PRQ%2B4W%20Legazpi%20City%2C%20Albay&z=14&output=embed"
+                        src="https://www.google.com/maps?q=%5BSelf-drive%20Car%20for%20Rent%20%5D%20Mayon%20Rent%20a%20Car%20-%20Legazpi%20Naga%20Sorsogon%20Caramoan%20Misibis&z=17&output=embed"
                         loading="lazy"
                         referrerpolicy="no-referrer-when-downgrade"
                         title="Mayon Rent a Car location on Google Maps"

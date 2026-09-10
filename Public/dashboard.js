@@ -898,11 +898,15 @@ function openFullPageDetails(booking) {
     document.getElementById("fpPickDate").value = booking.pickup_date || "";
     document.getElementById("fpPickTime").value = booking.pickup_time || "";
     document.getElementById("fpPickAddr").value = booking.pickup_address || "";
+    document.getElementById("fpPickLocationAddr").value = booking.pickup_location_address && booking.pickup_location_address !== "—" ? booking.pickup_location_address : "";
+    document.getElementById("fpPickFlightNumber").value = booking.pickup_flight_number && booking.pickup_flight_number !== "—" ? booking.pickup_flight_number : "";
 
     // Mula sa dating fpReturnDate, fpReturnTime, fpReturnAddr:
     document.getElementById("fpReturnDate").value = booking.return_date && booking.return_date !== "—" ? booking.return_date : "";
     document.getElementById("fpReturnTime").value = booking.return_time && booking.return_time !== "—" ? booking.return_time : "";
     document.getElementById("fpReturnAddr").value = booking.return_address && booking.return_address !== "—" ? booking.return_address : "";
+    document.getElementById("fpReturnLocationAddr").value = booking.return_location_address && booking.return_location_address !== "—" ? booking.return_location_address : "";
+    document.getElementById("fpReturnFlightNumber").value = booking.return_flight_number && booking.return_flight_number !== "—" ? booking.return_flight_number : "";
 
     document.getElementById("fpDetails").value = booking.itinerary || "";
 
@@ -1038,9 +1042,13 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
         pickup_date: document.getElementById("fpPickDate").value,
         pickup_time: document.getElementById("fpPickTime").value,
         pickup_address: document.getElementById("fpPickAddr").value,
+        pickup_location_address: document.getElementById("fpPickLocationAddr").value,
+        pickup_flight_number: document.getElementById("fpPickFlightNumber").value,
         return_date: document.getElementById("fpReturnDate").value || "—", returnDate: document.getElementById("fpReturnDate").value || "—",
         return_time: document.getElementById("fpReturnTime").value || "—", returnTime: document.getElementById("fpReturnTime").value || "—",
         return_address: document.getElementById("fpReturnAddr").value || "—", returnAddress: document.getElementById("fpReturnAddr").value || "—",
+        return_location_address: document.getElementById("fpReturnLocationAddr").value || "—",
+        return_flight_number: document.getElementById("fpReturnFlightNumber").value || "—",
         itinerary: document.getElementById("fpDetails").value
     };
 
@@ -2863,6 +2871,8 @@ async function loadRates() {
     }
     _currentRates = data.rates || {};
     _currentRates.inboundOutbound = _currentRates.inboundOutbound || [];
+    _currentRates.selfDriveDelivery = _currentRates.selfDriveDelivery || [];
+    _currentRates.selfDriveReturn = _currentRates.selfDriveReturn || [];
     initializeAirportRatesSuggestions();
     renderRatesTables(_currentRates);
     renderInboundOutboundProvinceOptions(_currentRates);
@@ -3048,6 +3058,15 @@ function collectRatesFromInputs() {
         const el = document.getElementById(`sd-${row.id}-daily`);
         if (el) row.dailyRate = parseInt(el.value, 10) || 0;
     });
+
+    ['selfDriveDelivery', 'selfDriveReturn'].forEach((group) => {
+        (_currentRates[group] || []).forEach(row => {
+            const locationEl = document.getElementById(`sd-${group}-${row.id}-location`);
+            const el = document.getElementById(`sd-${group}-${row.id}-rate`);
+            if (locationEl) row.location = locationEl.value.trim();
+            if (el) row.rate = parseInt(el.value, 10) || 0;
+        });
+    });
 }
 
 function toggleRatesSubmenu(event) {
@@ -3217,6 +3236,100 @@ function renderRatesTables(rates) {
                 </tbody>
             </table>`;
     }
+
+    const renderSelfDriveLocationRates = (elementId, groupKey) => {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+
+        element.innerHTML = `
+            <table class="rates-table">
+                <thead><tr><th>Location</th><th>Additional Rate (₱)</th><th>Action</th></tr></thead>
+                <tbody>
+                    ${(rates[groupKey] || []).map(row => `
+                        <tr>
+                            <td><input type="text" id="sd-${groupKey}-${row.id}-location" value="${row.location}" class="rates-input rates-location-input"></td>
+                            <td><input type="number" id="sd-${groupKey}-${row.id}-rate" value="${row.rate}" min="0" class="rates-input"></td>
+                            <td>
+                                <div class="rates-row-actions">
+                                    ${renderSelfDriveMoveActions(groupKey, row.id)}
+                                    <button type="button" class="btn-secondary rates-remove-button" onclick="removeSelfDriveLocationRate('${groupKey}', '${row.id}')">Remove</button>
+                                </div>
+                            </td>
+                        </tr>`).join('') || '<tr><td colspan="3" style="text-align:center; color:#64748b; padding:18px;">No location rates configured.</td></tr>'}
+                </tbody>
+                    </table>`;
+    };
+
+    renderSelfDriveLocationRates('selfDriveDeliveryRatesTable', 'selfDriveDelivery');
+    renderSelfDriveLocationRates('selfDriveReturnRatesTable', 'selfDriveReturn');
+}
+
+function renderSelfDriveMoveActions(groupKey, rowId) {
+    return `
+    <button type="button" class="btn-secondary rates-move-button" onclick="moveSelfDriveLocationRate('${groupKey}', '${rowId}', 'up')" title="Move up" aria-label="Move location up">↑</button>
+    <button type="button" class="btn-secondary rates-move-button" onclick="moveSelfDriveLocationRate('${groupKey}', '${rowId}', 'down')" title="Move down" aria-label="Move location down">↓</button>`;
+}
+
+function moveSelfDriveLocationRate(groupKey, rowId, direction) {
+    if (!_currentRates || !Array.isArray(_currentRates[groupKey])) return;
+
+    collectRatesFromInputs();
+    const rows = _currentRates[groupKey];
+    const currentIndex = rows.findIndex(row => row.id === rowId);
+    if (currentIndex === -1) return;
+
+    let targetIndex = currentIndex;
+    if (direction === 'up') targetIndex = Math.max(0, currentIndex - 1);
+    if (direction === 'down') targetIndex = Math.min(rows.length - 1, currentIndex + 1);
+    if (targetIndex === currentIndex) return;
+
+    const [row] = rows.splice(currentIndex, 1);
+    rows.splice(targetIndex, 0, row);
+    renderRatesTables(_currentRates);
+    showRatesStatus('Location order changed. Click Save All Rates to apply live.', 'success');
+}
+
+function addSelfDriveLocationRate(groupKey) {
+    if (!_currentRates || !['selfDriveDelivery', 'selfDriveReturn'].includes(groupKey)) return;
+
+    const isDelivery = groupKey === 'selfDriveDelivery';
+    const locationInput = document.getElementById(isDelivery ? 'newSelfDriveDeliveryLocation' : 'newSelfDriveReturnLocation');
+    const rateInput = document.getElementById(isDelivery ? 'newSelfDriveDeliveryRate' : 'newSelfDriveReturnRate');
+    const location = String(locationInput?.value || '').trim();
+    const rate = parseInt(rateInput?.value || '0', 10);
+
+    if (!location) {
+        showRatesStatus('Location name is required.', 'error');
+        locationInput?.focus();
+        return;
+    }
+
+    if ((_currentRates[groupKey] || []).some(row => row.location.toLowerCase() === location.toLowerCase())) {
+        showRatesStatus('That location already exists.', 'error');
+        return;
+    }
+
+    _currentRates[groupKey] = _currentRates[groupKey] || [];
+    _currentRates[groupKey].push({
+        id: `${groupKey === 'selfDriveDelivery' ? 'sdd' : 'sdr'}${Date.now()}`,
+        location,
+        rate: Number.isFinite(rate) ? rate : 0
+    });
+
+    renderRatesTables(_currentRates);
+    if (locationInput) locationInput.value = '';
+    if (rateInput) rateInput.value = '';
+    showRatesStatus('Location added. Click Save All Rates to apply live.', 'success');
+}
+
+function removeSelfDriveLocationRate(groupKey, rowId) {
+    if (!_currentRates || !Array.isArray(_currentRates[groupKey])) return;
+    const row = _currentRates[groupKey].find(item => item.id === rowId);
+    if (!row || !window.confirm(`Remove ${row.location}?`)) return;
+
+    _currentRates[groupKey] = _currentRates[groupKey].filter(item => item.id !== rowId);
+    renderRatesTables(_currentRates);
+    showRatesStatus('Location removed. Click Save All Rates to apply live.', 'success');
 }
 
 function switchRatesTab(tab) {

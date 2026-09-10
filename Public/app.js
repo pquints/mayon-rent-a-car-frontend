@@ -289,6 +289,135 @@ document.addEventListener('DOMContentLoaded', () => {
     const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const BOOKING_API_ENDPOINT = isLocalDevelopment ? 'http://127.0.0.1:3000/api/bookings' : '/api/bookings';
 
+    const ratesEndpointCandidates = isLocalDevelopment
+        ? ['http://127.0.0.1:3000/api/rates', '/api/rates']
+        : ['/api/rates', 'https://api.mayonrentacar.com.ph/api/rates'];
+    const locationSelects = {
+        pickup: document.querySelectorAll('select[name="pickup_address"].self-drive-location-select'),
+        return: document.querySelectorAll('select[name="return_address"].self-drive-location-select')
+    };
+    const isLandingBookingForm = Boolean(document.getElementById('type-self-drive') && document.getElementById('type-with-driver'));
+
+    const bindLocationDetailFields = (select, addressFieldId, addressGroupId, flightFieldId, flightGroupId) => {
+        const addressField = document.getElementById(addressFieldId);
+        const addressGroup = document.getElementById(addressGroupId);
+        const flightField = document.getElementById(flightFieldId);
+        const flightGroup = document.getElementById(flightGroupId);
+        if (!select || !addressField || !addressGroup || !flightField || !flightGroup) return;
+
+        const update = () => {
+            const location = select.value.toLowerCase();
+            const isAirport = location.includes('bicol international airport');
+            const needsExactAddress = Boolean(select.value) && !location.includes('self') && !isAirport;
+
+            addressGroup.hidden = !needsExactAddress;
+            addressGroup.style.display = needsExactAddress ? 'flex' : '';
+            addressField.required = needsExactAddress;
+            if (!needsExactAddress) addressField.value = '';
+
+            flightGroup.hidden = !isAirport;
+            flightGroup.style.display = isAirport ? 'flex' : '';
+            flightField.required = isAirport;
+            if (!isAirport) flightField.value = '';
+        };
+
+        select.addEventListener('change', update);
+        update();
+    };
+
+    if (isLandingBookingForm) {
+        bindLocationDetailFields(
+            document.getElementById('pickup_address'),
+            'pickup_location_address',
+            'pickup-location-address-group',
+            'pickup_flight_number',
+            'pickup-location-flight-group'
+        );
+        bindLocationDetailFields(
+            document.getElementById('return_address'),
+            'return_location_address',
+            'return-location-address-group',
+            'return_flight_number',
+            'return-location-flight-group'
+        );
+    }
+
+    const formatLocationRate = (location, rate) => {
+        const numericRate = Number(rate || 0);
+        return numericRate === 0
+            ? `${location} - Free`
+            : `${location} - ₱${numericRate.toLocaleString('en-PH')}`;
+    };
+
+    async function loadSelfDriveLocationRates() {
+        if (!locationSelects.pickup.length && !locationSelects.return.length) return;
+
+        for (const endpoint of ratesEndpointCandidates) {
+            try {
+                const response = await fetch(endpoint);
+                if (!response.ok) continue;
+                const result = await response.json();
+                const rates = result.rates || {};
+                const groups = [
+                    [locationSelects.pickup, rates.selfDriveDelivery],
+                    [locationSelects.return, rates.selfDriveReturn]
+                ];
+
+                groups.forEach(([selects, options]) => {
+                    if (!Array.isArray(options) || !options.length) return;
+                    selects.forEach((select) => {
+                        const currentValue = select.value;
+                        select.innerHTML = '<option value="" disabled>-- Select Location --</option>';
+                        options.forEach((option) => {
+                            const optionElement = document.createElement('option');
+                            optionElement.value = option.location;
+                            optionElement.textContent = formatLocationRate(option.location, option.rate);
+                            select.appendChild(optionElement);
+                        });
+                        select.value = currentValue;
+                    });
+                });
+                break;
+            } catch (error) {
+                if (DEBUG) console.warn('Self-drive location rates unavailable:', error);
+            }
+        }
+    }
+
+    async function loadSelfDriveVehicleRates() {
+        const fleetCards = document.querySelectorAll('.fleet-card[data-rate-vehicle]');
+        if (!fleetCards.length) return;
+
+        const normalizeVehicleName = (value) => String(value || '').trim().toLowerCase();
+
+        for (const endpoint of ratesEndpointCandidates) {
+            try {
+                const response = await fetch(endpoint);
+                if (!response.ok) continue;
+                const result = await response.json();
+                const vehicleRates = result.rates?.selfDrive;
+                if (!Array.isArray(vehicleRates)) continue;
+
+                const ratesByVehicle = new Map(
+                    vehicleRates.map((rate) => [normalizeVehicleName(rate.vehicle), rate.dailyRate])
+                );
+
+                fleetCards.forEach((card) => {
+                    const priceElement = card.querySelector('[data-fleet-price]');
+                    const dailyRate = ratesByVehicle.get(normalizeVehicleName(card.dataset.rateVehicle));
+                    if (!priceElement || dailyRate === undefined) return;
+                    priceElement.innerHTML = `Starting at <strong>₱${Number(dailyRate).toLocaleString('en-PH')}/day</strong>`;
+                });
+                break;
+            } catch (error) {
+                if (DEBUG) console.warn('Self-drive vehicle rates unavailable:', error);
+            }
+        }
+    }
+
+    loadSelfDriveLocationRates();
+    loadSelfDriveVehicleRates();
+
     const steps = document.querySelectorAll('.form-step');
     const stepIndicators = document.querySelectorAll('.step');
     const prevBtn = document.getElementById('prev-btn');
@@ -303,6 +432,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const typeWithDriver = document.getElementById('type-with-driver');
     const driverOptions = document.getElementById('options-with-driver');
     const driverSelect = document.getElementById('driver-service');
+    const pickupLocationSelect = isLandingBookingForm ? document.getElementById('pickup_address') : null;
+    const pickupManualInput = isLandingBookingForm ? document.getElementById('pickup_address_manual') : null;
 
     // Conditional Fields based on Choice
     const selfDriveFields = document.querySelectorAll('.self-drive-only');
@@ -422,6 +553,17 @@ document.addEventListener('DOMContentLoaded', () => {
             
             selfDriveFields.forEach(el => el.style.display = 'none');
             withDriverFields.forEach(el => el.style.display = 'flex');
+
+            if (pickupLocationSelect && pickupManualInput) {
+                pickupLocationSelect.disabled = true;
+                pickupLocationSelect.hidden = true;
+                pickupLocationSelect.removeAttribute('required');
+                pickupLocationSelect.removeAttribute('name');
+                pickupManualInput.disabled = false;
+                pickupManualInput.hidden = false;
+                pickupManualInput.name = 'pickup_address';
+                pickupManualInput.required = true;
+            }
             
             const returnDate = document.getElementById('return_date');
             const returnTime = document.getElementById('return_time');
@@ -440,6 +582,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             selfDriveFields.forEach(el => el.style.display = 'flex');
             withDriverFields.forEach(el => el.style.display = 'none');
+
+            if (pickupLocationSelect && pickupManualInput) {
+                pickupManualInput.disabled = true;
+                pickupManualInput.removeAttribute('required');
+                pickupManualInput.removeAttribute('name');
+                pickupManualInput.hidden = true;
+                pickupLocationSelect.disabled = false;
+                pickupLocationSelect.hidden = false;
+                pickupLocationSelect.name = 'pickup_address';
+                pickupLocationSelect.setAttribute('required', 'required');
+            }
 
             const returnDate = document.getElementById('return_date');
             const returnTime = document.getElementById('return_time');
