@@ -152,6 +152,10 @@ const saveBookings = (bookings) => {
     fs.writeFileSync(FILE_PATH, JSON.stringify(bookings, null, 2), 'utf8');
 };
 
+const getBookingField = (input, snakeCaseKey, camelCaseKey) => {
+    return input[snakeCaseKey] ?? input[camelCaseKey] ?? '';
+};
+
 // ========================================================
 // USER MANAGEMENT FUNCTIONS
 // ========================================================
@@ -384,13 +388,13 @@ app.post('/api/bookings', bookingLimiter, async (req, res) => {
             pickup_date: clientInput.pickup_date || '—',
             pickup_time: clientInput.pickup_time || '—',
             pickup_address: clientInput.pickup_address || '—',
-            pickup_location_address: clientInput.pickup_location_address || '—',
-            pickup_flight_number: clientInput.pickup_flight_number || '—',
+            pickup_location_address: getBookingField(clientInput, 'pickup_location_address', 'pickupLocationAddress') || '—',
+            pickup_flight_number: getBookingField(clientInput, 'pickup_flight_number', 'pickupFlightNumber') || '—',
             return_date: rentalType === 'self-drive' ? (clientInput.return_date || '—') : '—',
             return_time: rentalType === 'self-drive' ? (clientInput.return_time || '—') : '—',
             return_address: rentalType === 'self-drive' ? (clientInput.return_address || '—') : '—',
-            return_location_address: rentalType === 'self-drive' ? (clientInput.return_location_address || '—') : '—',
-            return_flight_number: rentalType === 'self-drive' ? (clientInput.return_flight_number || '—') : '—',
+            return_location_address: rentalType === 'self-drive' ? (getBookingField(clientInput, 'return_location_address', 'returnLocationAddress') || '—') : '—',
+            return_flight_number: rentalType === 'self-drive' ? (getBookingField(clientInput, 'return_flight_number', 'returnFlightNumber') || '—') : '—',
             itinerary: clientInput.itinerary || '—',
             status,
             created_at: new Date().toISOString()
