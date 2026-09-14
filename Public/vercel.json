@@ -26,6 +26,10 @@
       "destination": "/Public/contact-us"
     },
     {
+      "source": "/terms-of-use",
+      "destination": "/Public/terms-of-use"
+    },
+    {
       "source": "/app.js",
       "destination": "/Public/app.js"
     },

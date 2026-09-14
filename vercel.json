@@ -30,6 +30,10 @@
       "destination": "/Public/faq"
     },
     {
+      "source": "/terms-of-use",
+      "destination": "/Public/terms-of-use"
+    },
+    {
       "source": "/self-drive-rental",
       "destination": "/Public/self-drive-rental"
     },
