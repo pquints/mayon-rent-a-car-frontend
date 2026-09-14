@@ -545,7 +545,7 @@ function renderTable(bookingsList, page = currentPage) {
     if (!bookingsList || bookingsList.length === 0) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="7" class="no-data" style="text-align: center; padding: 30px; color: #888;">No data available</td>
+                <td colspan="9" class="no-data" style="text-align: center; padding: 30px; color: #888;">No data available</td>
             </tr>
         `;
         renderPagination([]);
@@ -561,6 +561,12 @@ function renderTable(bookingsList, page = currentPage) {
         const displayStatus = booking.status || 'Open';
         const statusClass = `badge-${displayStatus.toLowerCase().replace(/\s+/g, '-')}`;
         const displayRentalType = booking.rentalType === 'with-driver' || booking.rentalType === 'with driver' ? 'With Driver' : 'Self-Drive';
+        const pickupDetails = [booking.pickup_address, booking.pickup_location_address, booking.pickup_flight_number]
+            .filter(value => value && value !== '—')
+            .join(' · ') || '—';
+        const returnDetails = [booking.return_address, booking.return_location_address, booking.return_flight_number]
+            .filter(value => value && value !== '—')
+            .join(' · ') || '—';
 
         row.innerHTML = `
             <td><strong>${booking.ref || '—'}</strong></td>
@@ -568,6 +574,8 @@ function renderTable(bookingsList, page = currentPage) {
             <td>${displayRentalType}</td>
             <td>${booking.serviceOption || '—'}</td>
             <td>${booking.vehicleType || '—'}</td>
+            <td>${pickupDetails}</td>
+            <td>${returnDetails}</td>
             <td><span class="status-badge ${statusClass}">${displayStatus}</span></td>
             <td>
                 <button class="btn-action btn-view" data-ref="${booking.ref || ''}" title="View Details"><i class="fa-solid fa-eye"></i></button>
@@ -1047,8 +1055,8 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
         return_date: document.getElementById("fpReturnDate").value || "—", returnDate: document.getElementById("fpReturnDate").value || "—",
         return_time: document.getElementById("fpReturnTime").value || "—", returnTime: document.getElementById("fpReturnTime").value || "—",
         return_address: document.getElementById("fpReturnAddr").value || "—", returnAddress: document.getElementById("fpReturnAddr").value || "—",
-        return_location_address: document.getElementById("fpReturnLocationAddr").value || "—",
-        return_flight_number: document.getElementById("fpReturnFlightNumber").value || "—",
+        return_location_address: document.getElementById("fpReturnLocationAddr").value,
+        return_flight_number: document.getElementById("fpReturnFlightNumber").value,
         itinerary: document.getElementById("fpDetails").value
     };
 
