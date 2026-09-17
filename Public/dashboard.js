@@ -284,6 +284,7 @@ function updateUserDisplay() {
 function showUserManagementIfAdmin() {
     const usersNavItem = getNavItemByIcon('fa-users');
     const vehiclesNavItem = getNavItemByIcon('fa-car');
+    const teamSubmenu = document.getElementById('teamSubmenu');
     if (currentUser && currentUser.role === 'admin') {
         if (usersNavItem) usersNavItem.style.display = 'block';
         if (vehiclesNavItem) vehiclesNavItem.style.display = 'block';
@@ -291,11 +292,11 @@ function showUserManagementIfAdmin() {
     } else {
         if (usersNavItem) usersNavItem.style.display = 'none';
         if (vehiclesNavItem) vehiclesNavItem.style.display = 'none';
+        if (teamSubmenu) teamSubmenu.style.display = 'none';
     }
 }
 
 function setupUserManagementNavigation() {
-    const usersNavItem = getNavItemByIcon('fa-users');
     const dashboardNavItem = getNavItemByIcon('fa-chart-line');
     const vehiclesNavItem = getNavItemByIcon('fa-car');
     
@@ -303,14 +304,6 @@ function setupUserManagementNavigation() {
         dashboardNavItem.onclick = (e) => {
             e.preventDefault();
             showView('dashboard');
-        };
-    }
-    
-    if (usersNavItem) {
-        usersNavItem.onclick = (e) => {
-            e.preventDefault();
-            showView('userManagement');
-            loadUsers();
         };
     }
     
@@ -2409,6 +2402,9 @@ async function saveAccountSettings() {
     }
 }
 
+let _allUsers = [];
+let _activeTeamRole = null;
+
 async function loadUsers() {
     if (!ensureAuth()) return;
 
@@ -2418,11 +2414,68 @@ async function loadUsers() {
         });
 
         if (!response.ok) throw new Error(data.error || 'Failed to load users');
-        renderUsersTable(data.users);
+        _allUsers = data.users;
+        applyTeamRoleFilter();
         showView('userManagement');
     } catch (error) {
         console.error("Error loading users:", error);
         alert('Failed to load users');
+    }
+}
+
+function applyTeamRoleFilter() {
+    const titleEl = document.getElementById('userManagementTitle');
+    const filteredUsers = _activeTeamRole
+        ? _allUsers.filter(user => user.role === _activeTeamRole)
+        : _allUsers;
+
+    if (titleEl) {
+        titleEl.textContent = _activeTeamRole === 'admin' ? 'Admins'
+            : _activeTeamRole === 'driver' ? 'Drivers'
+            : 'User Management';
+    }
+
+    document.querySelectorAll('#teamSubmenu .nav-submenu-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.role === _activeTeamRole);
+    });
+
+    renderUsersTable(filteredUsers);
+}
+
+function toggleTeamSubmenu(event) {
+    event.preventDefault();
+    const submenu = document.getElementById('teamSubmenu');
+    const button = event.currentTarget;
+    if (!submenu || !button) return;
+
+    if (submenu.classList.contains('hidden')) {
+        submenu.classList.remove('hidden');
+        submenu.style.display = 'flex';
+        const isOpen = submenu.classList.toggle('is-open');
+        button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        button.querySelector('.nav-item-chevron')?.classList.toggle('is-open', isOpen);
+    } else {
+        const isOpen = submenu.classList.toggle('is-open');
+        button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        button.querySelector('.nav-item-chevron')?.classList.toggle('is-open', isOpen);
+    }
+}
+
+async function openTeamTab(role) {
+    _activeTeamRole = role;
+    showView('userManagement');
+    await loadUsers();
+
+    const submenu = document.getElementById('teamSubmenu');
+    const button = getNavItemByIcon('fa-users');
+    if (submenu) {
+        submenu.classList.remove('is-open');
+        submenu.classList.add('hidden');
+        submenu.style.display = 'none';
+    }
+    if (button) {
+        button.setAttribute('aria-expanded', 'false');
+        button.querySelector('.nav-item-chevron')?.classList.remove('is-open');
     }
 }
 
