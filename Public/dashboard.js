@@ -3183,7 +3183,12 @@ function renderRatesTables(rates) {
                             <td><input type="number" id="at-${r.id}-sedan" value="${r.sedan}" min="0" class="rates-input"></td>
                             <td><input type="number" id="at-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input"></td>
                             <td><input type="number" id="at-${r.id}-ev" value="${r.ev}" min="0" class="rates-input"></td>
-                            <td><button type="button" class="btn-secondary" onclick="removeAirportRoute('${r.id}')" style="padding:6px 10px; font-size:12px;">Remove</button></td>
+                            <td>
+                                <div class="rates-row-actions">
+                                    ${renderAirportMoveActions(r.id)}
+                                    <button type="button" class="btn-secondary rates-remove-button" onclick="removeAirportRoute('${r.id}')">Remove</button>
+                                </div>
+                            </td>
                         </tr>`).join('') || '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:18px;">No routes for selected province.</td></tr>'}
                 </tbody>
             </table>`;
@@ -3282,6 +3287,39 @@ function renderRatesTables(rates) {
 
     renderSelfDriveLocationRates('selfDriveDeliveryRatesTable', 'selfDriveDelivery');
     renderSelfDriveLocationRates('selfDriveReturnRatesTable', 'selfDriveReturn');
+}
+
+function renderAirportMoveActions(rowId) {
+    return `
+    <button type="button" class="btn-secondary rates-move-button" onclick="moveAirportRoute('${rowId}', 'up')" title="Move up" aria-label="Move route up">↑</button>
+    <button type="button" class="btn-secondary rates-move-button" onclick="moveAirportRoute('${rowId}', 'down')" title="Move down" aria-label="Move route down">↓</button>`;
+}
+
+function moveAirportRoute(routeId, direction) {
+    if (!_currentRates || !Array.isArray(_currentRates.airportTransfers)) return;
+
+    collectRatesFromInputs();
+    const rows = _currentRates.airportTransfers;
+    const activeProvinceFilter = getAirportProvinceFilterValue();
+    const visibleRows = activeProvinceFilter
+        ? rows.filter(row => normalizeTitleCase(row.province) === activeProvinceFilter)
+        : rows;
+
+    const visibleIndex = visibleRows.findIndex(row => row.id === routeId);
+    if (visibleIndex === -1) return;
+
+    let targetVisibleIndex = visibleIndex;
+    if (direction === 'up') targetVisibleIndex = Math.max(0, visibleIndex - 1);
+    if (direction === 'down') targetVisibleIndex = Math.min(visibleRows.length - 1, visibleIndex + 1);
+    if (targetVisibleIndex === visibleIndex) return;
+
+    const currentIndex = rows.findIndex(row => row.id === visibleRows[visibleIndex].id);
+    const targetIndex = rows.findIndex(row => row.id === visibleRows[targetVisibleIndex].id);
+    if (currentIndex === -1 || targetIndex === -1) return;
+
+    [rows[currentIndex], rows[targetIndex]] = [rows[targetIndex], rows[currentIndex]];
+    renderRatesTables(_currentRates);
+    showRatesStatus('Route order changed. Click Save All Rates to apply live.', 'success');
 }
 
 function renderSelfDriveMoveActions(groupKey, rowId) {
