@@ -3049,6 +3049,8 @@ function collectRatesFromInputs() {
 
     // Airport transfers
     _currentRates.airportTransfers.forEach(row => {
+        const destinationEl = document.getElementById(`at-${row.id}-destination`);
+        if (destinationEl) row.destination = destinationEl.value.trim();
         ['sedan', 'mpv', 'ev'].forEach(key => {
             const el = document.getElementById(`at-${row.id}-${key}`);
             if (el) row[key] = parseInt(el.value, 10) || 0;
@@ -3179,7 +3181,7 @@ function renderRatesTables(rates) {
                     ${airportRows.map(r => `
                         <tr>
                             <td><span class="rates-badge">${r.province}</span></td>
-                            <td><strong>${r.destination}</strong></td>
+                            <td><input type="text" id="at-${r.id}-destination" value="${r.destination}" class="rates-input rates-location-input"></td>
                             <td><input type="number" id="at-${r.id}-sedan" value="${r.sedan}" min="0" class="rates-input"></td>
                             <td><input type="number" id="at-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input"></td>
                             <td><input type="number" id="at-${r.id}-ev" value="${r.ev}" min="0" class="rates-input"></td>
