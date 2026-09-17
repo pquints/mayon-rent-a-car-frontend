@@ -209,7 +209,7 @@
             </div> 
 
             <div id="userManagementView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 0px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 25px;">
                     <h2 id="userManagementTitle" style="margin: 0; color: #0F172A;">User Management</h2>
                     <button type="button" onclick="openAddUserModal()" class="btn-primary"><i class="fa-solid fa-plus"></i> Add New User</button>
                 </div>
@@ -232,7 +232,7 @@
 
             <!-- ACCOUNT SETTINGS VIEW (Full Page, not modal) -->
             <div id="accountSettingsView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 0px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:20px;">
                     <h2 style="margin:0; color:#0F172A;">Account Settings</h2>
                     <div>
                         <button id="accCancelBtn" class="btn-secondary" style="margin-right:10px;">Cancel</button>
@@ -279,7 +279,7 @@
             </div>
 
             <div id="vehicleManagementView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 0px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 25px;">
                     <h2 style="margin: 0; color: #0F172A;">Vehicle Management</h2>
                     <button type="button" onclick="openAddVehicleModal()" class="btn-primary"><i class="fa-solid fa-plus"></i> Add New Vehicle</button>
                 </div>
@@ -444,7 +444,7 @@
             <!-- VEHICLE EDIT FULL PAGE VIEW -->
             <div id="vehicleEditView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
                 <form id="vehicleForm" onsubmit="handleSaveVehicle(event)">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:20px;">
                         <h2 id="vehicleModalTitle" style="margin:0; color:#0F172A;">Vehicle</h2>
                         <div>
                             <button id="vehicleCancelBtn" type="button" class="btn-secondary" style="margin-right:10px;" onclick="closeVehicleModal(); return false;">Cancel</button>
@@ -526,7 +526,7 @@
 
             <!-- RATES MANAGEMENT VIEW -->
             <div id="ratesManagementView" style="display: none; padding: 25px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:24px;">
                     <div>
                         <h2 style="margin:0; color:#0F172A; font-size:1.5rem;">Rates Management</h2>
                         <p style="margin:4px 0 0; color:#64748b; font-size:0.9rem;">Edit your service rates. These will be used as the basis for automatic quotations.</p>
