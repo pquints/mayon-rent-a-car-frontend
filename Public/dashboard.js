@@ -2513,12 +2513,16 @@ function renderUsersTable(users) {
 }
 
 let _selectedUserDocuments = [];
+let _existingUserDocuments = [];
 let _userPhotoPreviewUrl = null;
+let _removeExistingUserPhoto = false;
 
 function openAddUserModal() {
     document.getElementById('modalTitle').textContent = 'User Information';
     document.getElementById('userForm').reset();
     document.getElementById('userForm').dataset.userId = '';
+    const usernameInput = document.getElementById('uUsername');
+    if (usernameInput) usernameInput.readOnly = false;
     const passwordInput = document.getElementById('uPassword');
     const confirmInput = document.getElementById('uPasswordConfirm');
     if (passwordInput) passwordInput.required = true;
@@ -2527,6 +2531,7 @@ function openAddUserModal() {
     document.getElementById('userFormError').style.display = 'none';
     resetUserPhotoPreview();
     _selectedUserDocuments = [];
+    _existingUserDocuments = [];
     renderUserDocumentList();
     document.getElementById('userModal').style.display = 'flex';
 }
@@ -2535,6 +2540,7 @@ function closeUserModal() {
     document.getElementById('userModal').style.display = 'none';
     resetUserPhotoPreview();
     _selectedUserDocuments = [];
+    _existingUserDocuments = [];
     renderUserDocumentList();
 }
 
@@ -2543,10 +2549,13 @@ function resetUserPhotoPreview() {
         URL.revokeObjectURL(_userPhotoPreviewUrl);
         _userPhotoPreviewUrl = null;
     }
+    _removeExistingUserPhoto = false;
     const wrap = document.getElementById('uPhotoPreviewWrap');
     if (wrap) wrap.innerHTML = '<span id="uPhotoPreviewText">Add photo</span>';
     const photoInput = document.getElementById('uPhoto');
     if (photoInput) photoInput.value = '';
+    const removeBtn = document.getElementById('uRemovePhotoBtn');
+    if (removeBtn) removeBtn.style.display = 'none';
 }
 
 function handleUserPhotoSelected(input) {
@@ -2556,12 +2565,20 @@ function handleUserPhotoSelected(input) {
 
     if (_userPhotoPreviewUrl) URL.revokeObjectURL(_userPhotoPreviewUrl);
     _userPhotoPreviewUrl = URL.createObjectURL(file);
+    _removeExistingUserPhoto = false;
     wrap.innerHTML = `<img src="${_userPhotoPreviewUrl}" alt="Profile photo preview">`;
+    const removeBtn = document.getElementById('uRemovePhotoBtn');
+    if (removeBtn) removeBtn.style.display = 'inline-block';
+}
+
+function removeUserPhoto() {
+    resetUserPhotoPreview();
+    _removeExistingUserPhoto = true;
 }
 
 function handleUserDocumentsSelected(input) {
     const newFiles = Array.from(input.files || []);
-    const remainingSlots = 10 - _selectedUserDocuments.length;
+    const remainingSlots = 10 - (_existingUserDocuments.length + _selectedUserDocuments.length);
     _selectedUserDocuments.push(...newFiles.slice(0, Math.max(0, remainingSlots)));
     input.value = '';
     renderUserDocumentList();
@@ -2572,22 +2589,108 @@ function removeSelectedUserDocument(index) {
     renderUserDocumentList();
 }
 
+async function removeExistingUserDocument(filename) {
+    const userId = document.getElementById('userForm').dataset.userId;
+    if (!userId || !ensureAuth()) return;
+    if (!confirm('Remove this document?')) return;
+
+    try {
+        const { response, data } = await requestJson(`/users/${userId}/documents/${encodeURIComponent(filename)}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        if (!response.ok) throw new Error(data.error || 'Failed to remove document');
+        _existingUserDocuments = _existingUserDocuments.filter(doc => doc.filename !== filename);
+        renderUserDocumentList();
+    } catch (error) {
+        console.error('Error removing document:', error);
+        showNotificationToast('Failed to remove document', 'error');
+    }
+}
+
 function renderUserDocumentList() {
     const list = document.getElementById('uDocumentList');
+    const totalCount = _existingUserDocuments.length + _selectedUserDocuments.length;
     const count = document.getElementById('uDocCount');
-    if (count) count.textContent = `${_selectedUserDocuments.length}/10`;
+    if (count) count.textContent = `${totalCount}/10`;
     if (!list) return;
 
-    list.innerHTML = _selectedUserDocuments.map((file, index) => `
+    const existingItems = _existingUserDocuments.map(doc => `
+        <li>
+            <span>${doc.originalName || doc.filename}</span>
+            <button type="button" onclick="removeExistingUserDocument('${doc.filename}')" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+        </li>`).join('');
+
+    const newItems = _selectedUserDocuments.map((file, index) => `
         <li>
             <span>${file.name}</span>
             <button type="button" onclick="removeSelectedUserDocument(${index})" title="Remove"><i class="fa-solid fa-xmark"></i></button>
         </li>`).join('');
+
+    list.innerHTML = existingItems + newItems;
 }
 
-function editUser(userId) {
-    // Load user data and populate modal for editing
-    alert('Edit functionality coming soon');
+async function editUser(userId) {
+    if (!ensureAuth()) return;
+
+    try {
+        const { response, data } = await requestJson(`/users/${userId}`, {
+            headers: getAuthHeaders()
+        });
+        if (!response.ok) throw new Error(data.error || 'Failed to load user');
+
+        const user = data.user;
+        document.getElementById('modalTitle').textContent = 'User Information';
+        document.getElementById('userForm').reset();
+        document.getElementById('userForm').dataset.userId = user.id;
+
+        const usernameInput = document.getElementById('uUsername');
+        usernameInput.value = user.username;
+        usernameInput.readOnly = true;
+
+        document.getElementById('uEmail').value = user.email || '';
+
+        const nameParts = (user.fullname || '').split(' ');
+        document.getElementById('uFirstName').value = nameParts.shift() || '';
+        document.getElementById('uLastName').value = nameParts.join(' ');
+
+        document.getElementById('uMobile').value = (user.mobile || '').replace(/^\+63/, '');
+        document.getElementById('uRole').value = user.role;
+        document.getElementById('uActive').checked = user.active !== false;
+
+        const passwordInput = document.getElementById('uPassword');
+        const confirmInput = document.getElementById('uPasswordConfirm');
+        if (passwordInput) passwordInput.required = false;
+        if (confirmInput) confirmInput.required = false;
+
+        document.getElementById('userFormError').style.display = 'none';
+        resetUserPhotoPreview();
+        _existingUserDocuments = Array.isArray(user.documents) ? user.documents : [];
+        _selectedUserDocuments = [];
+        renderUserDocumentList();
+
+        if (user.photo) {
+            try {
+                const token = localStorage.getItem('authToken') || authToken || '';
+                const photoResponse = await fetch(`${API_URL}/users/${user.id}/files/photo/${user.photo}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (photoResponse.ok) {
+                    const blob = await photoResponse.blob();
+                    _userPhotoPreviewUrl = URL.createObjectURL(blob);
+                    document.getElementById('uPhotoPreviewWrap').innerHTML = `<img src="${_userPhotoPreviewUrl}" alt="Profile photo">`;
+                    document.getElementById('uRemovePhotoBtn').style.display = 'inline-block';
+                }
+            } catch (photoError) {
+                console.error('Error loading user photo:', photoError);
+            }
+        }
+
+        document.getElementById('userModal').style.display = 'flex';
+    } catch (error) {
+        console.error('Error loading user:', error);
+        showNotificationToast('Failed to load user details', 'error');
+    }
 }
 
 async function deleteUser(userId, username) {
@@ -2661,6 +2764,7 @@ async function handleSaveUser(e) {
         formData.append('role', role);
         formData.append('active', String(active));
         if (password) formData.append('password', password);
+        if (userId && _removeExistingUserPhoto) formData.append('removePhoto', 'true');
 
         const photoFile = document.getElementById('uPhoto').files[0];
         if (photoFile) formData.append('photo', photoFile);

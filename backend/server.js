@@ -596,6 +596,34 @@ app.get('/api/users', verifyToken, verifyAdmin, (req, res) => {
     }
 });
 
+// GET A SINGLE USER (Admin only) — used to populate the edit modal
+app.get('/api/users/:id', verifyToken, verifyAdmin, (req, res) => {
+    try {
+        const users = getUsers();
+        const user = users.find(u => u.id === req.params.id);
+        if (!user) return res.status(404).json({ success: false, error: "User not found" });
+
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                username: user.username,
+                fullname: user.fullname,
+                email: user.email,
+                mobile: user.mobile || '',
+                role: user.role,
+                active: user.active !== false,
+                photo: user.photo || null,
+                documents: Array.isArray(user.documents) ? user.documents : [],
+                created_at: user.created_at,
+                last_login: user.last_login
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: "Internal Server Error" });
+    }
+});
+
 // CREATE NEW USER (Admin only)
 app.post('/api/users', verifyToken, verifyAdmin, handleUserUploads, async (req, res) => {
     try {
@@ -674,7 +702,18 @@ app.put('/api/users/:id', verifyToken, verifyAdmin, handleUserUploads, async (re
         if (typeof req.body.active !== 'undefined') users[userIndex].active = req.body.active !== 'false';
 
         const photoFile = req.files?.photo?.[0];
-        if (photoFile) users[userIndex].photo = path.basename(photoFile.path);
+        if (photoFile) {
+            const oldPhoto = users[userIndex].photo;
+            if (oldPhoto) {
+                const oldPhotoPath = path.join(USER_PHOTOS_DIR, path.basename(oldPhoto));
+                if (fs.existsSync(oldPhotoPath)) fs.unlinkSync(oldPhotoPath);
+            }
+            users[userIndex].photo = path.basename(photoFile.path);
+        } else if (req.body.removePhoto === 'true' && users[userIndex].photo) {
+            const oldPhotoPath = path.join(USER_PHOTOS_DIR, path.basename(users[userIndex].photo));
+            if (fs.existsSync(oldPhotoPath)) fs.unlinkSync(oldPhotoPath);
+            users[userIndex].photo = null;
+        }
 
         const documentFiles = req.files?.documents || [];
         if (documentFiles.length) {
@@ -721,6 +760,31 @@ app.get('/api/users/:id/files/:type/:filename', verifyToken, verifyAdmin, (req, 
 
     if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, error: "File not found" });
     res.sendFile(filePath);
+});
+
+// DELETE A SUPPORTING DOCUMENT FROM A USER (Admin only)
+app.delete('/api/users/:id/documents/:filename', verifyToken, verifyAdmin, (req, res) => {
+    try {
+        const { id, filename } = req.params;
+        const users = getUsers();
+        const userIndex = users.findIndex(u => u.id === id);
+        if (userIndex === -1) return res.status(404).json({ success: false, error: "User not found" });
+
+        const docs = Array.isArray(users[userIndex].documents) ? users[userIndex].documents : [];
+        const docIndex = docs.findIndex(d => d.filename === filename);
+        if (docIndex === -1) return res.status(404).json({ success: false, error: "Document not found" });
+
+        const filePath = path.join(USER_DOCUMENTS_DIR, path.basename(filename));
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        docs.splice(docIndex, 1);
+        users[userIndex].documents = docs;
+        saveUsers(users);
+
+        res.json({ success: true, message: "Document removed successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: "Internal Server Error" });
+    }
 });
 
 // DELETE USER (Admin only)
