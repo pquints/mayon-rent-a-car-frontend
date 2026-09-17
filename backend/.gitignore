@@ -3,6 +3,9 @@ node_modules/
 .env.*
 !.env.example
 
+# Uploaded user files — runtime data, never commit
+uploads/
+
 # Runtime data — never overwrite production
 bookings.json
 quotes.json

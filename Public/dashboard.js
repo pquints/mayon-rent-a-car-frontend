@@ -348,6 +348,16 @@ function getAuthHeaders() {
     return headers;
 }
 
+// For multipart/form-data requests — let the browser set its own Content-Type (with boundary).
+function getAuthHeadersForUpload() {
+    const token = localStorage.getItem('authToken') || authToken || '';
+    const headers = {};
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+}
+
 function ensureAuth() {
     const token = localStorage.getItem('authToken') || authToken || '';
     if (!token) {
@@ -2502,18 +2512,77 @@ function renderUsersTable(users) {
     `).join('');
 }
 
+let _selectedUserDocuments = [];
+let _userPhotoPreviewUrl = null;
+
 function openAddUserModal() {
-    document.getElementById('modalTitle').textContent = 'Add New User';
+    document.getElementById('modalTitle').textContent = 'User Information';
     document.getElementById('userForm').reset();
     document.getElementById('userForm').dataset.userId = '';
     const passwordInput = document.getElementById('uPassword');
+    const confirmInput = document.getElementById('uPasswordConfirm');
     if (passwordInput) passwordInput.required = true;
+    if (confirmInput) confirmInput.required = true;
+    document.getElementById('uActive').checked = true;
     document.getElementById('userFormError').style.display = 'none';
+    resetUserPhotoPreview();
+    _selectedUserDocuments = [];
+    renderUserDocumentList();
     document.getElementById('userModal').style.display = 'flex';
 }
 
 function closeUserModal() {
     document.getElementById('userModal').style.display = 'none';
+    resetUserPhotoPreview();
+    _selectedUserDocuments = [];
+    renderUserDocumentList();
+}
+
+function resetUserPhotoPreview() {
+    if (_userPhotoPreviewUrl) {
+        URL.revokeObjectURL(_userPhotoPreviewUrl);
+        _userPhotoPreviewUrl = null;
+    }
+    const wrap = document.getElementById('uPhotoPreviewWrap');
+    if (wrap) wrap.innerHTML = '<span id="uPhotoPreviewText">Add photo</span>';
+    const photoInput = document.getElementById('uPhoto');
+    if (photoInput) photoInput.value = '';
+}
+
+function handleUserPhotoSelected(input) {
+    const file = input.files && input.files[0];
+    const wrap = document.getElementById('uPhotoPreviewWrap');
+    if (!file || !wrap) return;
+
+    if (_userPhotoPreviewUrl) URL.revokeObjectURL(_userPhotoPreviewUrl);
+    _userPhotoPreviewUrl = URL.createObjectURL(file);
+    wrap.innerHTML = `<img src="${_userPhotoPreviewUrl}" alt="Profile photo preview">`;
+}
+
+function handleUserDocumentsSelected(input) {
+    const newFiles = Array.from(input.files || []);
+    const remainingSlots = 10 - _selectedUserDocuments.length;
+    _selectedUserDocuments.push(...newFiles.slice(0, Math.max(0, remainingSlots)));
+    input.value = '';
+    renderUserDocumentList();
+}
+
+function removeSelectedUserDocument(index) {
+    _selectedUserDocuments.splice(index, 1);
+    renderUserDocumentList();
+}
+
+function renderUserDocumentList() {
+    const list = document.getElementById('uDocumentList');
+    const count = document.getElementById('uDocCount');
+    if (count) count.textContent = `${_selectedUserDocuments.length}/10`;
+    if (!list) return;
+
+    list.innerHTML = _selectedUserDocuments.map((file, index) => `
+        <li>
+            <span>${file.name}</span>
+            <button type="button" onclick="removeSelectedUserDocument(${index})" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+        </li>`).join('');
 }
 
 function editUser(userId) {
@@ -2552,27 +2621,55 @@ document.addEventListener('DOMContentLoaded', function() {
 async function handleSaveUser(e) {
     e.preventDefault();
     if (!ensureAuth()) return;
-    
-    const username = document.getElementById('uUsername').value;
-    const fullname = document.getElementById('uFullname').value;
-    const email = document.getElementById('uEmail').value;
+
+    const username = document.getElementById('uUsername').value.trim();
+    const firstName = document.getElementById('uFirstName').value.trim();
+    const lastName = document.getElementById('uLastName').value.trim();
+    const email = document.getElementById('uEmail').value.trim();
+    const mobile = document.getElementById('uMobile').value.trim();
     const password = document.getElementById('uPassword').value;
+    const passwordConfirm = document.getElementById('uPasswordConfirm').value;
     const role = document.getElementById('uRole').value;
+    const active = document.getElementById('uActive').checked;
     const errorDiv = document.getElementById('userFormError');
     const userId = document.getElementById('userForm').dataset.userId;
-    
+
+    errorDiv.style.display = 'none';
+
+    if (!userId && !password) {
+        errorDiv.textContent = 'Password is required for new users.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    if (password && password !== passwordConfirm) {
+        errorDiv.textContent = 'Passwords do not match.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    const fullname = lastName ? `${firstName} ${lastName}` : firstName;
+
     try {
         const method = userId ? 'PUT' : 'POST';
         const path = userId ? `/users/${userId}` : '/users';
-        
-        const body = userId 
-            ? { fullname, email, role, ...(password && { password }) }
-            : { username, fullname, email, password, role };
-        
+
+        const formData = new FormData();
+        if (!userId) formData.append('username', username);
+        formData.append('fullname', fullname);
+        formData.append('email', email);
+        formData.append('mobile', mobile ? `+63${mobile}` : '');
+        formData.append('role', role);
+        formData.append('active', String(active));
+        if (password) formData.append('password', password);
+
+        const photoFile = document.getElementById('uPhoto').files[0];
+        if (photoFile) formData.append('photo', photoFile);
+        _selectedUserDocuments.forEach(file => formData.append('documents', file));
+
         const { response, data } = await requestJson(path, {
             method,
-            headers: getAuthHeaders(),
-            body: JSON.stringify(body)
+            headers: getAuthHeadersForUpload(),
+            body: formData
         });
         
         if (!response.ok) {
@@ -2581,7 +2678,7 @@ async function handleSaveUser(e) {
             return;
         }
         
-        alert(userId ? 'User updated successfully' : 'User created successfully');
+        showNotificationToast(userId ? 'User updated successfully' : 'User created successfully', 'success');
         closeUserModal();
         loadUsers();
     } catch (error) {

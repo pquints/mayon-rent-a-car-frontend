@@ -3,8 +3,10 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
 const { Resend } = require('resend');
@@ -114,6 +116,51 @@ const VEHICLES_FILE_PATH = path.join(__dirname, 'vehicles.json');
 const QUOTES_FILE_PATH = path.join(__dirname, 'quotes.json');
 const RATES_FILE_PATH = path.join(__dirname, 'rates.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+// ========================================================
+// USER FILE UPLOADS (profile photo + supporting documents)
+// ========================================================
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const USER_PHOTOS_DIR = path.join(UPLOADS_DIR, 'user-photos');
+const USER_DOCUMENTS_DIR = path.join(UPLOADS_DIR, 'user-documents');
+[UPLOADS_DIR, USER_PHOTOS_DIR, USER_DOCUMENTS_DIR].forEach((dir) => {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+});
+
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED_DOCUMENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const ALLOWED_UPLOAD_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+
+// Store with random names on disk — never trust/replay the client-supplied filename.
+const userUploadStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, file.fieldname === 'photo' ? USER_PHOTOS_DIR : USER_DOCUMENTS_DIR);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        cb(null, `${crypto.randomUUID()}${ALLOWED_UPLOAD_EXTENSIONS.includes(ext) ? ext : ''}`);
+    }
+});
+
+const userUpload = multer({
+    storage: userUploadStorage,
+    limits: { fileSize: 5 * 1024 * 1024, files: 11 },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = file.fieldname === 'photo' ? ALLOWED_PHOTO_TYPES : ALLOWED_DOCUMENT_TYPES;
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (!allowedTypes.includes(file.mimetype) || !ALLOWED_UPLOAD_EXTENSIONS.includes(ext)) {
+            return cb(new Error('Unsupported file type. Allowed: JPG, PNG, WEBP, PDF.'));
+        }
+        cb(null, true);
+    }
+});
+
+const handleUserUploads = (req, res, next) => {
+    userUpload.fields([{ name: 'photo', maxCount: 1 }, { name: 'documents', maxCount: 10 }])(req, res, (err) => {
+        if (err) return res.status(400).json({ success: false, error: err.message || 'File upload failed' });
+        next();
+    });
+};
 
 // ========================================================
 // EMAIL CONFIGURATION (NODEMAILER + GMAIL)
@@ -494,6 +541,10 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
             return res.status(401).json({ success: false, error: "Invalid username or password" });
         }
 
+        if (user.active === false) {
+            return res.status(403).json({ success: false, error: "This account has been disabled." });
+        }
+
         const passwordMatch = await verifyPassword(password, user.password, user, users);
         if (!passwordMatch) {
             return res.status(401).json({ success: false, error: "Invalid username or password" });
@@ -531,7 +582,11 @@ app.get('/api/users', verifyToken, verifyAdmin, (req, res) => {
             username: u.username,
             fullname: u.fullname,
             email: u.email,
+            mobile: u.mobile || '',
             role: u.role,
+            active: u.active !== false,
+            hasPhoto: !!u.photo,
+            documentCount: Array.isArray(u.documents) ? u.documents.length : 0,
             created_at: u.created_at,
             last_login: u.last_login
         }));
@@ -542,9 +597,10 @@ app.get('/api/users', verifyToken, verifyAdmin, (req, res) => {
 });
 
 // CREATE NEW USER (Admin only)
-app.post('/api/users', verifyToken, verifyAdmin, async (req, res) => {
+app.post('/api/users', verifyToken, verifyAdmin, handleUserUploads, async (req, res) => {
     try {
-        const { username, password, email, fullname, role } = req.body;
+        const { username, password, email, fullname, role, mobile } = req.body;
+        const active = req.body.active !== 'false';
 
         if (!username || !password || !email || !fullname || !role) {
             return res.status(400).json({ success: false, error: "All fields are required" });
@@ -564,6 +620,9 @@ app.post('/api/users', verifyToken, verifyAdmin, async (req, res) => {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        const photoFile = req.files?.photo?.[0];
+        const documentFiles = req.files?.documents || [];
+
         // Create new user
         const newUser = {
             id: `USR-${Date.now()}`,
@@ -571,7 +630,11 @@ app.post('/api/users', verifyToken, verifyAdmin, async (req, res) => {
             password: hashedPassword,
             email,
             fullname,
+            mobile: mobile || '',
             role,
+            active,
+            photo: photoFile ? path.basename(photoFile.path) : null,
+            documents: documentFiles.map(f => ({ filename: path.basename(f.path), originalName: f.originalname })),
             created_at: new Date().toISOString(),
             last_login: null
         };
@@ -591,7 +654,7 @@ app.post('/api/users', verifyToken, verifyAdmin, async (req, res) => {
 });
 
 // UPDATE USER (Admin only)
-app.put('/api/users/:id', verifyToken, verifyAdmin, async (req, res) => {
+app.put('/api/users/:id', verifyToken, verifyAdmin, handleUserUploads, async (req, res) => {
     try {
         const { id } = req.params;
         const { fullname, email, role, password, mobile } = req.body;
@@ -608,6 +671,19 @@ app.put('/api/users/:id', verifyToken, verifyAdmin, async (req, res) => {
         if (typeof mobile !== 'undefined') users[userIndex].mobile = mobile;
         if (role && ['admin', 'driver'].includes(role)) users[userIndex].role = role;
         if (password) users[userIndex].password = await bcrypt.hash(password, 10);
+        if (typeof req.body.active !== 'undefined') users[userIndex].active = req.body.active !== 'false';
+
+        const photoFile = req.files?.photo?.[0];
+        if (photoFile) users[userIndex].photo = path.basename(photoFile.path);
+
+        const documentFiles = req.files?.documents || [];
+        if (documentFiles.length) {
+            const existingDocs = Array.isArray(users[userIndex].documents) ? users[userIndex].documents : [];
+            users[userIndex].documents = [
+                ...existingDocs,
+                ...documentFiles.map(f => ({ filename: path.basename(f.path), originalName: f.originalname }))
+            ];
+        }
 
         saveUsers(users);
 
@@ -620,6 +696,31 @@ app.put('/api/users/:id', verifyToken, verifyAdmin, async (req, res) => {
         console.error(error);
         res.status(500).json({ success: false, error: "Internal Server Error" });
     }
+});
+
+// DOWNLOAD A USER'S PHOTO OR SUPPORTING DOCUMENT (Admin only) — served through auth, never exposed as static files
+app.get('/api/users/:id/files/:type/:filename', verifyToken, verifyAdmin, (req, res) => {
+    const { id, type, filename } = req.params;
+    if (!['photo', 'documents'].includes(type)) {
+        return res.status(400).json({ success: false, error: "Invalid file type" });
+    }
+
+    const users = getUsers();
+    const user = users.find(u => u.id === id);
+    if (!user) return res.status(404).json({ success: false, error: "User not found" });
+
+    const isOwnedFile = type === 'photo'
+        ? user.photo === filename
+        : Array.isArray(user.documents) && user.documents.some(doc => doc.filename === filename);
+    if (!isOwnedFile) return res.status(404).json({ success: false, error: "File not found" });
+
+    // filename is validated against the user's own stored records above, and basename strips any path segments.
+    const safeFilename = path.basename(filename);
+    const dir = type === 'photo' ? USER_PHOTOS_DIR : USER_DOCUMENTS_DIR;
+    const filePath = path.join(dir, safeFilename);
+
+    if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, error: "File not found" });
+    res.sendFile(filePath);
 });
 
 // DELETE USER (Admin only)
