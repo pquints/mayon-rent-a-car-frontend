@@ -100,10 +100,15 @@
                     <a href="#" class="nav-submenu-item" data-tab="inboundOutbound" onclick="openRatesTab('inboundOutbound'); return false;">Inbound/Outbound</a>
                 </div>
                 
-                <a href="#" class="nav-item" onclick="showView('userManagement'); loadUsers(); return false;">
+                <a href="#" class="nav-item nav-item--dropdown" onclick="toggleTeamSubmenu(event); return false;" aria-expanded="false">
                     <i class="fa-solid fa-users"></i>
                     <span class="nav-text">Team</span>
+                    <i class="fa-solid fa-chevron-down nav-item-chevron"></i>
                 </a>
+                <div id="teamSubmenu" class="nav-submenu hidden" aria-label="Team categories submenu">
+                    <a href="#" class="nav-submenu-item" data-role="admin" onclick="openTeamTab('admin'); return false;">Admin</a>
+                    <a href="#" class="nav-submenu-item" data-role="driver" onclick="openTeamTab('driver'); return false;">Driver</a>
+                </div>
                 
                 <a href="#" class="nav-item">
                     <i class="fa-solid fa-sliders"></i>
@@ -205,7 +210,7 @@
 
             <div id="userManagementView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 0px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                    <h2 style="margin: 0; color: #0F172A;">User Management</h2>
+                    <h2 id="userManagementTitle" style="margin: 0; color: #0F172A;">User Management</h2>
                     <button type="button" onclick="openAddUserModal()" class="btn-primary"><i class="fa-solid fa-plus"></i> Add New User</button>
                 </div>
                 
