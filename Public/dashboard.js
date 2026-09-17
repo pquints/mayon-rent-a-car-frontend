@@ -83,6 +83,8 @@ function restoreAdminView() {
     }
 
     if (savedView === 'userManagement') {
+        const savedTeamRole = localStorage.getItem('adminActiveTeamRole');
+        _activeTeamRole = savedTeamRole === 'admin' || savedTeamRole === 'driver' ? savedTeamRole : null;
         showView('userManagement');
         loadUsers();
     } else if (savedView === 'vehicleManagement') {
@@ -2473,6 +2475,7 @@ function toggleTeamSubmenu(event) {
 
 async function openTeamTab(role) {
     _activeTeamRole = role;
+    localStorage.setItem('adminActiveTeamRole', role);
     showView('userManagement');
     await loadUsers();
 
