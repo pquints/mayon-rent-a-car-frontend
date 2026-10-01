@@ -46,7 +46,7 @@ function showLoginView() {
 
     const togglePassword = document.getElementById('togglePassword');
     const passwordField = document.getElementById('loginPassword');
-    const usernameField = document.getElementById('loginUsername');
+    const emailField = document.getElementById('loginEmail');
     const errorDiv = document.getElementById('loginError');
     if (togglePassword && passwordField) {
         togglePassword.addEventListener('click', () => {
@@ -65,8 +65,8 @@ function showLoginView() {
     if (passwordField) {
         passwordField.addEventListener('input', clearLoginError);
     }
-    if (usernameField) {
-        usernameField.addEventListener('input', clearLoginError);
+    if (emailField) {
+        emailField.addEventListener('input', clearLoginError);
     }
 }
 
@@ -98,12 +98,12 @@ function restoreAdminView() {
 async function handleLogin(e) {
     e.preventDefault();
     
-    const username = document.getElementById('loginUsername').value.trim();
+    const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value.trim();
     const errorDiv = document.getElementById('loginError');
 
-    if (!username || !password) {
-        const message = 'Username and password required';
+    if (!email || !password) {
+        const message = 'Email and password required';
         errorDiv.textContent = message;
         errorDiv.style.display = 'block';
         return;
@@ -113,7 +113,7 @@ async function handleLogin(e) {
         const { response, data, parseError } = await requestWithFallback('/users/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ email, password })
         });
 
         if (parseError) {
@@ -365,7 +365,7 @@ function ensureAuth() {
     if (!token) {
         showNotificationToast('Missing authentication. Please login again.', 'error');
         showLoginView();
-        setTimeout(() => document.getElementById('loginUsername')?.focus(), 120);
+        setTimeout(() => document.getElementById('loginEmail')?.focus(), 120);
         return false;
     }
     try {
@@ -376,13 +376,13 @@ function ensureAuth() {
         if (payload.exp && payload.exp * 1000 < Date.now()) {
             showNotificationToast('Session expired. Please login again.', 'warning');
             showLoginView();
-            setTimeout(() => document.getElementById('loginUsername')?.focus(), 120);
+            setTimeout(() => document.getElementById('loginEmail')?.focus(), 120);
             return false;
         }
     } catch (e) {
         showNotificationToast('Invalid auth token. Please login again.', 'error');
         showLoginView();
-        setTimeout(() => document.getElementById('loginUsername')?.focus(), 120);
+        setTimeout(() => document.getElementById('loginEmail')?.focus(), 120);
         return false;
     }
     return true;
@@ -2498,7 +2498,6 @@ function renderUsersTable(users) {
     
     tbody.innerHTML = users.map(user => `
         <tr style="border-bottom: 1px solid #E2E8F0;">
-            <td style="padding: 12px; color: #0F172A;">${user.username}</td>
             <td style="padding: 12px; color: #0F172A;">${user.fullname}</td>
             <td style="padding: 12px; color: #0F172A;">${user.email}</td>
             <td style="padding: 12px;">
@@ -2509,7 +2508,7 @@ function renderUsersTable(users) {
             <td style="padding: 12px; color: #64748b; font-size: 0.85rem;">${user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}</td>
             <td style="padding: 12px; text-align: center;">
                 <button type="button" onclick="editUser('${user.id}')" title="Edit" style="background: none; border: none; color: #06B6D4; cursor: pointer; font-size: 1.1rem; margin: 0 5px;"><i class="fa-solid fa-pencil"></i></button>
-                <button type="button" onclick="deleteUser('${user.id}', '${user.username}')" title="Delete" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; margin: 0 5px;"><i class="fa-solid fa-trash"></i></button>
+                <button type="button" onclick="deleteUser('${user.id}', '${user.email}')" title="Delete" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; margin: 0 5px;"><i class="fa-solid fa-trash"></i></button>
             </td>
         </tr>
     `).join('');
@@ -2524,8 +2523,6 @@ function openAddUserModal() {
     document.getElementById('modalTitle').textContent = 'User Information';
     document.getElementById('userForm').reset();
     document.getElementById('userForm').dataset.userId = '';
-    const usernameInput = document.getElementById('uUsername');
-    if (usernameInput) usernameInput.readOnly = false;
     const passwordInput = document.getElementById('uPassword');
     const confirmInput = document.getElementById('uPasswordConfirm');
     if (passwordInput) passwordInput.required = true;
@@ -2647,10 +2644,6 @@ async function editUser(userId) {
         document.getElementById('userForm').reset();
         document.getElementById('userForm').dataset.userId = user.id;
 
-        const usernameInput = document.getElementById('uUsername');
-        usernameInput.value = user.username;
-        usernameInput.readOnly = true;
-
         document.getElementById('uEmail').value = user.email || '';
 
         const nameParts = (user.fullname || '').split(' ');
@@ -2696,8 +2689,8 @@ async function editUser(userId) {
     }
 }
 
-async function deleteUser(userId, username) {
-    if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
+async function deleteUser(userId, email) {
+    if (!confirm(`Are you sure you want to delete user "${email}"?`)) return;
     if (!ensureAuth()) return;
     
     try {
@@ -2728,7 +2721,6 @@ async function handleSaveUser(e) {
     e.preventDefault();
     if (!ensureAuth()) return;
 
-    const username = document.getElementById('uUsername').value.trim();
     const firstName = document.getElementById('uFirstName').value.trim();
     const lastName = document.getElementById('uLastName').value.trim();
     const email = document.getElementById('uEmail').value.trim();
@@ -2760,7 +2752,6 @@ async function handleSaveUser(e) {
         const path = userId ? `/users/${userId}` : '/users';
 
         const formData = new FormData();
-        if (!userId) formData.append('username', username);
         formData.append('fullname', fullname);
         formData.append('email', email);
         formData.append('mobile', mobile ? `+63${mobile}` : '');

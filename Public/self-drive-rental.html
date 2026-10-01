@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="Book a self-drive rental in Bicol with Mayon Rent a Car.">
+  <meta name="description" content="Book a self-drive rental in Bicol for city trips, family vacations, or business travel. Choose your vehicle and submit a rental request with Mayon Rent a Car.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://mayonrentacar.com.ph/self-drive-rental.html" />
   <title>Self-Drive Rental - Mayon Rent a Car</title>
@@ -113,14 +113,14 @@
     <section class="hero small-hero airport-hero">
       <div class="hero-inner">
         <h1>Self-Drive Rental</h1>
-        <p>Flexible self-drive options for city trips, family vacations, and business travel across Bicol.</p>
+        <p>Book a self-drive vehicle for city trips, family travel, and business use across Bicol.</p>
       </div>
     </section>
 
     <section id="self-drive-booking" class="booking-section">
       <div class="booking-container">
         <h2>Reserve Your Self-Drive Rental</h2>
-        <p class="booking-subtitle">Use the dedicated self-drive booking form below to request a vehicle for your Bicol trip.</p>
+        <p class="booking-subtitle">Select your area, vehicle, pickup and return points, and travel dates to request a rental.</p>
 
         <div class="self-drive-booking-layout">
           <div class="self-drive-form-column">
@@ -131,6 +131,10 @@
             </div>
 
             <form class="booking-form" id="selfDriveBookingForm">
+          <div class="form-honeypot" aria-hidden="true">
+            <label for="self-drive-website">Leave this field blank</label>
+            <input type="text" id="self-drive-website" name="website" tabindex="-1" autocomplete="off">
+          </div>
           <input type="hidden" name="rental_type" value="self-drive">
           <input type="hidden" name="driver_service" value="-">
 
@@ -279,7 +283,7 @@
         <div class="fleet-grid fleet-grid--preview">
           <div class="fleet-card" data-category="Sedan" data-rate-vehicle="Toyota Vios">
               <div class="fleet-img-container">
-                <img src="images/vios.png" alt="Toyota Vios" class="fleet-img">
+                <img src="images/vios.webp" alt="Toyota Vios economy sedan" class="fleet-img" loading="lazy" decoding="async">
               </div>
               <div class="fleet-details">
                 <h3>Toyota Vios</h3>
@@ -296,7 +300,7 @@
             </div>
             <div class="fleet-card" data-category="MPV" data-rate-vehicle="Toyota Innova">
               <div class="fleet-img-container">
-                <img src="images/innova.png" alt="Toyota Innova" class="fleet-img">
+                <img src="images/innova.webp" alt="Toyota Innova full-size MPV" class="fleet-img" loading="lazy" decoding="async">
               </div>
               <div class="fleet-details">
                 <h3>Toyota Innova</h3>
@@ -313,7 +317,7 @@
             </div>
             <div class="fleet-card" data-category="EV" data-rate-vehicle="VinFast Limo Green">
               <div class="fleet-img-container">
-                <img src="images/limogreen.png" alt="VinFast Limo Green" class="fleet-img">
+                <img src="images/limogreen.webp" alt="VinFast Limo Green electric MPV" class="fleet-img" loading="lazy" decoding="async">
               </div>
               <div class="fleet-details">
                 <h3>VinFast Limo Green</h3>
@@ -386,9 +390,9 @@
           <h4>Our Services</h4>
           <ul>
             <li><a href="airport-transfers.html">Airport Transfers</a></li>
-            <li><a href="#">Bicol Regional Transfers</a></li>
-            <li><a href="#">Corporate Rentals</a></li>
-            <li><a href="#">Self-Drive Options</a></li>
+            <li><a href="inbound-outbound-transfers.html">Bicol Regional Transfers</a></li>
+            <li><a href="with-driver-rental.html">With Driver Service</a></li>
+            <li><a href="self-drive-rental.html">Self-Drive Options</a></li>
           </ul>
         </div>
         <div class="footer__link-group">

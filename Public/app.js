@@ -1692,6 +1692,7 @@ document.addEventListener('DOMContentLoaded', () => {
             pickup_date: plannerDate.value,
             pickup_time: plannerTime.value,
             pickup_address: pickupAddress,
+            website: formValues.website || '',
             itinerary: `Flight Number: ${formValues.flight_number || '—'} | Drop-off: ${dropoffAddress}`
         };
 

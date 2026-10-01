@@ -20,8 +20,8 @@
                 <p>Admin Dashboard</p>
                 <form id="loginForm">
                     <div class="form-group">
-                        <label for="loginUsername">Username</label>
-                        <input type="text" id="loginUsername" required>
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" required>
                     </div>
                     <div class="form-group">
                         <label for="loginPassword">Password</label>
@@ -217,7 +217,6 @@
                 <table id="usersTable" style="width: 100%; border-collapse: collapse; margin-top: 15px;">
                     <thead>
                         <tr style="background: #f8fafc; border-bottom: 2px solid #E2E8F0;">
-                            <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Username</th>
                             <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Full Name</th>
                             <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Email</th>
                             <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Role</th>
@@ -731,23 +730,19 @@
 
                         <div class="user-modal-grid">
                             <div class="user-modal-field">
-                                <label>Username <span class="required-mark">*</span></label>
-                                <input type="text" id="uUsername" required>
-                            </div>
-                            <div class="user-modal-field">
-                                <label>Email</label>
-                                <input type="email" id="uEmail" required>
-                            </div>
-                        </div>
-
-                        <div class="user-modal-grid">
-                            <div class="user-modal-field">
                                 <label>First Name <span class="required-mark">*</span></label>
                                 <input type="text" id="uFirstName" required>
                             </div>
                             <div class="user-modal-field">
                                 <label>Last Name <span class="required-mark">*</span></label>
                                 <input type="text" id="uLastName">
+                            </div>
+                        </div>
+
+                        <div class="user-modal-grid" style="grid-template-columns: 1fr;">
+                            <div class="user-modal-field">
+                                <label>Email <span class="required-mark">*</span></label>
+                                <input type="email" id="uEmail" required>
                             </div>
                         </div>
 

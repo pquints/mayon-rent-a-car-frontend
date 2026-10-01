@@ -70,11 +70,23 @@
     --bg: #f8fafc;
     --text: #1a1a1a;
     --accent: #10b981;
+    --font-body: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --section-space: clamp(40px, 5vw, 64px);
+    --cta-height: 48px;
+    --cta-radius: 4px;
 }
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+.form-honeypot {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
 }
 
 html {
@@ -87,7 +99,7 @@ body {
     padding: 0;
     width: 100%;
     overflow-x: hidden; /* Para maiwasan ang unhelpful horizontal scrolling */
-    font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    font-family: var(--font-body);
     color: var(--text);
     background-color: #ffffff;
     -webkit-font-smoothing: antialiased;
@@ -107,7 +119,7 @@ body {
 }
 
 section {
-    padding: 60px 0;
+    padding: var(--section-space) 0;
 }
 
 .hero.small-hero {
@@ -138,7 +150,7 @@ section {
     display: flex;
     justify-content: center;
     align-items: center;
-    font-family: 'Arial', sans-serif;
+    font-family: inherit;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     position: sticky;
     top: 0;
@@ -584,7 +596,7 @@ section {
 /* --- HERO SECTION STYLES --- */
 .main {
     /* Background Image na may Dark Overlay para lutang ang puting text */
-    background-image: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), url('images/Mayon.jpg'); 
+    background-image: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), url('images/Mayon.webp');
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;
@@ -601,7 +613,7 @@ section {
     justify-content: center;  
     text-align: center;       
     width: 100%;
-    max-width: 850px;         
+    max-width: 1100px;
     padding: 0 20px;
     box-sizing: border-box;
 }
@@ -613,6 +625,7 @@ section {
     font-weight: 800;
     margin-bottom: 18px;
     line-height: 1.08;
+    max-width: 1050px;
 }
 
 .main__container p {
@@ -620,6 +633,7 @@ section {
     font-size: 18px;
     line-height: 1.6;
     margin-bottom: 35px;
+    max-width: 850px;
 }
 
 /* --- HERO BUTTONS STYLES --- */
@@ -638,7 +652,7 @@ section {
     font-size: 15px;
     font-weight: 700;
     text-decoration: none;
-    border-radius: 50px;
+    border-radius: 4px;
     transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
     box-shadow: 0 10px 25px rgba(23,140,164,0.1);
 }
@@ -687,8 +701,8 @@ section {
 /* --- BOOKING SECTION BASE --- */
 .booking-section {
     background-color: #f8fafc;
-    padding: 80px 20px;
-    font-family: 'Arial', sans-serif;
+    padding: var(--section-space) 20px;
+    font-family: inherit;
     display: flex;
     justify-content: center;   
     align-items: center;
@@ -1146,8 +1160,8 @@ section {
 /* --- FLEET SECTION STYLES --- */
 .fleet-section {
     background-color: #ffffff;
-    padding: 80px 20px;
-    font-family: 'Arial', sans-serif;
+    padding: var(--section-space) 20px;
+    font-family: inherit;
     width: 100%;
 }
 
@@ -1336,11 +1350,6 @@ section {
     background-color: #178ca4; 
     color: #ffffff;
     text-decoration: none;
-    padding: 12px;
-    border-radius: 6px;
-    font-weight: 700;
-    font-size: 14px;
-    text-transform: uppercase;
     transition: background 0.3s;
 }
 
@@ -1381,8 +1390,8 @@ section {
 
 .why-mrac-section {
     background-color: #f8fafc;
-    padding: 80px 20px;
-    font-family: 'Arial', sans-serif;
+    padding: var(--section-space) 20px;
+    font-family: inherit;
     width: 100%;
 }
 
@@ -1474,8 +1483,8 @@ section {
 /* --- SUMMARY OF SERVICES STYLES --- */
 .services-summary-section {
     background-color: #ffffff;
-    padding: 80px 20px;
-    font-family: 'Arial', sans-serif;
+    padding: var(--section-space) 20px;
+    font-family: inherit;
     width: 100%;
 }
 
@@ -1528,8 +1537,8 @@ section {
 /* --- TESTIMONIALS STYLES --- */
 .testimonials-section {
     background: linear-gradient(135deg, #f8fbfc 0%, #f1f8fb 100%);
-    padding: 80px 20px;
-    font-family: 'Arial', sans-serif;
+    padding: var(--section-space) 20px;
+    font-family: inherit;
     width: 100%;
     border-top: 1px solid #e2e8f0;
 }
@@ -1634,8 +1643,8 @@ section {
 /* --- FAQ STYLES --- */
 .faq-section {
     background-color: #ffffff;
-    padding: 60px 20px;
-    font-family: 'Arial', sans-serif;
+    padding: var(--section-space) 20px;
+    font-family: inherit;
     width: 100%;
     border-top: 1px solid #e2e8f0;
 }
@@ -1732,8 +1741,8 @@ section {
 /* --- WHY CHOOSE US STYLES --- */
 .choose-us-section {
     background-color: #f8fafc;
-    padding: 80px 20px;
-    font-family: 'Arial', sans-serif;
+    padding: var(--section-space) 20px;
+    font-family: inherit;
     width: 100%;
     border-top: 1px solid #e2e8f0;
 }
@@ -1778,8 +1787,8 @@ section {
 /* --- GOOGLE MAPS STYLES --- */
 .maps-section {
     background-color: #ffffff;
-    padding: 80px 20px;
-    font-family: 'Arial', sans-serif;
+    padding: var(--section-space) 20px;
+    font-family: inherit;
     width: 100%;
     border-top: 1px solid #e2e8f0;
 }
@@ -1985,8 +1994,8 @@ section {
 /* --- PARTNER WITH US STYLES --- */
 .partner-section {
     background-color: #f8fafc;
-    padding: 80px 20px;
-    font-family: 'Arial', sans-serif;
+    padding: var(--section-space) 20px;
+    font-family: inherit;
     width: 100%;
     border-top: 1px solid #e2e8f0;
 }
@@ -2168,7 +2177,7 @@ section {
     background-color: #1a1a1a; 
     color: #94a3b8;
     padding: 60px 20px 20px 20px;
-    font-family: 'Arial', sans-serif;
+    font-family: inherit;
     width: 100%;
 }
 
@@ -2992,4 +3001,21 @@ section {
 }
 .dropdown__link.disabled .dropdown__desc {
     color: #94a3b8;
+}
+
+.button,
+.btn-primary,
+.btn-secondary,
+.fleet-book-btn,
+.submit-booking-btn,
+.partner-submit-btn {
+    min-height: var(--cta-height);
+    padding: 12px 20px;
+    border-radius: var(--cta-radius);
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-transform: none;
 }

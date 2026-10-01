@@ -236,7 +236,7 @@ const verifyPassword = async (plainPassword, storedPassword, user, users) => {
     if (isMatch && user && users) {
         user.password = await bcrypt.hash(plainPassword, 10);
         saveUsers(users);
-        if (DEBUG) console.log(`Migrated plaintext password to bcrypt for user ${user.username}`);
+        if (DEBUG) console.log(`Migrated plaintext password to bcrypt for user ${user.email}`);
     }
     return isMatch;
 };
@@ -528,17 +528,17 @@ app.delete('/api/bookings/:ref', (req, res) => {
 // LOGIN ENDPOINT
 app.post('/api/users/login', loginLimiter, async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { email, password } = req.body;
         
-        if (!username || !password) {
-            return res.status(400).json({ success: false, error: "Username and password required" });
+        if (!email || !password) {
+            return res.status(400).json({ success: false, error: "Email and password required" });
         }
 
         const users = getUsers();
-        const user = users.find(u => u.username === username);
+        const user = users.find(u => u.email && u.email.toLowerCase() === String(email).toLowerCase());
 
         if (!user) {
-            return res.status(401).json({ success: false, error: "Invalid username or password" });
+            return res.status(401).json({ success: false, error: "Invalid email or password" });
         }
 
         if (user.active === false) {
@@ -547,7 +547,7 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
 
         const passwordMatch = await verifyPassword(password, user.password, user, users);
         if (!passwordMatch) {
-            return res.status(401).json({ success: false, error: "Invalid username or password" });
+            return res.status(401).json({ success: false, error: "Invalid email or password" });
         }
 
         // Update last login
@@ -556,7 +556,7 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
 
         // Generate JWT token
         const token = jwt.sign(
-            { id: user.id, username: user.username, role: user.role, email: user.email },
+            { id: user.id, fullname: user.fullname, role: user.role, email: user.email },
             JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -564,7 +564,7 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
         res.json({ 
             success: true, 
             token, 
-            user: { id: user.id, username: user.username, fullname: user.fullname, email: user.email, role: user.role } 
+            user: { id: user.id, fullname: user.fullname, email: user.email, role: user.role }
         });
     } catch (error) {
         console.error(error);
@@ -579,7 +579,6 @@ app.get('/api/users', verifyToken, verifyAdmin, (req, res) => {
         // Don't send passwords
         const safeUsers = users.map(u => ({
             id: u.id,
-            username: u.username,
             fullname: u.fullname,
             email: u.email,
             mobile: u.mobile || '',
@@ -607,7 +606,6 @@ app.get('/api/users/:id', verifyToken, verifyAdmin, (req, res) => {
             success: true,
             user: {
                 id: user.id,
-                username: user.username,
                 fullname: user.fullname,
                 email: user.email,
                 mobile: user.mobile || '',
@@ -627,10 +625,10 @@ app.get('/api/users/:id', verifyToken, verifyAdmin, (req, res) => {
 // CREATE NEW USER (Admin only)
 app.post('/api/users', verifyToken, verifyAdmin, handleUserUploads, async (req, res) => {
     try {
-        const { username, password, email, fullname, role, mobile } = req.body;
+        const { password, email, fullname, role, mobile } = req.body;
         const active = req.body.active !== 'false';
 
-        if (!username || !password || !email || !fullname || !role) {
+        if (!password || !email || !fullname || !role) {
             return res.status(400).json({ success: false, error: "All fields are required" });
         }
 
@@ -640,9 +638,9 @@ app.post('/api/users', verifyToken, verifyAdmin, handleUserUploads, async (req, 
 
         const users = getUsers();
         
-        // Check if username already exists
-        if (users.find(u => u.username === username)) {
-            return res.status(400).json({ success: false, error: "Username already exists" });
+        // Check if email already exists
+        if (users.find(u => u.email && u.email.toLowerCase() === String(email).toLowerCase())) {
+            return res.status(400).json({ success: false, error: "Email already exists" });
         }
 
         // Hash password
@@ -654,7 +652,6 @@ app.post('/api/users', verifyToken, verifyAdmin, handleUserUploads, async (req, 
         // Create new user
         const newUser = {
             id: `USR-${Date.now()}`,
-            username,
             password: hashedPassword,
             email,
             fullname,
@@ -673,7 +670,7 @@ app.post('/api/users', verifyToken, verifyAdmin, handleUserUploads, async (req, 
         res.json({ 
             success: true, 
             message: "User created successfully",
-            user: { id: newUser.id, username: newUser.username, fullname: newUser.fullname, email: newUser.email, role: newUser.role }
+            user: { id: newUser.id, fullname: newUser.fullname, email: newUser.email, role: newUser.role }
         });
     } catch (error) {
         console.error(error);
@@ -729,7 +726,7 @@ app.put('/api/users/:id', verifyToken, verifyAdmin, handleUserUploads, async (re
         res.json({ 
             success: true, 
             message: "User updated successfully",
-            user: { id: users[userIndex].id, username: users[userIndex].username, fullname: users[userIndex].fullname, email: users[userIndex].email, role: users[userIndex].role }
+            user: { id: users[userIndex].id, fullname: users[userIndex].fullname, email: users[userIndex].email, role: users[userIndex].role }
         });
     } catch (error) {
         console.error(error);
@@ -993,7 +990,7 @@ app.post('/api/quotes', verifyToken, verifyAdmin, (req, res) => {
             rentalType: rentalType || 'unknown',
             quoteData: quoteData || {},
             savedAt: new Date().toISOString(),
-            savedBy: req.user.username
+            savedBy: req.user.fullname || req.user.email
         };
 
         if (existingIndex !== -1) {

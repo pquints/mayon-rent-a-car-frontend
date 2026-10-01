@@ -3,10 +3,10 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Mayon Rent a Car | Affordable & Reliable Car Rental in Legazpi and Bicol Region</title>
-        <meta name="description" content="Looking for an affordable and reliable car rental in Legazpi or anywhere in the Bicol region? Mayon Rent a Car offers top-notch self-drive and with-driver car rental services. Book your Bicol trip today!">
-        <meta property="og:title" content="Mayon Rent a Car | Affordable & Reliable Car Rental in Legazpi & Bicol Region" />
-        <meta property="og:description" content="Safe, well-maintained, and budget-friendly car rental services in Legazpi City and across the entire Bicol region." />
+        <title>Car Rental in Legazpi City &amp; Bicol | Mayon Rent a Car</title>
+        <meta name="description" content="Affordable car rental in Legazpi City and Bicol. Book self-drive or with-driver rentals, airport transfers, and clean vehicles. Request a quote today.">
+        <meta property="og:title" content="Car Rental in Legazpi City &amp; Bicol | Mayon Rent a Car" />
+        <meta property="og:description" content="Affordable car rental in Legazpi City and Bicol. Book self-drive or with-driver rentals, airport transfers, and clean vehicles. Request a quote today." />
         <meta property="og:image" content="https://mayonrentacar.com.ph/images/Mayon.png" />
         <meta property="og:image:type" content="image/png" />
         <meta property="og:image:width" content="512" />
@@ -19,10 +19,10 @@
         <script type="application/ld+json">
         {
           "@context": "https://schema.org",
-          "@type": "LocalBusiness",
+          "@type": "AutoRental",
           "name": "Mayon Rent a Car",
           "image": "https://mayonrentacar.com.ph/images/Mayon.png",
-          "description": "Affordable & Reliable Car Rental in Legazpi and Bicol Region",
+          "description": "Car rental and transfer services based in Legazpi City, serving Albay, Sorsogon, and Camarines Sur.",
           "address": {
             "@type": "PostalAddress",
             "streetAddress": "162 Purok 3, Brgy 17",
@@ -31,14 +31,28 @@
             "postalCode": "4500",
             "addressCountry": "PH"
           },
-          "telephone": "+63936993 8179",
+          "telephone": "+639369938179",
           "email": "mayonrentacar@gmail.com",
           "url": "https://mayonrentacar.com.ph",
           "priceRange": "₱",
-          "areaServed": {
-            "@type": "City",
-            "name": "Legazpi City"
-          },
+                    "areaServed": [
+                        {
+                            "@type": "City",
+                            "name": "Legazpi City"
+                        },
+                        {
+                            "@type": "AdministrativeArea",
+                            "name": "Albay"
+                        },
+                        {
+                            "@type": "AdministrativeArea",
+                            "name": "Sorsogon"
+                        },
+                        {
+                            "@type": "AdministrativeArea",
+                            "name": "Camarines Sur"
+                        }
+                    ],
           "sameAs": [
             "https://www.facebook.com/mayonrentacar/",
             "https://www.instagram.com/mayonrentacar/"
@@ -156,11 +170,11 @@
 
         <div class="main">
             <div class="main__container">
-                <h1>Affordable and Reliable Car Rental in Bicol</h1>
+                <h1>Affordable and Reliable Car Rental in Legazpi City and Bicol</h1>
                 <p>Reliable transportation solutions for airport transfers, business travel, hotel movements, and self-drive rentals. Clean, well-maintained vehicles and dependable service.</p>
                 <div class="main__buttons">
-                    <a href="#booking" class="btn-primary">Request a Quote</a>
-                    <a href="#our-fleet" class="btn-secondary">View Our Fleet</a>
+                    <a href="self-drive-rental.html" class="btn-primary">Book Self-Drive</a>
+                    <a href="with-driver-rental.html" class="btn-secondary">Book With Driver</a>
                 </div>
             </div>
         </div>
@@ -178,6 +192,10 @@
                 </div>
 
                 <form class="booking-form" id="bookingForm">
+                    <div class="form-honeypot" aria-hidden="true">
+                        <label for="booking-website">Leave this field blank</label>
+                        <input type="text" id="booking-website" name="website" tabindex="-1" autocomplete="off">
+                    </div>
                     <div class="form-step form-step--active">
                         <h3>Step 1: Select Booking Area</h3>
                         <div class="input-group full-width">
@@ -362,7 +380,7 @@
                 <div class="fleet-grid">
                     <div class="fleet-card" data-category="Sedan">
                         <div class="fleet-img-container">
-                            <img src="images/vios.png" alt="Toyota Vios" class="fleet-img">
+                            <img src="images/vios.webp" alt="Toyota Vios economy sedan" class="fleet-img" loading="lazy" decoding="async">
                         </div>
                         <div class="fleet-details">
                             <h3>Toyota Vios</h3>
@@ -379,7 +397,7 @@
 
                     <div class="fleet-card" data-category="MPV">
                         <div class="fleet-img-container">
-                            <img src="images/innova.png" alt="Toyota Innova" class="fleet-img">
+                            <img src="images/innova.webp" alt="Toyota Innova full-size MPV" class="fleet-img" loading="lazy" decoding="async">
                         </div>
                         <div class="fleet-details">
                             <h3>Toyota Innova</h3>
@@ -396,7 +414,7 @@
 
                     <div class="fleet-card" data-category="EV">
                         <div class="fleet-img-container">
-                            <img src="images/limogreen.png" alt="VinFast Limo Green" class="fleet-img">
+                            <img src="images/limogreen.webp" alt="VinFast Limo Green electric MPV" class="fleet-img" loading="lazy" decoding="async">
                         </div>
                         <div class="fleet-details">
                             <h3>VinFast Limo Green</h3>
@@ -648,9 +666,9 @@
           <h4>Our Services</h4>
           <ul>
             <li><a href="airport-transfers.html">Airport Transfers</a></li>
-            <li><a href="#">Bicol Regional Transfers</a></li>
-            <li><a href="#">Corporate Rentals</a></li>
-            <li><a href="#">Self-Drive Options</a></li>
+            <li><a href="inbound-outbound-transfers.html">Bicol Regional Transfers</a></li>
+            <li><a href="with-driver-rental.html">With Driver Service</a></li>
+            <li><a href="self-drive-rental.html">Self-Drive Options</a></li>
           </ul>
         </div>
         <div class="footer__link-group">
