@@ -128,7 +128,7 @@
     {
       "id": "sdd2",
       "location": "Bicol International Airport (DRP)",
-      "rate": 500
+      "rate": 0
     },
     {
       "id": "sdd3",
@@ -175,7 +175,7 @@
     {
       "id": "sdr2",
       "location": "Bicol International Airport (DRP)",
-      "rate": 500
+      "rate": 0
     },
     {
       "id": "sdr3",
