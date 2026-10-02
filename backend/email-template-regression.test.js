@@ -17,5 +17,6 @@ assert.ok(source.includes('qd.returnFlightNumber'), 'Email quotation should use 
 assert.ok(source.includes('Flight No.'), 'Airport locations should include flight details.');
 assert.ok(source.includes('${pickupDisplay}'), 'Email quotation should render formatted pickup details.');
 assert.ok(source.includes('${returnDisplay}'), 'Email quotation should render formatted return details.');
+assert.ok(source.includes('https://www.mayonrentacar.com.ph/images/Mayon-email.png'), 'Email template should use the official Mayon logo.');
 
 console.log('Quote email template regression checks passed.');

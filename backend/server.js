@@ -1181,17 +1181,8 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         if (DEBUG) console.log(`[EMAIL DEBUG] rentalType=${rentalType}, vehicleType=${vehicleType}, pickDate=${rawPickDate}, qd keys=${Object.keys(qd).join(',')}`);
 
         const brandBadge = `
-          <div style="padding:18px 18px 0;background:#f8fafc;">
-            <div style="max-width:560px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:16px;background:linear-gradient(135deg,#ecfeff,#f0fdf4);border:1px solid #bae6fd;border-radius:18px;padding:18px 20px;box-shadow:0 10px 24px rgba(14,165,233,0.08);">
-              <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#0ea5e9);display:flex;align-items:center;justify-content:center;box-shadow:0 10px 18px rgba(14,165,233,0.20);">
-                <span style="font-size:36px;line-height:1;">🚗</span>
-              </div>
-              <div style="text-align:left;">
-                <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#0369a1;font-weight:700;">Mayon Rent a Car</div>
-                <div style="font-size:26px;font-weight:800;letter-spacing:-0.5px;color:#0f172a;line-height:1.15;">MAYON RENT A CAR</div>
-                <div style="font-size:12px;color:#475569;">Your Trusted Rental Partner in Bicol</div>
-              </div>
-            </div>
+                    <div style="padding:16px 18px 8px;background:#ffffff;text-align:center;">
+                        <img src="https://www.mayonrentacar.com.ph/images/Mayon-email.png" alt="Mayon Rent a Car" width="300" style="display:block;width:100%;max-width:300px;height:auto;margin:0 auto;border:0;">
           </div>`;
 
         const htmlTemplate = `<!DOCTYPE html>
