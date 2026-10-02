@@ -1181,8 +1181,9 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         if (DEBUG) console.log(`[EMAIL DEBUG] rentalType=${rentalType}, vehicleType=${vehicleType}, pickDate=${rawPickDate}, qd keys=${Object.keys(qd).join(',')}`);
 
         const brandBadge = `
-                    <div style="padding:16px 18px 8px;background:#ffffff;text-align:center;">
-                        <img src="https://www.mayonrentacar.com.ph/images/Mayon-email.png" alt="Mayon Rent a Car" width="300" style="display:block;width:100%;max-width:300px;height:auto;margin:0 auto;border:0;">
+                    <div style="padding:14px 18px 10px;background:#ffffff;text-align:center;">
+                        <img src="https://www.mayonrentacar.com.ph/images/Mayon-email.png" alt="Mayon Rent a Car" width="190" style="display:block;width:100%;max-width:190px;height:auto;margin:0 auto;border:0;">
+                        <div style="margin-top:4px;font-size:13px;line-height:1.4;color:#64748b;">Your Trusted Rental Partner in Bicol</div>
           </div>`;
 
         const htmlTemplate = `<!DOCTYPE html>
@@ -1285,7 +1286,7 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
             from: 'Mayon Rent a Car <no-reply@mayonrentacar.com.ph>', // Verified Resend domain!
             to: [clientEmail],
             cc: ccRecipients,
-            subject: `Mayon Rent a Car Quotation - ${bookingRef}`,
+            subject: `Mayon Rent a Car Quotation | ${bookingRef}`,
             replyTo: 'mayonrentacar@gmail.com',                      // Kapag nag-reply si client, rekta sa normal gmail niyo!
             html: htmlTemplate,
             headers: {
