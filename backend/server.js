@@ -1078,6 +1078,17 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         const returnLocationAddress = qd.returnLocationAddress || '';
         const returnFlightNumber = qd.returnFlightNumber || '';
 
+        const formatQuotationLocation = (location, exactAddress, flightNumber) => {
+            const normalizedLocation = String(location || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (normalizedLocation.includes('citihardware')) return location;
+            if (normalizedLocation.includes('bicolinternationalairport')) {
+                return flightNumber ? `${location} - Flight No. ${flightNumber}` : location;
+            }
+            return exactAddress || location;
+        };
+        const pickupDisplay = formatQuotationLocation(pickupAddress, pickupLocationAddress.trim(), pickupFlightNumber.trim());
+        const returnDisplay = formatQuotationLocation(returnAddress, returnLocationAddress.trim(), returnFlightNumber.trim());
+
         // Format dates & times
         const rawPickDate = qd.pickDate   || '';
         const rawPickTime = qd.pickTime   || '';
@@ -1159,13 +1170,7 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         const returnScheduleRow = rentalType === 'self-drive' ? `
             <tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Return Date &amp; Time</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${fmtRetDate} at ${fmtRetTime}</td></tr>` : '';
         const returnLocationRow = rentalType === 'self-drive' ? `
-            <tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Return Location</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${returnAddress}</td></tr>` : '';
-        const pickupDetailRows = rentalType === 'self-drive' ? `
-            ${pickupLocationAddress ? `<tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Exact Pick-up Address</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${pickupLocationAddress}</td></tr>` : ''}
-            ${pickupFlightNumber ? `<tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Pick-up Flight Number</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${pickupFlightNumber}</td></tr>` : ''}` : '';
-        const returnDetailRows = rentalType === 'self-drive' ? `
-            ${returnLocationAddress ? `<tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Exact Return Address</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${returnLocationAddress}</td></tr>` : ''}
-            ${returnFlightNumber ? `<tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Return Flight Number</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${returnFlightNumber}</td></tr>` : ''}` : '';
+            <tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Return Location</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${returnDisplay}</td></tr>` : '';
 
         const itinerarySection = itinerary ? `
             <div style="margin-bottom:20px;">
@@ -1237,10 +1242,8 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
     <div style="margin-bottom:20px;">
       <div style="font-size:11px;text-transform:uppercase;font-weight:700;color:#0f172a;letter-spacing:0.5px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;margin-bottom:10px;">&#128205; Locations</div>
       <table style="width:100%;border-collapse:collapse;">
-        <tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Pickup Location</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${pickupAddress}</td></tr>
-        ${pickupDetailRows}
+        <tr><td style="padding:7px 0;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;width:45%;">Pickup Details</td><td style="padding:7px 0;font-size:13px;font-weight:500;">${pickupDisplay}</td></tr>
         ${returnLocationRow}
-        ${returnDetailRows}
       </table>
     </div>
 
