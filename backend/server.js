@@ -1094,9 +1094,11 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
 
         // ── Cost breakdown rows ──────────────────────────────────────────────
         const bd  = qd.breakdownDetails || {};
-        const row = (label, value) => value > 0
+        const row = (label, value, zeroLabel = '') => value > 0
             ? `<tr><td style="padding:8px 12px;color:#475569;border-bottom:1px solid #f1f5f9;">${label}</td><td style="padding:8px 12px;text-align:right;font-weight:600;color:#1e293b;border-bottom:1px solid #f1f5f9;">₱${value.toFixed(2)}</td></tr>`
-            : '';
+            : value === 0 && zeroLabel
+                ? `<tr><td style="padding:8px 12px;color:#475569;border-bottom:1px solid #f1f5f9;">${label}</td><td style="padding:8px 12px;text-align:right;font-weight:600;color:#1e293b;border-bottom:1px solid #f1f5f9;">${zeroLabel}</td></tr>`
+                : '';
 
         let breakdownRows = '';
         if (rentalType === 'with-driver') {
@@ -1119,8 +1121,8 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
 
             breakdownRows += row(`Rental Rate (₱${(bd.unitBase||0).toFixed(2)} × ${bd.days||0} Day/s)`, baseTotal);
             if (bd.selfOtHours > 0) breakdownRows += row(`Overtime Fee (₱${(bd.overtime||0).toFixed(2)} × ${bd.selfOtHours} Hr/s)`, otTotal);
-            breakdownRows += row('Delivery Fee',   bd.delivery  || 0);
-            breakdownRows += row('Return Fee',     bd.return    || 0);
+            breakdownRows += row('Delivery Fee',   bd.delivery  || 0, 'Free');
+            breakdownRows += row('Return Fee',     bd.return    || 0, 'Free');
             breakdownRows += row('Child Seat Fee', bd.childSeat || 0);
         }
 

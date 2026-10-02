@@ -2011,12 +2011,14 @@ async function executeQuoteAction(actionType) {
                 // Self-drive breakdown from saved data
                 const baseTotal = bd.unitBase * bd.days;
                 const otTotal = bd.overtime * bd.selfOtHours;
+                const deliveryFee = Number(bd.delivery) || 0;
+                const returnFee = Number(bd.return) || 0;
                 
                 breakdownHTML = `
                     <tr><td>Rental Rate (₱${bd.unitBase.toFixed(2)} × ${bd.days} Day/s)</td><td>₱${baseTotal.toFixed(2)}</td></tr>
                     ${bd.selfOtHours > 0 ? `<tr><td>Overtime Fee (₱${bd.overtime.toFixed(2)} × ${bd.selfOtHours} Hr/s)</td><td>₱${otTotal.toFixed(2)}</td></tr>` : ''}
-                    ${bd.delivery > 0 ? `<tr><td>Delivery Fee</td><td>₱${bd.delivery.toFixed(2)}</td></tr>` : ''}
-                    ${bd.return > 0 ? `<tr><td>Return Fee</td><td>₱${bd.return.toFixed(2)}</td></tr>` : ''}
+                    <tr><td>Delivery Fee</td><td>${deliveryFee === 0 ? 'Free' : `₱${deliveryFee.toFixed(2)}`}</td></tr>
+                    <tr><td>Return Fee</td><td>${returnFee === 0 ? 'Free' : `₱${returnFee.toFixed(2)}`}</td></tr>
                     ${bd.childSeat > 0 ? `<tr><td>Child Seat Fee</td><td>₱${bd.childSeat.toFixed(2)}</td></tr>` : ''}
                 `;
             }
@@ -2063,8 +2065,8 @@ async function executeQuoteAction(actionType) {
                 breakdownHTML = `
                     <tr><td>Rental Rate (₱${sBaseRate.toFixed(2)} × ${sDays} Day/s)</td><td>₱${(sBaseRate * sDays).toFixed(2)}</td></tr>
                     ${sOtHours > 0 ? `<tr><td>Overtime Fee (₱${sOtRate.toFixed(2)} × ${sOtHours} Hr/s)</td><td>₱${(sOtRate * sOtHours).toFixed(2)}</td></tr>` : ''}
-                    ${sDel > 0 ? `<tr><td>Delivery Fee</td><td>₱${sDel.toFixed(2)}</td></tr>` : ''}
-                    ${sRet > 0 ? `<tr><td>Return Fee</td><td>₱${sRet.toFixed(2)}</td></tr>` : ''}
+                    <tr><td>Delivery Fee</td><td>${sDel === 0 ? 'Free' : `₱${sDel.toFixed(2)}`}</td></tr>
+                    <tr><td>Return Fee</td><td>${sRet === 0 ? 'Free' : `₱${sRet.toFixed(2)}`}</td></tr>
                     ${sChild > 0 ? `<tr><td>Child Seat Fee</td><td>₱${sChild.toFixed(2)}</td></tr>` : ''}
                 `;
             }
