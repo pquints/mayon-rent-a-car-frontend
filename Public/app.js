@@ -192,10 +192,14 @@ function syncMenuState(isOpen) {
     if (isMobileNavViewport()) {
         menuLinks.style.left = isOpen ? '0' : '-100%';
         menuLinks.style.opacity = isOpen ? '1' : '0';
+        menuLinks.style.visibility = isOpen ? 'visible' : 'hidden';
+        menuLinks.style.pointerEvents = isOpen ? 'auto' : 'none';
         menuLinks.style.zIndex = isOpen ? '99' : '';
     } else {
         menuLinks.style.removeProperty('left');
         menuLinks.style.removeProperty('opacity');
+        menuLinks.style.removeProperty('visibility');
+        menuLinks.style.removeProperty('pointer-events');
         menuLinks.style.removeProperty('z-index');
     }
 
@@ -214,8 +218,8 @@ function syncDropdownState(entry, isOpen) {
         dropdownMenu.style.maxHeight = isOpen ? '760px' : '0px';
         dropdownMenu.style.padding = isOpen ? '12px 14px' : '0';
         dropdownMenu.style.opacity = '1';
-        dropdownMenu.style.visibility = 'visible';
-        dropdownMenu.style.pointerEvents = 'auto';
+        dropdownMenu.style.visibility = isOpen ? 'visible' : 'hidden';
+        dropdownMenu.style.pointerEvents = isOpen ? 'auto' : 'none';
         dropdownMenu.style.transform = 'none';
     } else {
         dropdownMenu.style.maxHeight = '';

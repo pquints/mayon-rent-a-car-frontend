@@ -450,6 +450,8 @@ section {
         left: 14px;
         right: auto;
         opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
         transition: all 0.4s ease;
         background: #ffffff;
         box-shadow: 0 5px 10px rgba(0,0,0,0.1);
@@ -468,6 +470,8 @@ section {
     .navbar__menu.active {
         left: 14px;
         opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
         z-index: 9999;
         /* ensure active menu uses the same max-height and can scroll */
         max-height: calc(100vh - 110px);
@@ -512,8 +516,8 @@ section {
         overflow-y: auto;
         overflow-x: hidden;
         opacity: 1;
-        visibility: visible;
-        pointer-events: auto;
+        visibility: hidden;
+        pointer-events: none;
         border: none;
         border-radius: 0;
         box-shadow: none;
@@ -531,6 +535,8 @@ section {
     .navbar__item--dropdown.is-open .dropdown__menu {
         max-height: 260px;
         padding: 8px 0 0;
+        visibility: visible;
+        pointer-events: auto;
     }
 
     .dropdown__columns {
