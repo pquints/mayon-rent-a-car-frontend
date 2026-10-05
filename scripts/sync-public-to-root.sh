@@ -14,6 +14,7 @@ FILES=(
   "airport-transfers.html"
   "inbound-outbound-transfers.html"
   "fleet.html"
+  "terms-of-use.html"
   "dashboard.html"
 )
 
