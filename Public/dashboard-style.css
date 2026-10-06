@@ -675,6 +675,47 @@ body {
     font-size: 0.85rem;
     font-weight: 500;
 }
+.btn-more i {
+    transition: transform 0.2s ease;
+}
+.btn-more[aria-expanded="true"] i {
+    transform: rotate(180deg);
+}
+.advanced-filter-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    width: 100%;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-card);
+}
+.advanced-filter-panel[hidden] {
+    display: none;
+}
+.advanced-date-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+.advanced-date-filter label {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.advanced-date-filter input {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text-main);
+    font: inherit;
+}
 .btn-primary {
     background-color: var(--text-main);
     color: white;
@@ -1014,12 +1055,18 @@ body {
     }
     
     .status-pills-container {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
         gap: 8px;
         margin-bottom: 16px;
+        padding-bottom: 4px;
+        scrollbar-width: thin;
     }
     
     .pill {
+        flex: 0 0 auto;
+        white-space: nowrap;
         padding: 6px 12px;
         font-size: 0.75rem;
     }
@@ -1341,7 +1388,30 @@ body {
     }
     
     .data-table tbody tr td:last-child {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
         border-bottom: none;
+    }
+
+    .data-table tbody tr td:last-child::before {
+        margin-right: auto;
+    }
+
+    .data-table tbody tr td:last-child .btn-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        margin: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: #f8fafc;
+    }
+
+    .data-table tbody tr td:last-child .btn-delete {
+        color: var(--color-cancelled);
     }
     
     .data-table tbody tr td::before {
@@ -1394,6 +1464,296 @@ body {
 
 .rates-tab:hover {
     color: #178ca4;
+}
+
+#ratesTabControls {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+#ratesTabControls .rates-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+#airportRatesTable,
+#inboundOutboundRatesTable,
+#withDriverRatesTable,
+#selfDriveRatesTable,
+#selfDriveDeliveryRatesTable,
+#selfDriveReturnRatesTable {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767px) {
+    #vehicleManagementView {
+        padding: 16px !important;
+        overflow-x: hidden;
+    }
+
+    #vehiclesTable {
+        display: block;
+        width: 100% !important;
+        border-collapse: separate !important;
+    }
+
+    #vehiclesTable thead {
+        display: none;
+    }
+
+    #vehiclesTable tbody {
+        display: grid;
+        gap: 10px;
+        width: 100%;
+    }
+
+    #vehiclesTable tbody tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 10px 12px;
+        align-items: start;
+        padding: 12px;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    #vehiclesTable tbody td {
+        display: block;
+        min-width: 0;
+        padding: 0 !important;
+        border: 0 !important;
+        text-align: left !important;
+        overflow-wrap: anywhere;
+    }
+
+    #vehiclesTable tbody td::before {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--text-muted);
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    #vehiclesTable tbody td:nth-child(1) {
+        grid-column: 1 / -1;
+        font-weight: 700;
+    }
+
+    #vehiclesTable tbody td:nth-child(1)::before { content: "Plate Number"; }
+    #vehiclesTable tbody td:nth-child(2)::before { content: "Make / Model"; }
+    #vehiclesTable tbody td:nth-child(3)::before { content: "Type"; }
+    #vehiclesTable tbody td:nth-child(4)::before { content: "Year"; }
+    #vehiclesTable tbody td:nth-child(5)::before { content: "Seats"; }
+    #vehiclesTable tbody td:nth-child(6)::before { content: "Status"; }
+
+    #vehiclesTable tbody td:nth-child(7) {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding-top: 8px !important;
+        border-top: 1px solid var(--border-color) !important;
+    }
+
+    #vehiclesTable tbody td:nth-child(7)::before {
+        content: "Actions";
+        margin: auto auto auto 0;
+    }
+
+    #vehiclesTable tbody td:nth-child(7) button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        margin: 0 !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 6px;
+        background: #f8fafc !important;
+    }
+
+    .vehicle-form-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 12px !important;
+    }
+
+    #fullPageDetailsView {
+        padding: 16px !important;
+        margin-top: 12px !important;
+    }
+
+    .booking-details-header {
+        flex-wrap: wrap;
+        align-items: flex-start !important;
+        gap: 12px;
+        margin-bottom: 18px !important;
+    }
+
+    .booking-details-header h2 {
+        flex: 1 1 100%;
+        min-width: 0;
+        flex-wrap: wrap;
+        font-size: 1.15rem !important;
+        overflow-wrap: anywhere;
+    }
+
+    #btnBackToDashboard {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .booking-details-fields,
+    .booking-details-schedule {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 14px !important;
+    }
+
+    .booking-details-fields > div,
+    .booking-details-schedule > div {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .booking-details-schedule > div {
+        padding: 14px !important;
+    }
+
+    #fullPageDetailsView input,
+    #fullPageDetailsView select,
+    #fullPageDetailsView textarea {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    #ratesTabControls .rates-tab {
+        padding: 9px 10px;
+        font-size: 12px;
+    }
+
+    #selfDriveRatesTable .rates-table,
+    #selfDriveDeliveryRatesTable .rates-table,
+    #selfDriveReturnRatesTable .rates-table {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        overflow: visible;
+        border: 0;
+        background: transparent;
+    }
+
+    #selfDriveRatesTable .rates-table thead,
+    #selfDriveDeliveryRatesTable .rates-table thead,
+    #selfDriveReturnRatesTable .rates-table thead {
+        display: none;
+    }
+
+    #selfDriveRatesTable .rates-table tbody,
+    #selfDriveDeliveryRatesTable .rates-table tbody,
+    #selfDriveReturnRatesTable .rates-table tbody {
+        display: grid;
+        gap: 10px;
+    }
+
+    #selfDriveRatesTable .rates-table tbody tr,
+    #selfDriveDeliveryRatesTable .rates-table tbody tr,
+    #selfDriveReturnRatesTable .rates-table tbody tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px 12px;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+
+    #selfDriveRatesTable .rates-table tbody tr {
+        grid-template-columns: minmax(0, 1fr) 110px;
+    }
+
+    #selfDriveRatesTable .rates-table tbody td,
+    #selfDriveDeliveryRatesTable .rates-table tbody td,
+    #selfDriveReturnRatesTable .rates-table tbody td {
+        display: block;
+        width: auto !important;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    #selfDriveRatesTable .rates-table tbody td:first-child,
+    #selfDriveDeliveryRatesTable .rates-table tbody td:first-child,
+    #selfDriveReturnRatesTable .rates-table tbody td:first-child {
+        grid-column: 1 / -1;
+    }
+
+    #selfDriveRatesTable .rates-table tbody td:nth-child(2) {
+        grid-column: 1;
+    }
+
+    #selfDriveRatesTable .rates-table tbody td:nth-child(3) {
+        grid-column: 2;
+    }
+
+    #selfDriveDeliveryRatesTable .rates-table tbody td:nth-child(2),
+    #selfDriveReturnRatesTable .rates-table tbody td:nth-child(2) {
+        grid-column: 1;
+    }
+
+    #selfDriveDeliveryRatesTable .rates-table tbody td:last-child,
+    #selfDriveReturnRatesTable .rates-table tbody td:last-child {
+        grid-column: 2;
+        justify-self: end;
+    }
+
+    #selfDriveRatesTable .rates-table td::before,
+    #selfDriveDeliveryRatesTable .rates-table td::before,
+    #selfDriveReturnRatesTable .rates-table td::before {
+        display: block;
+        margin-bottom: 5px;
+        color: var(--text-muted);
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    #selfDriveRatesTable .rates-table tbody td:first-child::before { content: "Vehicle"; }
+    #selfDriveRatesTable .rates-table tbody td:nth-child(2)::before { content: "Type"; }
+    #selfDriveRatesTable .rates-table tbody td:nth-child(3)::before { content: "Daily Rate (₱)"; }
+    #selfDriveDeliveryRatesTable .rates-table tbody td:first-child::before,
+    #selfDriveReturnRatesTable .rates-table tbody td:first-child::before { content: "Location"; }
+    #selfDriveDeliveryRatesTable .rates-table tbody td:nth-child(2)::before,
+    #selfDriveReturnRatesTable .rates-table tbody td:nth-child(2)::before { content: "Additional Rate (₱)"; }
+    #selfDriveDeliveryRatesTable .rates-table tbody td:last-child::before,
+    #selfDriveReturnRatesTable .rates-table tbody td:last-child::before { content: none; }
+
+    #selfDriveRatesTable .rates-input,
+    #selfDriveDeliveryRatesTable .rates-input,
+    #selfDriveReturnRatesTable .rates-input {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    #selfDriveDeliveryRatesTable .rates-row-actions,
+    #selfDriveReturnRatesTable .rates-row-actions {
+        flex-wrap: nowrap;
+        gap: 4px;
+    }
+
+    #selfDriveDeliveryRatesTable .rates-remove-button,
+    #selfDriveReturnRatesTable .rates-remove-button {
+        white-space: nowrap;
+    }
 }
 
 .self-drive-location-rates {
@@ -1839,4 +2199,145 @@ body {
 
 .user-modal-footer .btn-primary {
     padding: 10px 18px;
+}
+
+@media (max-width: 767px) {
+    #userManagementView {
+        padding: 16px !important;
+        overflow-x: hidden;
+    }
+
+    #usersTable {
+        display: block;
+        width: 100% !important;
+        border-collapse: separate !important;
+    }
+
+    #usersTable thead {
+        display: none;
+    }
+
+    #usersTable tbody {
+        display: grid;
+        gap: 10px;
+        width: 100%;
+    }
+
+    #usersTable tbody tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px 12px;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    #usersTable tbody td {
+        display: block;
+        min-width: 0;
+        padding: 0 !important;
+        border: 0 !important;
+        text-align: left !important;
+        overflow-wrap: anywhere;
+    }
+
+    #usersTable tbody td:first-child {
+        grid-column: 1 / -1;
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+
+    #usersTable tbody td:nth-child(2) {
+        grid-column: 1 / -1;
+        color: var(--text-muted) !important;
+        font-size: 0.85rem;
+    }
+
+    #usersTable tbody td:nth-child(3),
+    #usersTable tbody td:nth-child(4) {
+        grid-column: 1;
+        font-size: 0.8rem;
+    }
+
+    #usersTable tbody td:nth-child(3)::before {
+        content: "Role: ";
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+
+    #usersTable tbody td:nth-child(4)::before {
+        content: "Last login: ";
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+
+    #usersTable tbody td:last-child {
+        grid-column: 2;
+        grid-row: 3 / span 2;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+    #usersTable tbody td:last-child button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        margin: 0 !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 6px;
+        background: #f8fafc !important;
+    }
+
+    .user-modal-overlay {
+        align-items: flex-start;
+        padding: 12px 10px;
+    }
+
+    .user-modal-panel {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: calc(100vh - 24px);
+        height: calc(100dvh - 24px);
+        max-height: calc(100vh - 24px);
+        max-height: calc(100dvh - 24px);
+        overflow: hidden;
+    }
+
+    #userForm {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .user-modal-header {
+        flex: 0 0 auto;
+        padding: 16px;
+    }
+
+    .user-modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: 16px;
+        max-height: none;
+    }
+
+    .user-modal-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .user-modal-footer {
+        flex: 0 0 auto;
+        padding: 14px 16px;
+    }
 }

@@ -410,13 +410,41 @@ function getBookingFilterState() {
         searchQuery: (document.getElementById('searchBar')?.value || '').toLowerCase().trim(),
         serviceQuery: document.getElementById('filterService')?.value || '',
         typeQuery: document.getElementById('filterType')?.value || '',
-        areaQuery: document.getElementById('filterArea')?.value || ''
+        areaQuery: document.getElementById('filterArea')?.value || '',
+        startDateQuery: document.getElementById('filterStartDate')?.value || '',
+        endDateQuery: document.getElementById('filterEndDate')?.value || ''
     };
 }
 
+function bookingMatchesFilters(booking, filters) {
+    const { searchQuery, serviceQuery, typeQuery, areaQuery, startDateQuery, endDateQuery } = filters;
+    const matchSearch =
+        (booking.ref || '').toLowerCase().includes(searchQuery) ||
+        (booking.name || '').toLowerCase().includes(searchQuery) ||
+        (booking.email || '').toLowerCase().includes(searchQuery) ||
+        (booking.vehicleType || '').toLowerCase().includes(searchQuery);
+
+    const matchService = !serviceQuery || booking.serviceOption === serviceQuery;
+    const bookingRentalType = (booking.rentalType || '').toLowerCase().replace(/\s+/g, '-');
+    const matchType = !typeQuery || bookingRentalType === typeQuery;
+    const bookingArea = (booking.area || '').toLowerCase().trim();
+    const selectedArea = areaQuery.toLowerCase().trim();
+    const matchArea = !areaQuery || bookingArea === selectedArea;
+
+    const bookingStartDate = String(booking.pickup_date || '').slice(0, 10);
+    const rawBookingEndDate = String(booking.return_date || '');
+    const bookingEndDate = rawBookingEndDate && rawBookingEndDate !== '—'
+        ? rawBookingEndDate.slice(0, 10)
+        : bookingStartDate;
+    const matchStartDate = !startDateQuery || Boolean(bookingEndDate && bookingEndDate >= startDateQuery);
+    const matchEndDate = !endDateQuery || Boolean(bookingStartDate && bookingStartDate <= endDateQuery);
+
+    return matchSearch && matchService && matchType && matchArea && matchStartDate && matchEndDate;
+}
+
 function applyBookingFilters(bookingsList = currentBookingsList) {
-    const { searchQuery, serviceQuery, typeQuery, areaQuery } = getBookingFilterState();
-    const filtersActive = Boolean(searchQuery || serviceQuery || typeQuery || areaQuery);
+    const filters = getBookingFilterState();
+    const filtersActive = Object.values(filters).some(Boolean);
 
     if (!filtersActive) {
         currentFilteredList = [];
@@ -424,22 +452,7 @@ function applyBookingFilters(bookingsList = currentBookingsList) {
         return;
     }
 
-    const filteredList = (bookingsList || []).filter(booking => {
-        const matchSearch =
-            (booking.ref || '').toLowerCase().includes(searchQuery) ||
-            (booking.name || '').toLowerCase().includes(searchQuery) ||
-            (booking.email || '').toLowerCase().includes(searchQuery) ||
-            (booking.vehicleType || '').toLowerCase().includes(searchQuery);
-
-        const matchService = !serviceQuery || booking.serviceOption === serviceQuery;
-        const bookingRentalType = (booking.rentalType || '').toLowerCase().replace(/\s+/g, '-');
-        const matchType = !typeQuery || bookingRentalType === typeQuery;
-        const bookingArea = (booking.area || '').toLowerCase().trim();
-        const selectedArea = areaQuery.toLowerCase().trim();
-        const matchArea = !areaQuery || bookingArea === selectedArea;
-
-        return matchSearch && matchService && matchType && matchArea;
-    });
+    const filteredList = (bookingsList || []).filter(booking => bookingMatchesFilters(booking, filters));
 
     currentFilteredList = filteredList;
     renderTableFiltered(filteredList);
@@ -1102,24 +1115,11 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
                     }
 
                 // If filters are active, recompute filtered list and re-render while preserving currentPage
-                const searchQuery = (document.getElementById("searchBar")?.value || '').toLowerCase().trim();
-                const serviceQuery = document.getElementById("filterService")?.value || '';
-                const typeQuery = document.getElementById("filterType")?.value || '';
-                const areaQuery = document.getElementById("filterArea")?.value || '';
-
-                const filtersActive = searchQuery || serviceQuery || typeQuery || areaQuery;
+                const filters = getBookingFilterState();
+                const filtersActive = Object.values(filters).some(Boolean);
 
                 if (filtersActive) {
-                    const recomputed = currentBookingsList.filter(booking => {
-                        const matchSearch = (booking.ref || '').toLowerCase().includes(searchQuery) || (booking.name || '').toLowerCase().includes(searchQuery) || (booking.email || '').toLowerCase().includes(searchQuery) || (booking.vehicleType || '').toLowerCase().includes(searchQuery);
-                        const matchService = !serviceQuery || booking.serviceOption === serviceQuery;
-                        let bookingRentalType = (booking.rentalType || '').toLowerCase().replace(/\s+/g, '-');
-                        const matchType = !typeQuery || bookingRentalType === typeQuery;
-                        const bookingArea = (booking.area || '').toLowerCase().trim();
-                        const selectedArea = areaQuery.toLowerCase().trim();
-                        const matchArea = !areaQuery || bookingArea === selectedArea;
-                        return matchSearch && matchService && matchType && matchArea;
-                    });
+                    const recomputed = currentBookingsList.filter(booking => bookingMatchesFilters(booking, filters));
 
                     currentFilteredList = recomputed;
                     renderTableFiltered(currentFilteredList);
@@ -1149,6 +1149,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const filterService = document.getElementById("filterService");
     const filterType = document.getElementById("filterType");
     const filterArea = document.getElementById("filterArea");
+    const filterStartDate = document.getElementById("filterStartDate");
+    const filterEndDate = document.getElementById("filterEndDate");
+    const moreFiltersBtn = document.getElementById("moreFiltersBtn");
+    const advancedFilters = document.getElementById("advancedFilters");
     const fpRentalType = document.getElementById("fpRentalType");
 
     if (fpRentalType) {
@@ -1161,6 +1165,30 @@ document.addEventListener("DOMContentLoaded", () => {
     if (filterService) filterService.addEventListener("change", filterCurrentBookings);
     if (filterType) filterType.addEventListener("change", filterCurrentBookings);
     if (filterArea) filterArea.addEventListener("change", filterCurrentBookings);
+    if (filterStartDate && filterEndDate) {
+        const syncDateConstraints = () => {
+            filterEndDate.min = filterStartDate.value;
+            filterStartDate.max = filterEndDate.value;
+        };
+
+        filterStartDate.addEventListener("change", () => {
+            syncDateConstraints();
+            if (filterEndDate.value && filterEndDate.value < filterStartDate.value) filterEndDate.value = '';
+            filterCurrentBookings();
+        });
+        filterEndDate.addEventListener("change", () => {
+            syncDateConstraints();
+            if (filterStartDate.value && filterStartDate.value > filterEndDate.value) filterStartDate.value = '';
+            filterCurrentBookings();
+        });
+    }
+    if (moreFiltersBtn && advancedFilters) {
+        moreFiltersBtn.addEventListener("click", () => {
+            const isExpanded = moreFiltersBtn.getAttribute('aria-expanded') === 'true';
+            moreFiltersBtn.setAttribute('aria-expanded', String(!isExpanded));
+            advancedFilters.hidden = isExpanded;
+        });
+    }
 
     // INCLUSIONS TABLE MANAGER EFFECT
     const incExcTable = document.getElementById('incExcTableBody');
@@ -2301,9 +2329,6 @@ function toggleReturnScheduleVisibility(rentalType) {
 // ========================================================
 
 function showView(viewType) {
-    if (viewType !== 'ratesManagement') {
-        _ratesSubmenuMode = false;
-    }
     localStorage.setItem('adminActiveView', viewType);
 
     const mainDashboardView = document.getElementById('mainDashboardView');
@@ -2322,6 +2347,10 @@ function showView(viewType) {
     if (accountSettingsView) accountSettingsView.style.display = viewType === 'accountSettings' ? 'block' : 'none';
     if (vehicleEditView) vehicleEditView.style.display = viewType === 'vehicleEdit' ? 'block' : 'none';
     if (ratesManagementView) ratesManagementView.style.display = viewType === 'ratesManagement' ? 'block' : 'none';
+
+    if (window.matchMedia('(max-width: 767px)').matches) {
+        document.getElementById('sidebar')?.classList.remove('active');
+    }
 
     // Update nav items
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -3080,7 +3109,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 let _currentRates = null;
 let _activeRatesTab = 'airport';
-let _ratesSubmenuMode = false;
 let _airportRatesSuggestionsBound = false;
 let _airportProvinceFilter = '';
 
@@ -3361,7 +3389,6 @@ function toggleRatesSubmenu(event) {
 }
 
 async function openRatesTab(tab) {
-    _ratesSubmenuMode = true;
     showView('ratesManagement');
     await loadRates();
     switchRatesTab(tab);
@@ -3389,27 +3416,15 @@ function syncRatesTabControls() {
     if (!controls) return;
 
     const tabs = controls.querySelectorAll('.rates-tab');
-    if (_ratesSubmenuMode) {
-        controls.classList.add('hidden');
-        controls.style.display = 'none';
-        controls.style.pointerEvents = 'none';
-        tabs.forEach((tab) => {
-            tab.disabled = true;
-            tab.classList.add('disabled');
-            tab.style.pointerEvents = 'none';
-            tab.style.opacity = '0.5';
-        });
-    } else {
-        controls.classList.remove('hidden');
-        controls.style.display = 'flex';
-        controls.style.pointerEvents = 'auto';
-        tabs.forEach((tab) => {
-            tab.disabled = false;
-            tab.classList.remove('disabled');
-            tab.style.pointerEvents = 'auto';
-            tab.style.opacity = '1';
-        });
-    }
+    controls.classList.remove('hidden');
+    controls.style.display = 'flex';
+    controls.style.pointerEvents = 'auto';
+    tabs.forEach((tab) => {
+        tab.disabled = false;
+        tab.classList.remove('disabled');
+        tab.style.pointerEvents = 'auto';
+        tab.style.opacity = '1';
+    });
 }
 
 function renderRatesTables(rates) {
