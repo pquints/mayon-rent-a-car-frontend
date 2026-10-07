@@ -433,6 +433,13 @@
                 </div>
 
                 <!-- Saved Quote Display Section -->
+                <div id="missingSavedQuoteNotice" role="status" style="display: none; margin-top: 20px; padding: 15px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; color: #92400e;">
+                    <strong>This booking is marked Quoted, but no saved quotation was found.</strong>
+                    <p style="margin: 6px 0 10px;">Create the quote below, then choose <strong>Save Quote Only</strong> to save it and enable PDF download.</p>
+                    <button type="button" onclick="openQuickQuote(currentQuotingRef)" style="background: #d97706; color: white; border: 0; padding: 9px 14px; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                        <i class="fa-solid fa-calculator"></i> Create Quote
+                    </button>
+                </div>
                 <div id="savedQuoteSection" style="display: none; margin-top: 20px; padding: 15px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px;">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
                         <i class="fa-solid fa-check-circle" style="color: #22c55e; font-size: 1.2rem;"></i>
@@ -714,7 +721,7 @@
         });
     </script>
     <script src="auth-utils.js?v=20260808-1"></script>
-    <script src="dashboard.js?v=20261006-2"></script>
+    <script src="dashboard.js?v=20261007-1"></script>
     
     <!-- USER MODAL -->
     <div id="userModal" class="user-modal-overlay" style="display: none !important;">

@@ -943,35 +943,33 @@ function openFullPageDetails(booking) {
     const oldBtn = document.getElementById("dynamicQuickQuoteBtn");
     if (oldBtn) oldBtn.remove();
 
-    if ((booking.status || 'Open').toLowerCase() === 'open') {
-        const saveBtn = document.getElementById("fpSaveBtn");
-        if (saveBtn) {
-            const qqBtn = document.createElement("button");
-            qqBtn.id = "dynamicQuickQuoteBtn";
-            qqBtn.type = "button";
-            qqBtn.style.backgroundColor = "#2563EB";
-            qqBtn.style.color = "white";
-            qqBtn.style.marginRight = "10px";
-            qqBtn.style.padding = "14px 20px";
-            qqBtn.style.border = "none";
-            qqBtn.style.borderRadius = "4px";
-            qqBtn.style.cursor = "pointer";
-            qqBtn.style.fontWeight = "bold";
-            qqBtn.style.fontSize = "0.95rem";
-            qqBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Quick Cost Quote`;
-            
-            qqBtn.addEventListener("click", () => {
-                if (drawer && drawer.style.display === "block") {
-                    drawer.style.display = "none";
-                    qqBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Quick Cost Quote`;
-                } else {
-                    openQuickQuote(booking.ref);
-                    qqBtn.innerHTML = `<i class="fa-solid fa-eye-slash"></i> Hide Calculator`;
-                }
-            });
+    const saveBtn = document.getElementById("fpSaveBtn");
+    if (saveBtn) {
+        const qqBtn = document.createElement("button");
+        qqBtn.id = "dynamicQuickQuoteBtn";
+        qqBtn.type = "button";
+        qqBtn.style.backgroundColor = "#2563EB";
+        qqBtn.style.color = "white";
+        qqBtn.style.marginRight = "10px";
+        qqBtn.style.padding = "14px 20px";
+        qqBtn.style.border = "none";
+        qqBtn.style.borderRadius = "4px";
+        qqBtn.style.cursor = "pointer";
+        qqBtn.style.fontWeight = "bold";
+        qqBtn.style.fontSize = "0.95rem";
+        qqBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Quick Cost Quote`;
 
-            saveBtn.parentNode.insertBefore(qqBtn, saveBtn);
-        }
+        qqBtn.addEventListener("click", () => {
+            if (drawer && drawer.style.display === "block") {
+                drawer.style.display = "none";
+                qqBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Quick Cost Quote`;
+            } else {
+                openQuickQuote(booking.ref);
+                qqBtn.innerHTML = `<i class="fa-solid fa-eye-slash"></i> Hide Calculator`;
+            }
+        });
+
+        saveBtn.parentNode.insertBefore(qqBtn, saveBtn);
     }
 
     document.getElementById("mainDashboardView").style.display = "none";
@@ -1010,6 +1008,7 @@ async function loadSavedQuote(bookingRef) {
             if (result.success && result.quote) {
                 const quote = result.quote;
                 const savedQuoteSection = document.getElementById("savedQuoteSection");
+                const missingSavedQuoteNotice = document.getElementById("missingSavedQuoteNotice");
                 const savedQuoteAmount = document.getElementById("savedQuoteAmount");
                 const savedQuoteDate = document.getElementById("savedQuoteDate");
 
@@ -1025,26 +1024,70 @@ async function loadSavedQuote(bookingRef) {
                     });
                     savedQuoteDate.innerText = savedDate;
                     savedQuoteSection.style.display = "block";
+                    if (missingSavedQuoteNotice) missingSavedQuoteNotice.style.display = "none";
                     if (DEBUG) console.log("Quote loaded successfully:", quote.totalAmount);
                 } else {
                     console.warn("HTML elements for saved quote not found");
                 }
             } else {
-                // No saved quote yet, hide the section
-                document.getElementById("savedQuoteSection").style.display = "none";
+                showMissingSavedQuoteNotice();
             }
+        } else if (response.status === 404) {
+            showMissingSavedQuoteNotice();
         } else {
-            // No saved quote (404 or error), hide the section
-            document.getElementById("savedQuoteSection").style.display = "none";
+            throw new Error(`Unable to load saved quote: ${response.status}`);
         }
     } catch (error) {
         console.error("Error loading saved quote:", error);
-        document.getElementById("savedQuoteSection").style.display = "none";
+        const savedQuoteSection = document.getElementById("savedQuoteSection");
+        const missingSavedQuoteNotice = document.getElementById("missingSavedQuoteNotice");
+        if (savedQuoteSection) savedQuoteSection.style.display = "none";
+        if (missingSavedQuoteNotice) missingSavedQuoteNotice.style.display = "none";
     }
 }
+
+function showMissingSavedQuoteNotice() {
+    const savedQuoteSection = document.getElementById("savedQuoteSection");
+    const missingSavedQuoteNotice = document.getElementById("missingSavedQuoteNotice");
+    if (savedQuoteSection) savedQuoteSection.style.display = "none";
+    if (missingSavedQuoteNotice) {
+        missingSavedQuoteNotice.style.display =
+            document.getElementById("fpStatus")?.value === "Quoted" ? "block" : "none";
+    }
+}
+
+async function hasSavedQuote(bookingRef) {
+    const response = await fetch(`${API_URL}/quotes/${bookingRef}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+    });
+
+    if (response.status === 404) return false;
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+        throw new Error(result.error || `Unable to verify saved quote: ${response.status}`);
+    }
+    return Boolean(result.quote);
+}
+
 document.getElementById("fpSaveBtn").addEventListener("click", async () => {
     const refFlag = document.getElementById("fpEditRef").value;
     const selectedStatus = document.getElementById("fpStatus").value;
+
+    if (refFlag !== "NEW_BOOKING_FLAG" && selectedStatus === "Quoted") {
+        try {
+            if (!(await hasSavedQuote(refFlag))) {
+                showMissingSavedQuoteNotice();
+                showNotificationToast("Save a quotation with Quick Cost Quote before marking this booking Quoted.", "warning");
+                return;
+            }
+        } catch (error) {
+            console.error("Error verifying saved quote before booking save:", error);
+            showNotificationToast("Could not verify the saved quotation. Please try again.", "error");
+            return;
+        }
+    }
     
     const updatedData = {
         name: document.getElementById("fpName").value,
@@ -1792,6 +1835,26 @@ async function handleStatusChange() {
     }
 
     currentQuotingRef = bookingRef;
+
+    const booking = currentBookingsList.find(item => item.ref === bookingRef);
+    const previousStatus = booking?.status || "Open";
+
+    if (status === "Quoted") {
+        try {
+            if (!(await hasSavedQuote(bookingRef))) {
+                document.getElementById("fpStatus").value = previousStatus;
+                showMissingSavedQuoteNotice();
+                showNotificationToast("Create and save the quotation with Quick Cost Quote before marking this booking Quoted.", "warning");
+                openQuickQuote(bookingRef);
+                return;
+            }
+        } catch (error) {
+            console.error("Error verifying saved quote before status change:", error);
+            document.getElementById("fpStatus").value = previousStatus;
+            showNotificationToast("Could not verify the saved quotation. Status was not changed.", "error");
+            return;
+        }
+    }
     
     try {
         // First, save the status change to the backend
@@ -1818,6 +1881,8 @@ async function handleStatusChange() {
                 const savedQuoteAmount = document.getElementById("savedQuoteAmount");
                 const savedQuoteDate = document.getElementById("savedQuoteDate");
                 if (savedQuoteSection) savedQuoteSection.style.display = "none";
+                const missingSavedQuoteNotice = document.getElementById("missingSavedQuoteNotice");
+                if (missingSavedQuoteNotice) missingSavedQuoteNotice.style.display = "none";
                 if (savedQuoteAmount) savedQuoteAmount.innerText = "₱0.00";
                 if (savedQuoteDate) savedQuoteDate.innerText = "—";
                 if (DEBUG) console.log("Quote cleared for reopened booking");
