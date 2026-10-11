@@ -458,6 +458,116 @@ function applyBookingFilters(bookingsList = currentBookingsList) {
     renderTableFiltered(filteredList);
 }
 
+function initializeFilterPopovers() {
+    const selects = ['filterService', 'filterType', 'filterArea']
+        .map(id => document.getElementById(id))
+        .filter(Boolean);
+
+    const closeFilterPopover = (popover, returnFocus = false) => {
+        const trigger = popover.querySelector('.filter-popover-trigger');
+        popover.classList.remove('is-open');
+        trigger.setAttribute('aria-expanded', 'false');
+        if (returnFocus) trigger.focus();
+    };
+
+    selects.forEach(select => {
+        const popover = select.closest('.filter-popover');
+        if (!popover) return;
+
+        const trigger = document.createElement('button');
+        trigger.type = 'button';
+        trigger.className = 'filter-popover-trigger';
+        trigger.setAttribute('aria-label', select.getAttribute('aria-label'));
+        trigger.setAttribute('aria-haspopup', 'listbox');
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.setAttribute('aria-controls', `${select.id}Options`);
+
+        const selectedOption = select.selectedOptions[0];
+        select.value = '';
+        trigger.textContent = selectedOption?.value === '__placeholder__'
+            ? popover.dataset.label
+            : selectedOption?.textContent.trim() || popover.dataset.label;
+
+        const menu = document.createElement('div');
+        menu.id = `${select.id}Options`;
+        menu.className = 'filter-popover-menu';
+        menu.setAttribute('role', 'listbox');
+        menu.setAttribute('aria-label', popover.dataset.label);
+
+        Array.from(select.options)
+            .filter(option => !option.disabled && !option.hidden)
+            .forEach(option => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'filter-popover-option';
+                item.setAttribute('role', 'option');
+                item.setAttribute('aria-selected', String(option.value === select.value));
+                item.textContent = option.textContent.trim();
+                item.addEventListener('click', () => {
+                    select.value = option.value;
+                    trigger.textContent = option.textContent.trim();
+                    menu.querySelectorAll('[role="option"]').forEach(menuOption => {
+                        menuOption.setAttribute('aria-selected', String(menuOption === item));
+                    });
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    closeFilterPopover(popover);
+                    trigger.focus();
+                });
+                menu.appendChild(item);
+            });
+
+        select.classList.add('filter-popover-native-select');
+        select.setAttribute('aria-hidden', 'true');
+        select.tabIndex = -1;
+        popover.insertBefore(trigger, select);
+        popover.appendChild(menu);
+
+        trigger.addEventListener('click', () => {
+            const willOpen = !popover.classList.contains('is-open');
+            document.querySelectorAll('.filter-popover.is-open').forEach(openPopover => {
+                closeFilterPopover(openPopover);
+            });
+            popover.classList.toggle('is-open', willOpen);
+            trigger.setAttribute('aria-expanded', String(willOpen));
+            if (willOpen) {
+                const triggerRect = trigger.getBoundingClientRect();
+                const menuRect = menu.getBoundingClientRect();
+                const left = Math.max(12, Math.min(triggerRect.left, window.innerWidth - menuRect.width - 12));
+                menu.style.left = `${left - popover.getBoundingClientRect().left}px`;
+                const selectedItem = menu.querySelector('[aria-selected="true"]') || menu.querySelector('[role="option"]');
+                selectedItem?.focus();
+            }
+        });
+
+        trigger.addEventListener('keydown', event => {
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                if (!popover.classList.contains('is-open')) trigger.click();
+                menu.querySelector('[aria-selected="true"]')?.focus();
+            }
+        });
+
+        menu.addEventListener('keydown', event => {
+            const items = Array.from(menu.querySelectorAll('[role="option"]'));
+            const currentIndex = items.indexOf(document.activeElement);
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeFilterPopover(popover, true);
+            } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                const direction = event.key === 'ArrowDown' ? 1 : -1;
+                items[(currentIndex + direction + items.length) % items.length]?.focus();
+            }
+        });
+    });
+
+    document.addEventListener('click', event => {
+        document.querySelectorAll('.filter-popover.is-open').forEach(popover => {
+            if (!popover.contains(event.target)) closeFilterPopover(popover);
+        });
+    });
+}
+
 // ========================================================
 // 1. METRICS ENGINE: KUKUNIN ANG MGA BILANG MULA SA SERVER
 // ========================================================
@@ -1185,6 +1295,7 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
 
 // INITIAL PAGE TRIGGERS ON LOAD
 document.addEventListener("DOMContentLoaded", () => {
+    initializeFilterPopovers();
     fetchStatusCounts();
     fetchBookings();
 
