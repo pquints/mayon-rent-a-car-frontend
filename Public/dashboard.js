@@ -4,6 +4,10 @@
 const DEBUG = localStorage.getItem('DEBUG') === 'true';
 let currentUser = null;
 let authToken = null;
+let recoveryEmailInMemory = null;
+let passwordResetTokenInMemory = null;
+let recoveryCodeExpiresAt = null;
+let recoveryCodeTimer = null;
 const API_BASE_CANDIDATES = resolveApiBaseCandidates();
 
 function formatMoneyNumber(value) {
@@ -46,6 +50,7 @@ function getNavItemByIcon(iconClass) {
 function showLoginView() {
     document.getElementById('loginView').style.display = 'flex';
     document.getElementById('dashboardContainer').style.display = 'none';
+    showLoginPanel();
     
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
@@ -57,25 +62,268 @@ function showLoginView() {
     const passwordField = document.getElementById('loginPassword');
     const emailField = document.getElementById('loginEmail');
     const errorDiv = document.getElementById('loginError');
-    if (togglePassword && passwordField) {
+    if (togglePassword && passwordField && !togglePassword.dataset.interactionBound) {
         togglePassword.addEventListener('click', () => {
             const isPassword = passwordField.type === 'password';
             passwordField.type = isPassword ? 'text' : 'password';
-            togglePassword.textContent = isPassword ? 'Hide' : 'Show';
+            togglePassword.setAttribute('aria-pressed', String(isPassword));
+            togglePassword.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+            togglePassword.querySelector('i')?.classList.toggle('fa-eye', !isPassword);
+            togglePassword.querySelector('i')?.classList.toggle('fa-eye-slash', isPassword);
         });
+        togglePassword.dataset.interactionBound = 'true';
     }
 
     const clearLoginError = () => {
         if (errorDiv && errorDiv.style.display === 'block') {
             errorDiv.style.display = 'none';
+            emailField?.removeAttribute('aria-invalid');
+            passwordField?.removeAttribute('aria-invalid');
         }
     };
 
-    if (passwordField) {
-        passwordField.addEventListener('input', clearLoginError);
-    }
-    if (emailField) {
+    if (loginForm && !loginForm.dataset.errorClearBound) {
+        passwordField?.addEventListener('input', clearLoginError);
         emailField.addEventListener('input', clearLoginError);
+        loginForm.dataset.errorClearBound = 'true';
+    }
+
+    const forgotButton = document.getElementById('showForgotPassword');
+    const forgotForm = document.getElementById('forgotPasswordForm');
+    const verifyForm = document.getElementById('verifyRecoveryForm');
+    const createPasswordForm = document.getElementById('createPasswordForm');
+    const requestAnotherCodeButton = document.getElementById('requestAnotherRecoveryCode');
+    if (forgotButton && !forgotButton.dataset.recoveryBound) {
+        forgotButton.addEventListener('click', () => {
+            const loginEmail = emailField.value.trim();
+            const recoveryEmail = document.getElementById('recoveryEmail');
+            clearRecoveryCodeTimer();
+            recoveryEmailInMemory = null;
+            passwordResetTokenInMemory = null;
+            recoveryEmail.value = loginEmail;
+            setRecoveryMessage('recoveryRequestMessage', '');
+            showLoginPanel('forgotPasswordPanel');
+            recoveryEmail.focus();
+        });
+        document.querySelectorAll('[data-login-back]').forEach(button => {
+            button.addEventListener('click', () => {
+                const recoveryEmail = document.getElementById('recoveryEmail').value.trim();
+                if (recoveryEmail) emailField.value = recoveryEmail;
+                clearRecoveryCodeTimer();
+                recoveryEmailInMemory = null;
+                passwordResetTokenInMemory = null;
+                showLoginPanel();
+            });
+        });
+        forgotForm?.addEventListener('submit', handleForgotPassword);
+        verifyForm?.addEventListener('submit', handleVerifyRecoveryCode);
+        createPasswordForm?.addEventListener('submit', handleResetPassword);
+        requestAnotherCodeButton?.addEventListener('click', () => {
+            handleRecoveryCodeResend(requestAnotherCodeButton);
+        });
+        forgotButton.dataset.recoveryBound = 'true';
+    }
+}
+
+function showLoginPanel(panelId = 'loginPanel') {
+    ['loginPanel', 'forgotPasswordPanel', 'verifyRecoveryPanel', 'createPasswordPanel'].forEach(id => {
+        const panel = document.getElementById(id);
+        if (panel) panel.hidden = id !== panelId;
+    });
+
+    if (panelId === 'loginPanel') {
+        document.getElementById('createPasswordForm').hidden = false;
+        document.querySelector('#createPasswordPanel .login-heading h1').textContent = 'Create new password';
+        document.querySelector('#createPasswordPanel .login-heading p').textContent = 'Enter a new secure password for your account.';
+        const successMessage = document.getElementById('passwordResetSuccessMessage');
+        successMessage.hidden = true;
+        successMessage.textContent = '';
+        document.getElementById('loginEmail').value = recoveryEmailInMemory || document.getElementById('loginEmail').value;
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('loginPassword').removeAttribute('aria-invalid');
+        document.getElementById('loginError').style.display = 'none';
+    }
+}
+
+function clearRecoveryCodeTimer() {
+    if (recoveryCodeTimer) {
+        clearInterval(recoveryCodeTimer);
+        recoveryCodeTimer = null;
+    }
+    recoveryCodeExpiresAt = null;
+}
+
+function startRecoveryCodeTimer() {
+    clearRecoveryCodeTimer();
+    recoveryCodeExpiresAt = Date.now() + 15 * 60 * 1000;
+    const hint = document.getElementById('recoveryCodeHint');
+    const verifyButton = document.querySelector('#verifyRecoveryForm .login-submit');
+
+    const updateCountdown = () => {
+        const remainingSeconds = Math.max(0, Math.ceil((recoveryCodeExpiresAt - Date.now()) / 1000));
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = String(remainingSeconds % 60).padStart(2, '0');
+        hint.textContent = remainingSeconds > 0
+            ? `Expires in ${minutes}:${seconds}`
+            : 'Code expired. Resend a new code to continue.';
+        verifyButton.disabled = remainingSeconds === 0;
+        if (remainingSeconds === 0) clearRecoveryCodeTimer();
+    };
+
+    updateCountdown();
+    recoveryCodeTimer = setInterval(updateCountdown, 1000);
+}
+
+function setRecoveryMessage(elementId, message, type = 'info') {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    element.textContent = message;
+    element.classList.toggle('is-error', type === 'error');
+    element.classList.toggle('is-success', type === 'success');
+    element.hidden = !message;
+}
+
+async function requestRecoveryCode(email, submitButton, messageId) {
+    const originalLabel = submitButton?.querySelector('span')?.textContent;
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.setAttribute('aria-busy', 'true');
+        if (submitButton.querySelector('span')) submitButton.querySelector('span').textContent = 'Sending code...';
+    }
+    setRecoveryMessage(messageId, '');
+
+    try {
+        const { response, data, parseError } = await requestWithFallback('/users/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        if (parseError) throw parseError;
+        if (!response.ok) {
+            setRecoveryMessage(messageId, data.error || 'Unable to send a recovery code. Please try again.', 'error');
+            return false;
+        }
+
+        recoveryEmailInMemory = email;
+        passwordResetTokenInMemory = null;
+        document.getElementById('recoveryEmailDisplay').textContent = email;
+        document.getElementById('verifyRecoveryForm').reset();
+        setRecoveryMessage('recoveryVerifyMessage', '');
+        setRecoveryMessage('passwordResetMessage', '');
+        document.getElementById('passwordResetSuccessMessage').hidden = true;
+        document.getElementById('passwordResetSuccessMessage').textContent = '';
+        startRecoveryCodeTimer();
+        showLoginPanel('verifyRecoveryPanel');
+        document.getElementById('recoveryCode').focus();
+        return true;
+    } catch (error) {
+        console.error('Password recovery request error:', error);
+        setRecoveryMessage(messageId, 'Unable to reach the password recovery service. Please try again.', 'error');
+        return false;
+    } finally {
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.removeAttribute('aria-busy');
+            if (submitButton.querySelector('span')) submitButton.querySelector('span').textContent = originalLabel;
+        }
+    }
+}
+
+async function handleForgotPassword(event) {
+    event.preventDefault();
+    const email = document.getElementById('recoveryEmail').value.trim();
+    await requestRecoveryCode(email, event.currentTarget.querySelector('.login-submit'), 'recoveryRequestMessage');
+}
+
+async function handleRecoveryCodeResend(button) {
+    const email = recoveryEmailInMemory || document.getElementById('recoveryEmail').value.trim();
+    const sent = await requestRecoveryCode(email, button, 'recoveryVerifyMessage');
+    if (sent) setRecoveryMessage('recoveryVerifyMessage', 'If an account exists, a new recovery code was sent. Check your inbox.', 'success');
+}
+
+async function handleVerifyRecoveryCode(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const code = document.getElementById('recoveryCode').value.trim();
+    const button = form.querySelector('.login-submit');
+    setRecoveryMessage('recoveryVerifyMessage', '');
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.querySelector('span').textContent = 'Verifying code...';
+
+    try {
+        const { response, data, parseError } = await requestWithFallback('/users/verify-recovery-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: recoveryEmailInMemory, code })
+        });
+        if (parseError) throw parseError;
+        if (!response.ok) {
+            setRecoveryMessage('recoveryVerifyMessage', data.error || 'The recovery code is invalid or expired.', 'error');
+            return;
+        }
+
+        passwordResetTokenInMemory = data.resetToken;
+        clearRecoveryCodeTimer();
+        showLoginPanel('createPasswordPanel');
+        document.getElementById('newPassword').focus();
+    } catch (error) {
+        console.error('Recovery code verification error:', error);
+        setRecoveryMessage('recoveryVerifyMessage', 'Unable to verify the recovery code right now. Please try again.', 'error');
+    } finally {
+        button.disabled = !document.getElementById('verifyRecoveryPanel').hidden
+            && (!recoveryCodeExpiresAt || recoveryCodeExpiresAt <= Date.now());
+        button.removeAttribute('aria-busy');
+        button.querySelector('span').textContent = 'Verify code';
+    }
+}
+
+async function handleResetPassword(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const password = document.getElementById('newPassword').value;
+    const confirmation = document.getElementById('confirmNewPassword').value;
+    const button = form.querySelector('.login-submit');
+    const messageId = 'passwordResetMessage';
+    setRecoveryMessage(messageId, '');
+
+    if (password !== confirmation) {
+        setRecoveryMessage(messageId, 'The passwords do not match. Please check and try again.', 'error');
+        document.getElementById('confirmNewPassword').focus();
+        return;
+    }
+
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.querySelector('span').textContent = 'Resetting password...';
+    try {
+        const { response, data, parseError } = await requestWithFallback('/users/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: recoveryEmailInMemory, resetToken: passwordResetTokenInMemory, password })
+        });
+        if (parseError) throw parseError;
+        if (!response.ok) {
+            setRecoveryMessage(messageId, data.error || 'Unable to reset your password. Please try again.', 'error');
+            return;
+        }
+
+        form.hidden = true;
+        document.querySelector('#createPasswordPanel .login-heading h1').textContent = 'Password updated';
+        document.querySelector('#createPasswordPanel .login-heading p').textContent = 'Your password has been reset. You can now sign in with your new password.';
+        setRecoveryMessage(messageId, '');
+        const successMessage = document.getElementById('passwordResetSuccessMessage');
+        successMessage.textContent = data.message || 'Password reset successfully. You can now sign in.';
+        successMessage.hidden = false;
+        document.getElementById('loginEmail').value = recoveryEmailInMemory;
+        passwordResetTokenInMemory = null;
+    } catch (error) {
+        console.error('Password reset error:', error);
+        setRecoveryMessage(messageId, 'Unable to reach the password recovery service. Please try again.', 'error');
+    } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        button.querySelector('span').textContent = 'Reset password';
     }
 }
 
@@ -110,14 +358,22 @@ async function handleLogin(e) {
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value.trim();
     const errorDiv = document.getElementById('loginError');
+    const emailField = document.getElementById('loginEmail');
+    const passwordField = document.getElementById('loginPassword');
+    const submitButton = document.querySelector('#loginForm .login-submit');
 
     if (!email || !password) {
         const message = 'Email and password required';
         errorDiv.textContent = message;
         errorDiv.style.display = 'block';
+        if (!email) emailField.setAttribute('aria-invalid', 'true');
+        if (!password) passwordField.setAttribute('aria-invalid', 'true');
         return;
     }
     
+    submitButton.disabled = true;
+    submitButton.setAttribute('aria-busy', 'true');
+    submitButton.querySelector('span').textContent = 'Signing in...';
     try {
         const { response, data, parseError } = await requestWithFallback('/users/login', {
             method: 'POST',
@@ -133,6 +389,8 @@ async function handleLogin(e) {
             const message = data.error || 'Login failed';
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
+            emailField.setAttribute('aria-invalid', 'true');
+            passwordField.setAttribute('aria-invalid', 'true');
             showNotificationToast(message, 'error');
             return;
         }
@@ -159,7 +417,13 @@ async function handleLogin(e) {
             : 'Network error. Please try again.';
         errorDiv.textContent = message;
         errorDiv.style.display = 'block';
+        emailField.setAttribute('aria-invalid', 'true');
+        passwordField.setAttribute('aria-invalid', 'true');
         showNotificationToast(message, 'error');
+    } finally {
+        submitButton.disabled = false;
+        submitButton.removeAttribute('aria-busy');
+        submitButton.querySelector('span').textContent = 'Sign in';
     }
 }
 
@@ -177,6 +441,9 @@ function resolveApiBaseCandidates() {
 
 async function requestWithFallback(path, options = {}) {
     let lastError = null;
+    let lastResponse = null;
+    let lastData = null;
+    let lastBase = null;
 
     for (const base of API_BASE_CANDIDATES) {
         try {
@@ -197,6 +464,9 @@ async function requestWithFallback(path, options = {}) {
                 }
                 if (response.status === 429 || response.status >= 500) {
                     lastError = new Error(`Temporary server error from ${base}${path}: ${response.status}`);
+                    lastResponse = response;
+                    lastData = data;
+                    lastBase = base;
                     continue;
                 }
                 return { response, data, base };
@@ -211,9 +481,13 @@ async function requestWithFallback(path, options = {}) {
         } catch (error) {
             lastError = error;
             if (DEBUG) {
-                console.warn(`[AUTH] failed login request via ${base}${path}:`, error.message);
+                console.warn(`[AUTH] failed request via ${base}${path}:`, error.message);
             }
         }
+    }
+
+    if (lastResponse) {
+        return { response: lastResponse, data: lastData, base: lastBase };
     }
 
     return {

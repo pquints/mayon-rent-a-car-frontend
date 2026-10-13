@@ -91,12 +91,31 @@ const loginLimiter = rateLimit({
     message: { success: false, error: isProduction ? 'Too many login attempts. Please wait 15 minutes.' : 'Too many login attempts. Please wait a moment and try again.' }
 });
 
+const passwordRecoveryLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Too many recovery requests. Please wait 15 minutes before trying again.' }
+});
+
+const passwordResetLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Too many password reset attempts. Please wait 15 minutes before trying again.' }
+});
+
 // Apply general limiter to all /api routes but exempt specific admin endpoints (e.g. login)
 // This keeps customer-facing protections while allowing admin/workflow endpoints to avoid accidental blocks.
 app.use('/api', (req, res, next) => {
     // Paths to exempt from the general limiter (server-side pathnames under /api)
     const exemptPaths = [
         '/users/login', // admin login endpoint
+        '/users/forgot-password',
+        '/users/verify-recovery-code',
+        '/users/reset-password',
         '/users', // user management (POST/PUT/DELETE) performed by admins
         '/vehicles', // admin vehicle management
         '/bookings', // admin booking management (list, edit, delete)
@@ -569,6 +588,227 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, error: "Internal Server Error" });
+    }
+});
+
+const PASSWORD_RECOVERY_CODE_TTL_MS = 15 * 60 * 1000;
+const PASSWORD_RECOVERY_MAX_ATTEMPTS = 5;
+const PASSWORD_RECOVERY_RESPONSE = {
+    success: true,
+    message: 'If an active account exists, a recovery code will be sent if email delivery is available.'
+};
+
+function hashPasswordRecoveryCode(user, code) {
+    const email = String(user.email).trim().toLowerCase();
+    return crypto
+        .createHmac('sha256', JWT_SECRET)
+        .update(`${user.id}:${email}:${code}`)
+        .digest('hex');
+}
+
+function recoveryCodeMatches(user, code) {
+    const storedHash = user.passwordRecovery?.codeHash;
+    if (typeof storedHash !== 'string' || !/^[a-f0-9]{64}$/i.test(storedHash)) return false;
+
+    const expectedHash = Buffer.from(storedHash, 'hex');
+    const submittedHash = Buffer.from(hashPasswordRecoveryCode(user, code), 'hex');
+    return expectedHash.length === submittedHash.length
+        && crypto.timingSafeEqual(expectedHash, submittedHash);
+}
+
+function hashPasswordResetToken(user, token) {
+    return crypto
+        .createHmac('sha256', JWT_SECRET)
+        .update(`password-reset:${user.id}:${token}`)
+        .digest('hex');
+}
+
+async function sendPasswordRecoveryEmail(email, code) {
+    const { error } = await resend.emails.send({
+        from: 'Mayon Rent a Car <no-reply@mayonrentacar.com.ph>',
+        to: [email],
+        replyTo: 'mayonrentacar@gmail.com',
+        subject: 'Mayon Rent a Car password recovery code',
+        html: `
+            <div style="margin:0;padding:32px 16px;background:#f1f5f9;font-family:Arial,sans-serif;color:#0f172a;">
+                <div style="max-width:520px;margin:0 auto;padding:32px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;">
+                    <div style="padding:28px 24px;background:#101010;text-align:center;">
+                        <h1 style="margin:0 0 8px;color:#f5b400;font-size:24px;letter-spacing:1px;">MAYON RENT A CAR</h1>
+                        <p style="margin:0;color:#d1d5db;font-size:14px;">Your One-Time Password</p>
+                    </div>
+                    <div style="padding:30px 28px;">
+                        <p style="margin:0 0 22px;color:#334155;font-size:16px;">A one-time password (OTP) was requested to reset your Mayon Rent a Car admin password.</p>
+                        <div style="padding:24px 16px;background:#101010;border-radius:8px;text-align:center;">
+                            <p style="margin:0 0 14px;color:#d1d5db;font-size:13px;letter-spacing:1px;">YOUR OTP CODE</p>
+                            <p style="margin:0;color:#f5b400;font-size:40px;font-weight:700;letter-spacing:10px;">${code}</p>
+                            <p style="margin:14px 0 0;color:#d1d5db;font-size:12px;">6-digit numeric code · Do not share with anyone</p>
+                        </div>
+                        <div style="margin-top:20px;padding:14px 16px;border-left:4px solid #f5b400;background:#f1f5f9;text-align:center;color:#334155;font-size:13px;">
+                            <strong>This code expires in 15 minutes.</strong><br>Request a new code if it expires.
+                        </div>
+                        <div style="margin-top:16px;padding:14px 16px;border-left:4px solid #f5b400;background:#fee2e2;color:#7f1d1d;font-size:13px;">
+                            <strong>Security notice:</strong> Never share this code. Mayon Rent a Car staff will never ask for your OTP.
+                        </div>
+                        <p style="margin:22px 0 0;color:#64748b;font-size:13px;">If you didn't request this code, you can ignore this email.</p>
+                    </div>
+                </div>
+            </div>`
+    });
+    if (error) throw new Error(error.message);
+}
+
+app.post('/api/users/forgot-password', passwordRecoveryLimiter, async (req, res) => {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+    if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ success: false, error: 'Enter a valid email address.' });
+    }
+
+    if (!resend) {
+        console.error('[PASSWORD RECOVERY] Email service is not configured.');
+        return res.status(503).json({ success: false, error: 'Password recovery is temporarily unavailable. Please contact support.' });
+    }
+
+    try {
+        const users = getUsers();
+        const user = users.find(candidate =>
+            candidate.active !== false
+            && candidate.email
+            && candidate.email.toLowerCase() === email.toLowerCase()
+        );
+
+        if (user) {
+            const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+            const recoveryHash = hashPasswordRecoveryCode(user, code);
+            user.passwordRecovery = {
+                codeHash: recoveryHash,
+                expiresAt: null,
+                attempts: 0
+            };
+            saveUsers(users);
+
+            try {
+                await sendPasswordRecoveryEmail(user.email, code);
+                if (user.passwordRecovery?.codeHash === recoveryHash) {
+                    user.passwordRecovery.expiresAt = Date.now() + PASSWORD_RECOVERY_CODE_TTL_MS;
+                    saveUsers(users);
+                }
+            } catch (error) {
+                if (user.passwordRecovery?.codeHash === recoveryHash) {
+                    user.passwordRecovery = null;
+                    saveUsers(users);
+                }
+                console.error('[PASSWORD RECOVERY] Unable to send recovery email:', error.message);
+                return res.status(202).json(PASSWORD_RECOVERY_RESPONSE);
+            }
+        }
+
+        return res.status(202).json(PASSWORD_RECOVERY_RESPONSE);
+    } catch (error) {
+        console.error('[PASSWORD RECOVERY] Request failed:', error.message);
+        return res.status(500).json({ success: false, error: 'Password recovery is temporarily unavailable. Please try again later.' });
+    }
+});
+
+app.post('/api/users/verify-recovery-code', passwordResetLimiter, (req, res) => {
+    const { email, code } = req.body || {};
+    if (typeof email !== 'string' || email.length > 254 || typeof code !== 'string' || !/^\d{6}$/.test(code)) {
+        return res.status(400).json({ success: false, error: 'Enter a valid email address and six-digit recovery code.' });
+    }
+
+    try {
+        const users = getUsers();
+        const user = users.find(candidate =>
+            candidate.active !== false
+            && candidate.email
+            && candidate.email.toLowerCase() === email.trim().toLowerCase()
+        );
+        const recovery = user?.passwordRecovery;
+
+        if (!user || !recovery || !Number.isFinite(recovery.expiresAt) || recovery.expiresAt <= Date.now()) {
+            if (user?.passwordRecovery) {
+                user.passwordRecovery = null;
+                saveUsers(users);
+            }
+            return res.status(400).json({ success: false, error: 'The recovery code is invalid or expired. Request a new code and try again.' });
+        }
+
+        if (recovery.attempts >= PASSWORD_RECOVERY_MAX_ATTEMPTS) {
+            user.passwordRecovery = null;
+            saveUsers(users);
+            return res.status(400).json({ success: false, error: 'The recovery code is invalid or expired. Request a new code and try again.' });
+        }
+
+        if (!recoveryCodeMatches(user, code)) {
+            recovery.attempts += 1;
+            if (recovery.attempts >= PASSWORD_RECOVERY_MAX_ATTEMPTS) {
+                user.passwordRecovery = null;
+            }
+            saveUsers(users);
+            return res.status(400).json({ success: false, error: 'The recovery code is invalid or expired. Request a new code and try again.' });
+        }
+
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        user.passwordRecovery = {
+            codeHash: null,
+            expiresAt: null,
+            attempts: recovery.attempts,
+            resetTokenHash: hashPasswordResetToken(user, resetToken),
+            resetExpiresAt: Date.now() + 10 * 60 * 1000
+        };
+        saveUsers(users);
+        return res.json({ success: true, resetToken, expiresIn: 10 * 60 });
+    } catch (error) {
+        console.error('[PASSWORD RECOVERY] Code verification failed:', error.message);
+        return res.status(500).json({ success: false, error: 'Unable to verify the recovery code right now. Please try again later.' });
+    }
+});
+
+app.post('/api/users/reset-password', passwordResetLimiter, async (req, res) => {
+    const { email, resetToken, password } = req.body || {};
+    if (
+        typeof email !== 'string'
+        || email.length > 254
+        || typeof resetToken !== 'string'
+        || !/^[a-f0-9]{64}$/i.test(resetToken)
+        || typeof password !== 'string'
+        || password.length < 8
+        || password.length > 128
+    ) {
+        return res.status(400).json({ success: false, error: 'Enter a verified recovery code and a password between 8 and 128 characters.' });
+    }
+
+    try {
+        const users = getUsers();
+        const user = users.find(candidate =>
+            candidate.active !== false
+            && candidate.email
+            && candidate.email.toLowerCase() === email.trim().toLowerCase()
+        );
+        const recovery = user?.passwordRecovery;
+        const storedTokenHash = recovery?.resetTokenHash;
+        const submittedTokenHash = user ? hashPasswordResetToken(user, resetToken) : '';
+        const tokenMatches = typeof storedTokenHash === 'string'
+            && /^[a-f0-9]{64}$/i.test(storedTokenHash)
+            && crypto.timingSafeEqual(Buffer.from(storedTokenHash, 'hex'), Buffer.from(submittedTokenHash, 'hex'));
+
+        if (!user || !recovery || !tokenMatches) {
+            return res.status(400).json({ success: false, error: 'Your verification is invalid or expired. Verify a new recovery code.' });
+        }
+
+        if (!Number.isFinite(recovery.resetExpiresAt) || recovery.resetExpiresAt <= Date.now()) {
+            user.passwordRecovery = null;
+            saveUsers(users);
+            return res.status(400).json({ success: false, error: 'Your verification expired. Request and verify a new recovery code.' });
+        }
+
+        user.passwordRecovery = null;
+        saveUsers(users);
+        user.password = await bcrypt.hash(password, 10);
+        saveUsers(users);
+        return res.json({ success: true, message: 'Password reset successfully. You can now sign in.' });
+    } catch (error) {
+        console.error('[PASSWORD RECOVERY] Password reset failed:', error.message);
+        return res.status(500).json({ success: false, error: 'Unable to reset the password right now. Please try again later.' });
     }
 });
 
