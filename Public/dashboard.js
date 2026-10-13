@@ -914,30 +914,9 @@ function renderPagination(bookingsList) {
     });
     paginationDiv.appendChild(prevBtn);
 
-    // Page numbers
-    const pageNumbersContainer = document.createElement('div');
-    pageNumbersContainer.style.cssText = 'display: flex; gap: 4px;';
-
-    for (let i = 1; i <= Math.min(totalPages, 3); i++) {
-        const pageBtn = document.createElement('button');
-        pageBtn.textContent = i;
-        pageBtn.style.cssText = `
-            padding: 8px 12px;
-            background: ${currentPage === i ? '#06B6D4' : 'white'};
-            color: ${currentPage === i ? 'white' : '#0F172A'};
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: ${currentPage === i ? 'bold' : 'normal'};
-            transition: background 0.2s;
-        `;
-        pageBtn.addEventListener('click', () => {
-            renderTable(bookingsList, i);
-        });
-        pageNumbersContainer.appendChild(pageBtn);
-    }
-
-    paginationDiv.appendChild(pageNumbersContainer);
+    renderPaginationPageNumbers(paginationDiv, totalPages, page => {
+        renderTable(bookingsList, page);
+    });
 
     // Next button
     const nextBtn = document.createElement('button');
@@ -962,6 +941,48 @@ function renderPagination(bookingsList) {
     paginationDiv.appendChild(nextBtn);
 
     tableContainer.appendChild(paginationDiv);
+}
+
+function renderPaginationPageNumbers(paginationDiv, totalPages, onSelectPage) {
+    const pageNumbersContainer = document.createElement('div');
+    pageNumbersContainer.style.cssText = 'display: flex; align-items: center; gap: 4px;';
+
+    const visiblePages = new Set([1, totalPages]);
+    for (let page = Math.max(1, currentPage - 2); page <= Math.min(totalPages, currentPage + 2); page++) {
+        visiblePages.add(page);
+    }
+
+    let previousPage = 0;
+    [...visiblePages].sort((a, b) => a - b).forEach(page => {
+        if (previousPage && page - previousPage > 1) {
+            const ellipsis = document.createElement('span');
+            ellipsis.textContent = '…';
+            ellipsis.setAttribute('aria-hidden', 'true');
+            ellipsis.style.padding = '0 4px';
+            pageNumbersContainer.appendChild(ellipsis);
+        }
+
+        const pageBtn = document.createElement('button');
+        pageBtn.type = 'button';
+        pageBtn.textContent = page;
+        pageBtn.setAttribute('aria-label', `Page ${page}`);
+        if (currentPage === page) pageBtn.setAttribute('aria-current', 'page');
+        pageBtn.style.cssText = `
+            padding: 8px 12px;
+            background: ${currentPage === page ? '#06B6D4' : 'white'};
+            color: ${currentPage === page ? 'white' : '#0F172A'};
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: ${currentPage === page ? 'bold' : 'normal'};
+            transition: background 0.2s;
+        `;
+        pageBtn.addEventListener('click', () => onSelectPage(page));
+        pageNumbersContainer.appendChild(pageBtn);
+        previousPage = page;
+    });
+
+    paginationDiv.appendChild(pageNumbersContainer);
 }
 
 // Pagination for filtered results
@@ -1010,31 +1031,10 @@ function renderPaginationFiltered(filteredList) {
     });
     paginationDiv.appendChild(prevBtn);
 
-    // Page numbers
-    const pageNumbersContainer = document.createElement('div');
-    pageNumbersContainer.style.cssText = 'display: flex; gap: 4px;';
-
-    for (let i = 1; i <= Math.min(totalPages, 3); i++) {
-        const pageBtn = document.createElement('button');
-        pageBtn.textContent = i;
-        pageBtn.style.cssText = `
-            padding: 8px 12px;
-            background: ${currentPage === i ? '#06B6D4' : 'white'};
-            color: ${currentPage === i ? 'white' : '#0F172A'};
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: ${currentPage === i ? 'bold' : 'normal'};
-            transition: background 0.2s;
-        `;
-        pageBtn.addEventListener('click', () => {
-            currentPage = i;
-            renderTableFiltered(filteredList);
-        });
-        pageNumbersContainer.appendChild(pageBtn);
-    }
-
-    paginationDiv.appendChild(pageNumbersContainer);
+    renderPaginationPageNumbers(paginationDiv, totalPages, page => {
+        currentPage = page;
+        renderTableFiltered(filteredList);
+    });
 
     // Next button
     const nextBtn = document.createElement('button');
