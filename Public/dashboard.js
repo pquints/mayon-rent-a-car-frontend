@@ -256,18 +256,22 @@ async function requestJson(path, options = {}) {
 
 function toggleAccountMenu() {
     const dropdown = document.getElementById('accountDropdown');
-    if (dropdown) {
-        dropdown.classList.toggle('active');
+    const userProfile = document.querySelector('.sidebar .user-profile');
+    if (!dropdown || !userProfile) return;
+
+    const sidebar = document.getElementById('sidebar');
+    const wasCollapsed = window.innerWidth >= 768 && sidebar?.classList.contains('collapsed');
+    if (wasCollapsed) {
+        sidebar.classList.remove('collapsed');
+        const toggleButton = document.getElementById('toggleBtn');
+        toggleButton?.setAttribute('aria-expanded', 'true');
+        toggleButton?.setAttribute('aria-label', 'Collapse navigation');
     }
-    // Close dropdown when clicking elsewhere
-    document.addEventListener('click', function closeDropdown(e) {
-        const userProfile = document.querySelector('.user-profile');
-        const dropdown = document.getElementById('accountDropdown');
-        if (dropdown && userProfile && !userProfile.contains(e.target) && !dropdown.contains(e.target)) {
-            dropdown.classList.remove('active');
-            document.removeEventListener('click', closeDropdown);
-        }
-    });
+
+    const isOpen = wasCollapsed || !dropdown.classList.contains('active');
+    dropdown.classList.toggle('active', isOpen);
+    userProfile.setAttribute('aria-expanded', String(isOpen));
+    userProfile.setAttribute('aria-label', isOpen ? 'Close profile menu' : 'Open profile menu');
 }
 
 function logout() {
@@ -308,7 +312,7 @@ function showUserManagementIfAdmin() {
 }
 
 function setupUserManagementNavigation() {
-    const dashboardNavItem = getNavItemByIcon('fa-chart-line');
+    const dashboardNavItem = getNavItemByIcon('fa-calendar-check');
     const vehiclesNavItem = getNavItemByIcon('fa-car');
     
     if (dashboardNavItem) {
@@ -2702,25 +2706,30 @@ function showView(viewType) {
         document.getElementById('sidebar')?.classList.remove('active');
     }
 
-    // Update nav items
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    const navItems = document.querySelectorAll('.sidebar .nav-item');
+    navItems.forEach(item => {
+        item.classList.remove('active');
+        item.removeAttribute('aria-current');
+    });
+
+    let activeNavItem = null;
     if (viewType === 'dashboard') {
-        const item = getNavItemByIcon('fa-chart-line');
-        if (item) item.classList.add('active');
+        activeNavItem = getNavItemByIcon('fa-calendar-check');
     } else if (viewType === 'userManagement') {
-        const item = getNavItemByIcon('fa-users');
-        if (item) item.classList.add('active');
+        activeNavItem = getNavItemByIcon('fa-users');
     } else if (viewType === 'vehicleManagement' || viewType === 'vehicleEdit') {
-        const item = getNavItemByIcon('fa-car');
-        if (item) item.classList.add('active');
+        activeNavItem = getNavItemByIcon('fa-car');
     } else if (viewType === 'accountSettings') {
-        const item = getNavItemByIcon('fa-user-gear');
-        if (item) item.classList.add('active');
+        activeNavItem = getNavItemByIcon('fa-sliders');
         loadAccountSettings();
     } else if (viewType === 'ratesManagement') {
-        const item = getNavItemByIcon('fa-tags');
-        if (item) item.classList.add('active');
+        activeNavItem = getNavItemByIcon('fa-tags');
         syncRatesTabControls();
+    }
+
+    if (activeNavItem) {
+        activeNavItem.classList.add('active');
+        activeNavItem.setAttribute('aria-current', 'page');
     }
 }
 
@@ -2836,22 +2845,32 @@ function applyTeamRoleFilter() {
 }
 
 function toggleTeamSubmenu(event) {
+    toggleSidebarSubmenu(event, 'teamSubmenu');
+}
+
+function toggleSidebarSubmenu(event, submenuId) {
     event.preventDefault();
-    const submenu = document.getElementById('teamSubmenu');
+    const submenu = document.getElementById(submenuId);
     const button = event.currentTarget;
     if (!submenu || !button) return;
 
-    if (submenu.classList.contains('hidden')) {
-        submenu.classList.remove('hidden');
-        submenu.style.display = 'flex';
-        const isOpen = submenu.classList.toggle('is-open');
-        button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        button.querySelector('.nav-item-chevron')?.classList.toggle('is-open', isOpen);
-    } else {
-        const isOpen = submenu.classList.toggle('is-open');
-        button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        button.querySelector('.nav-item-chevron')?.classList.toggle('is-open', isOpen);
+    const sidebar = document.getElementById('sidebar');
+    const expandToShowSubmenu = window.innerWidth >= 768 && sidebar?.classList.contains('collapsed');
+    if (expandToShowSubmenu) {
+        sidebar.classList.remove('collapsed');
+        const sidebarToggle = document.getElementById('toggleBtn');
+        sidebarToggle?.setAttribute('aria-expanded', 'true');
+        sidebarToggle?.setAttribute('aria-label', 'Collapse navigation');
     }
+
+    const isOpen = expandToShowSubmenu || submenu.classList.contains('hidden')
+        ? true
+        : !submenu.classList.contains('is-open');
+    submenu.classList.toggle('hidden', !isOpen);
+    submenu.classList.toggle('is-open', isOpen);
+    submenu.style.display = isOpen ? 'flex' : 'none';
+    button.setAttribute('aria-expanded', String(isOpen));
+    button.querySelector('.nav-item-chevron')?.classList.toggle('is-open', isOpen);
 }
 
 async function openTeamTab(role) {
@@ -3182,7 +3201,16 @@ function initializeDashboard() {
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (sidebar) {
-        sidebar.classList.toggle('collapsed');
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+        const toggleButton = document.getElementById('toggleBtn');
+        toggleButton?.setAttribute('aria-expanded', String(!isCollapsed));
+        toggleButton?.setAttribute('aria-label', isCollapsed ? 'Expand navigation' : 'Collapse navigation');
+        if (isCollapsed) {
+            document.getElementById('accountDropdown')?.classList.remove('active');
+            const userProfile = document.querySelector('.sidebar .user-profile');
+            userProfile?.setAttribute('aria-expanded', 'false');
+            userProfile?.setAttribute('aria-label', 'Open profile menu');
+        }
     }
 }
 
@@ -3192,7 +3220,13 @@ function toggleMobileSidebar() {
     const dashboardContainer = document.querySelector('.dashboard-container');
     
     if (sidebar) {
-        sidebar.classList.toggle('active');
+        const isOpen = sidebar.classList.toggle('active');
+        const toggleButton = document.getElementById('toggleMobileBtn');
+        toggleButton?.setAttribute('aria-expanded', String(isOpen));
+        toggleButton?.setAttribute('aria-label', isOpen ? 'Close navigation' : 'Open navigation');
+        const icon = toggleButton?.querySelector('i');
+        icon?.classList.toggle('fa-bars', !isOpen);
+        icon?.classList.toggle('fa-xmark', isOpen);
     }
     
     // Close account dropdown when opening sidebar
@@ -3212,15 +3246,48 @@ function toggleMobileAccountMenu() {
 
 // Close mobile sidebar when clicking on a nav item
 document.addEventListener('DOMContentLoaded', function() {
+    const userProfile = document.querySelector('.sidebar .user-profile');
+    const accountDropdown = document.getElementById('accountDropdown');
+    userProfile?.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        toggleAccountMenu();
+    });
+
+    document.addEventListener('click', event => {
+        if (!accountDropdown?.classList.contains('active')) return;
+        if (userProfile?.contains(event.target) || accountDropdown.contains(event.target)) return;
+        accountDropdown.classList.remove('active');
+        userProfile?.setAttribute('aria-expanded', 'false');
+        userProfile?.setAttribute('aria-label', 'Open profile menu');
+    });
+
     const navItems = document.querySelectorAll('.sidebar .nav-item');
     navItems.forEach(item => {
         item.addEventListener('click', function() {
             const sidebar = document.getElementById('sidebar');
-            if (window.innerWidth < 768 && sidebar) {
+            if (window.innerWidth < 768 && sidebar && !item.classList.contains('nav-item--dropdown')) {
                 setTimeout(() => {
                     sidebar.classList.remove('active');
+                    const toggleButton = document.getElementById('toggleMobileBtn');
+                    toggleButton?.setAttribute('aria-expanded', 'false');
+                    toggleButton?.setAttribute('aria-label', 'Open navigation');
+                    toggleButton?.querySelector('i')?.classList.replace('fa-xmark', 'fa-bars');
                 }, 100);
             }
+        });
+    });
+
+    document.querySelectorAll('.sidebar .nav-submenu-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth >= 768) return;
+            setTimeout(() => {
+                document.getElementById('sidebar')?.classList.remove('active');
+                const toggleButton = document.getElementById('toggleMobileBtn');
+                toggleButton?.setAttribute('aria-expanded', 'false');
+                toggleButton?.setAttribute('aria-label', 'Open navigation');
+                toggleButton?.querySelector('i')?.classList.replace('fa-xmark', 'fa-bars');
+            }, 100);
         });
     });
 });
@@ -3720,22 +3787,7 @@ function collectRatesFromInputs() {
 }
 
 function toggleRatesSubmenu(event) {
-    event.preventDefault();
-    const submenu = document.getElementById('ratesSubmenu');
-    const button = event.currentTarget;
-    if (!submenu || !button) return;
-
-    if (submenu.classList.contains('hidden')) {
-        submenu.classList.remove('hidden');
-        submenu.style.display = 'flex';
-        const isOpen = submenu.classList.toggle('is-open');
-        button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        button.querySelector('.nav-item-chevron')?.classList.toggle('is-open', isOpen);
-    } else {
-        const isOpen = submenu.classList.toggle('is-open');
-        button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        button.querySelector('.nav-item-chevron')?.classList.toggle('is-open', isOpen);
-    }
+    toggleSidebarSubmenu(event, 'ratesSubmenu');
 }
 
 async function openRatesTab(tab) {
