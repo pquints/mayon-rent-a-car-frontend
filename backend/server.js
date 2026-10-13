@@ -1064,7 +1064,18 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         }
 
         // quoteData from frontend is the full quoteRecord: { totalAmount, rentalType, quoteData: {...}, ... }
-        const totalAmount = quoteData?.totalAmount || 'N/A';
+        const normalizeTotalAmount = (value) => {
+            if (typeof value === 'string') {
+                const cleaned = value.replace(/[^\d.-]/g, '');
+                if (!cleaned || cleaned === '-' || cleaned === '.') return value;
+                return `₱${Number(cleaned).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            }
+            if (Number.isFinite(Number(value))) {
+                return `₱${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            }
+            return value || 'N/A';
+        };
+        const totalAmount = normalizeTotalAmount(quoteData?.totalAmount || 'N/A');
         const rentalType  = quoteData?.rentalType  || 'unknown';
         const qd          = quoteData?.quoteData   || {};   // flat detail object
 
@@ -1077,6 +1088,12 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         const returnAddress = qd.returnAddress || '—';
         const returnLocationAddress = qd.returnLocationAddress || '';
         const returnFlightNumber = qd.returnFlightNumber || '';
+
+        const formatMoneyNumber = (value) => {
+            const numericValue = Number.isFinite(Number(value)) ? Number(value) : 0;
+            return numericValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        const formatMoney = (value) => `₱${formatMoneyNumber(value)}`;
 
         const formatQuotationLocation = (location, exactAddress, flightNumber) => {
             const normalizedLocation = String(location || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -1106,7 +1123,7 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
         // ── Cost breakdown rows ──────────────────────────────────────────────
         const bd  = qd.breakdownDetails || {};
         const row = (label, value, zeroLabel = '') => value > 0
-            ? `<tr><td style="padding:8px 12px;color:#475569;border-bottom:1px solid #f1f5f9;">${label}</td><td style="padding:8px 12px;text-align:right;font-weight:600;color:#1e293b;border-bottom:1px solid #f1f5f9;">₱${value.toFixed(2)}</td></tr>`
+            ? `<tr><td style="padding:8px 12px;color:#475569;border-bottom:1px solid #f1f5f9;">${label}</td><td style="padding:8px 12px;text-align:right;font-weight:600;color:#1e293b;border-bottom:1px solid #f1f5f9;">${formatMoney(value)}</td></tr>`
             : value === 0 && zeroLabel
                 ? `<tr><td style="padding:8px 12px;color:#475569;border-bottom:1px solid #f1f5f9;">${label}</td><td style="padding:8px 12px;text-align:right;font-weight:600;color:#1e293b;border-bottom:1px solid #f1f5f9;">${zeroLabel}</td></tr>`
                 : '';
@@ -1117,9 +1134,9 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
             const baseTotal = bd.unitBase * bd.driverDays;
             const otTotal   = bd.overtime * bd.driverOtHours;
 
-            breakdownRows += row(`Rental Rate (₱${(bd.unitBase||0).toFixed(2)} × ${bd.driverDays||0} Day/s)`, baseTotal);
-            if (bd.driverOtHours > 0) breakdownRows += row(`Overtime Fee (₱${(bd.overtime||0).toFixed(2)} × ${bd.driverOtHours} Hr/s)`, otTotal);
-            if (fuelCost > 0) breakdownRows += row(`Calculated Fuel Cost (${bd.distance}km @ ₱${bd.fuelPrice}/L, ${bd.consumption}km/L)`, fuelCost);
+            breakdownRows += row(`Rental Rate (₱${formatMoneyNumber(bd.unitBase || 0)} × ${bd.driverDays || 0} Day/s)`, baseTotal);
+            if (bd.driverOtHours > 0) breakdownRows += row(`Overtime Fee (₱${formatMoneyNumber(bd.overtime || 0)} × ${bd.driverOtHours} Hr/s)`, otTotal);
+            if (fuelCost > 0) breakdownRows += row(`Calculated Fuel Cost (${bd.distance}km @ ₱${formatMoneyNumber(bd.fuelPrice || 0)}/L, ${bd.consumption}km/L)`, fuelCost);
             breakdownRows += row('Toll Fees',               bd.tollFees   || 0);
             breakdownRows += row('Parking Fees',            bd.parkingFees|| 0);
             breakdownRows += row("Driver's Fee",            bd.driverFee  || 0);
@@ -1130,8 +1147,8 @@ app.post('/api/send-quotation-email', verifyToken, verifyAdmin, async (req, res)
             const baseTotal = bd.unitBase * bd.days;
             const otTotal   = bd.overtime * bd.selfOtHours;
 
-            breakdownRows += row(`Rental Rate (₱${(bd.unitBase||0).toFixed(2)} × ${bd.days||0} Day/s)`, baseTotal);
-            if (bd.selfOtHours > 0) breakdownRows += row(`Overtime Fee (₱${(bd.overtime||0).toFixed(2)} × ${bd.selfOtHours} Hr/s)`, otTotal);
+            breakdownRows += row(`Rental Rate (₱${formatMoneyNumber(bd.unitBase || 0)} × ${bd.days || 0} Day/s)`, baseTotal);
+            if (bd.selfOtHours > 0) breakdownRows += row(`Overtime Fee (₱${formatMoneyNumber(bd.overtime || 0)} × ${bd.selfOtHours} Hr/s)`, otTotal);
             breakdownRows += row('Delivery Fee',   bd.delivery  || 0, 'Free');
             breakdownRows += row('Return Fee',     bd.return    || 0, 'Free');
             breakdownRows += row('Child Seat Fee', bd.childSeat || 0);

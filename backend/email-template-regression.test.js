@@ -20,5 +20,7 @@ assert.ok(source.includes('${returnDisplay}'), 'Email quotation should render fo
 assert.ok(source.includes('https://www.mayonrentacar.com.ph/images/Mayon-email.png'), 'Email template should use the official Mayon logo.');
 assert.ok(source.includes('max-width:190px'), 'Email logo should use a compact width.');
 assert.ok(source.includes('Your Trusted Rental Partner in Bicol'), 'Email logo should include the brand tagline beneath it.');
+assert.ok(source.includes("toLocaleString('en-US'"), 'Quotation values should include thousands separators in email and PDF output.');
+assert.ok(source.includes('formatMoneyNumber'), 'Quotation totals should use a shared money formatter for comma-separated values.');
 
 console.log('Quote email template regression checks passed.');

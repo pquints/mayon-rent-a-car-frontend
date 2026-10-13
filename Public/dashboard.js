@@ -6,6 +6,15 @@ let currentUser = null;
 let authToken = null;
 const API_BASE_CANDIDATES = resolveApiBaseCandidates();
 
+function formatMoneyNumber(value) {
+    const numericValue = Number.isFinite(Number(value)) ? Number(value) : 0;
+    return numericValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatMoney(value) {
+    return `₱${formatMoneyNumber(value)}`;
+}
+
 // Check authentication on page load
 document.addEventListener("DOMContentLoaded", function() {
     const token = localStorage.getItem('authToken');
@@ -1663,7 +1672,7 @@ function calculateTotalQuote() {
         
         const fuelCost = (dist / cons) * price;
         const fuelCostEl = document.getElementById("qqFuelCost");
-        if (fuelCostEl) fuelCostEl.value = "₱" + fuelCost.toFixed(2);
+        if (fuelCostEl) fuelCostEl.value = formatMoney(fuelCost);
 
         const baseRate = parseFloat(document.getElementById("qqUnitBase").value) || 0;
         const driverDays = parseFloat(document.getElementById("qqDriverDays").value) || 1;
@@ -1701,7 +1710,7 @@ function calculateTotalQuote() {
     const finalTotal = subtotal * qty;
 
     const totalEl = document.getElementById("lblTotal");
-    if (totalEl) totalEl.innerText = "₱" + finalTotal.toFixed(2);
+    if (totalEl) totalEl.innerText = formatMoney(finalTotal);
 }
 
 // ========================================================
@@ -2201,15 +2210,15 @@ async function executeQuoteAction(actionType) {
                 const otTotal = bd.overtime * bd.driverOtHours;
                 
                 breakdownHTML = `
-                    <tr><td>Rental Rate (₱${bd.unitBase.toFixed(2)} × ${bd.driverDays} Day/s)</td><td>₱${baseTotal.toFixed(2)}</td></tr>
-                    ${bd.driverOtHours > 0 ? `<tr><td>Overtime Fee (₱${bd.overtime.toFixed(2)} × ${bd.driverOtHours} Hr/s)</td><td>₱${otTotal.toFixed(2)}</td></tr>` : ''}
-                    ${fuelCost > 0 ? `<tr><td>Calculated Fuel Cost (${bd.distance}km @ ₱${bd.fuelPrice}/L, ${bd.consumption}km/L)</td><td>₱${fuelCost.toFixed(2)}</td></tr>` : ''}
-                    ${bd.tollFees > 0 ? `<tr><td>Toll Fees</td><td>₱${bd.tollFees.toFixed(2)}</td></tr>` : ''}
-                    ${bd.parkingFees > 0 ? `<tr><td>Parking Fees</td><td>₱${bd.parkingFees.toFixed(2)}</td></tr>` : ''}
-                    ${bd.driverFee > 0 ? `<tr><td>Driver's Fee</td><td>₱${bd.driverFee.toFixed(2)}</td></tr>` : ''}
-                    ${bd.meals > 0 ? `<tr><td>Meals</td><td>₱${bd.meals.toFixed(2)}</td></tr>` : ''}
-                    ${bd.lodging > 0 ? `<tr><td>Lodging / Accommodation</td><td>₱${bd.lodging.toFixed(2)}</td></tr>` : ''}
-                    ${bd.misc > 0 ? `<tr><td>Miscellaneous Expenses</td><td>₱${bd.misc.toFixed(2)}</td></tr>` : ''}
+                    <tr><td>Rental Rate (₱${formatMoneyNumber(bd.unitBase)} × ${bd.driverDays} Day/s)</td><td>${formatMoney(baseTotal)}</td></tr>
+                    ${bd.driverOtHours > 0 ? `<tr><td>Overtime Fee (₱${formatMoneyNumber(bd.overtime)} × ${bd.driverOtHours} Hr/s)</td><td>${formatMoney(otTotal)}</td></tr>` : ''}
+                    ${fuelCost > 0 ? `<tr><td>Calculated Fuel Cost (${bd.distance}km @ ₱${formatMoneyNumber(bd.fuelPrice)}/L, ${bd.consumption}km/L)</td><td>${formatMoney(fuelCost)}</td></tr>` : ''}
+                    ${bd.tollFees > 0 ? `<tr><td>Toll Fees</td><td>${formatMoney(bd.tollFees)}</td></tr>` : ''}
+                    ${bd.parkingFees > 0 ? `<tr><td>Parking Fees</td><td>${formatMoney(bd.parkingFees)}</td></tr>` : ''}
+                    ${bd.driverFee > 0 ? `<tr><td>Driver's Fee</td><td>${formatMoney(bd.driverFee)}</td></tr>` : ''}
+                    ${bd.meals > 0 ? `<tr><td>Meals</td><td>${formatMoney(bd.meals)}</td></tr>` : ''}
+                    ${bd.lodging > 0 ? `<tr><td>Lodging / Accommodation</td><td>${formatMoney(bd.lodging)}</td></tr>` : ''}
+                    ${bd.misc > 0 ? `<tr><td>Miscellaneous Expenses</td><td>${formatMoney(bd.misc)}</td></tr>` : ''}
                 `;
             } else {
                 // Self-drive breakdown from saved data
@@ -2219,11 +2228,11 @@ async function executeQuoteAction(actionType) {
                 const returnFee = Number(bd.return) || 0;
                 
                 breakdownHTML = `
-                    <tr><td>Rental Rate (₱${bd.unitBase.toFixed(2)} × ${bd.days} Day/s)</td><td>₱${baseTotal.toFixed(2)}</td></tr>
-                    ${bd.selfOtHours > 0 ? `<tr><td>Overtime Fee (₱${bd.overtime.toFixed(2)} × ${bd.selfOtHours} Hr/s)</td><td>₱${otTotal.toFixed(2)}</td></tr>` : ''}
-                    <tr><td>Delivery Fee</td><td>${deliveryFee === 0 ? 'Free' : `₱${deliveryFee.toFixed(2)}`}</td></tr>
-                    <tr><td>Return Fee</td><td>${returnFee === 0 ? 'Free' : `₱${returnFee.toFixed(2)}`}</td></tr>
-                    ${bd.childSeat > 0 ? `<tr><td>Child Seat Fee</td><td>₱${bd.childSeat.toFixed(2)}</td></tr>` : ''}
+                    <tr><td>Rental Rate (₱${formatMoneyNumber(bd.unitBase)} × ${bd.days} Day/s)</td><td>${formatMoney(baseTotal)}</td></tr>
+                    ${bd.selfOtHours > 0 ? `<tr><td>Overtime Fee (₱${formatMoneyNumber(bd.overtime)} × ${bd.selfOtHours} Hr/s)</td><td>${formatMoney(otTotal)}</td></tr>` : ''}
+                    <tr><td>Delivery Fee</td><td>${deliveryFee === 0 ? 'Free' : formatMoney(deliveryFee)}</td></tr>
+                    <tr><td>Return Fee</td><td>${returnFee === 0 ? 'Free' : formatMoney(returnFee)}</td></tr>
+                    ${bd.childSeat > 0 ? `<tr><td>Child Seat Fee</td><td>${formatMoney(bd.childSeat)}</td></tr>` : ''}
                 `;
             }
         } else {
@@ -2247,15 +2256,15 @@ async function executeQuoteAction(actionType) {
                 const misc = parseFloat(document.getElementById("qqMisc").value) || 0;
 
                 breakdownHTML = `
-                    <tr><td>Rental Rate (₱${baseRate.toFixed(2)} × ${driverDays} Day/s)</td><td>₱${(baseRate * driverDays).toFixed(2)}</td></tr>
-                    ${otHours > 0 ? `<tr><td>Overtime Fee (₱${otRate.toFixed(2)} × ${otHours} Hr/s)</td><td>₱${(otRate * otHours).toFixed(2)}</td></tr>` : ''}
-                    ${fuelCost > 0 ? `<tr><td>Calculated Fuel Cost</td><td>₱${fuelCost.toFixed(2)}</td></tr>` : ''}
-                    ${tolls > 0 ? `<tr><td>Toll Fees</td><td>₱${tolls.toFixed(2)}</td></tr>` : ''}
-                    ${parking > 0 ? `<tr><td>Parking Fees</td><td>₱${parking.toFixed(2)}</td></tr>` : ''}
-                    ${driverFee > 0 ? `<tr><td>Driver's Fee</td><td>₱${driverFee.toFixed(2)}</td></tr>` : ''}
-                    ${meals > 0 ? `<tr><td>Meals</td><td>₱${meals.toFixed(2)}</td></tr>` : ''}
-                    ${lodging > 0 ? `<tr><td>Lodging / Accommodation</td><td>₱${lodging.toFixed(2)}</td></tr>` : ''}
-                    ${misc > 0 ? `<tr><td>Miscellaneous Expenses</td><td>₱${misc.toFixed(2)}</td></tr>` : ''}
+                    <tr><td>Rental Rate (₱${formatMoneyNumber(baseRate)} × ${driverDays} Day/s)</td><td>${formatMoney(baseRate * driverDays)}</td></tr>
+                    ${otHours > 0 ? `<tr><td>Overtime Fee (₱${formatMoneyNumber(otRate)} × ${otHours} Hr/s)</td><td>${formatMoney(otRate * otHours)}</td></tr>` : ''}
+                    ${fuelCost > 0 ? `<tr><td>Calculated Fuel Cost</td><td>${formatMoney(fuelCost)}</td></tr>` : ''}
+                    ${tolls > 0 ? `<tr><td>Toll Fees</td><td>${formatMoney(tolls)}</td></tr>` : ''}
+                    ${parking > 0 ? `<tr><td>Parking Fees</td><td>${formatMoney(parking)}</td></tr>` : ''}
+                    ${driverFee > 0 ? `<tr><td>Driver's Fee</td><td>${formatMoney(driverFee)}</td></tr>` : ''}
+                    ${meals > 0 ? `<tr><td>Meals</td><td>${formatMoney(meals)}</td></tr>` : ''}
+                    ${lodging > 0 ? `<tr><td>Lodging / Accommodation</td><td>${formatMoney(lodging)}</td></tr>` : ''}
+                    ${misc > 0 ? `<tr><td>Miscellaneous Expenses</td><td>${formatMoney(misc)}</td></tr>` : ''}
                 `;
             } else {
                 const sBaseRate = parseFloat(document.getElementById("qqSelfUnitBase").value) || 0;
@@ -2267,11 +2276,11 @@ async function executeQuoteAction(actionType) {
                 const sChild = parseFloat(document.getElementById("qqSelfChildSeat").value) || 0;
 
                 breakdownHTML = `
-                    <tr><td>Rental Rate (₱${sBaseRate.toFixed(2)} × ${sDays} Day/s)</td><td>₱${(sBaseRate * sDays).toFixed(2)}</td></tr>
-                    ${sOtHours > 0 ? `<tr><td>Overtime Fee (₱${sOtRate.toFixed(2)} × ${sOtHours} Hr/s)</td><td>₱${(sOtRate * sOtHours).toFixed(2)}</td></tr>` : ''}
-                    <tr><td>Delivery Fee</td><td>${sDel === 0 ? 'Free' : `₱${sDel.toFixed(2)}`}</td></tr>
-                    <tr><td>Return Fee</td><td>${sRet === 0 ? 'Free' : `₱${sRet.toFixed(2)}`}</td></tr>
-                    ${sChild > 0 ? `<tr><td>Child Seat Fee</td><td>₱${sChild.toFixed(2)}</td></tr>` : ''}
+                    <tr><td>Rental Rate (₱${formatMoneyNumber(sBaseRate)} × ${sDays} Day/s)</td><td>${formatMoney(sBaseRate * sDays)}</td></tr>
+                    ${sOtHours > 0 ? `<tr><td>Overtime Fee (₱${formatMoneyNumber(sOtRate)} × ${sOtHours} Hr/s)</td><td>${formatMoney(sOtRate * sOtHours)}</td></tr>` : ''}
+                    <tr><td>Delivery Fee</td><td>${sDel === 0 ? 'Free' : formatMoney(sDel)}</td></tr>
+                    <tr><td>Return Fee</td><td>${sRet === 0 ? 'Free' : formatMoney(sRet)}</td></tr>
+                    ${sChild > 0 ? `<tr><td>Child Seat Fee</td><td>${formatMoney(sChild)}</td></tr>` : ''}
                 `;
             }
         }
