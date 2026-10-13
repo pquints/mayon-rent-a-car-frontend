@@ -591,6 +591,7 @@ body {
     color: var(--text-muted);
     font-weight: 500;
     transition: all 0.2s ease;
+    font-family: inherit;
 }
 
 .pill:hover {
@@ -601,10 +602,16 @@ body {
 
 /* Active Pill Highlight Effect gamit ang bagong Light Cyan Scheme */
 .pill.active {
-    background-color: #ecfeff !important;
-    color: var(--accent-blue) !important;
-    border-color: var(--accent-blue) !important;
+    background-color: #0f172a;
+    color: #ffffff;
+    border-color: #0f172a;
     font-weight: 600;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+}
+
+.pill:focus-visible {
+    outline: 3px solid rgba(8, 145, 178, 0.35);
+    outline-offset: 2px;
 }
 
 .count-badge {
@@ -617,7 +624,7 @@ body {
 }
 
 .pill.active .count-badge {
-    background-color: var(--accent-blue);
+    background-color: #164e63;
     color: #ffffff;
 }
 
@@ -839,6 +846,47 @@ body {
     color: var(--text-main);
     font: inherit;
 }
+.booking-results-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-height: 28px;
+    margin: -8px 0 12px;
+}
+.booking-results-bar p {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+.clear-filters-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #334155;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.clear-filters-btn:hover {
+    border-color: #0891b2;
+    color: #0e7490;
+    background: #ecfeff;
+}
+.clear-filters-btn:focus-visible {
+    outline: 3px solid rgba(8, 145, 178, 0.3);
+    outline-offset: 2px;
+}
+.clear-filters-btn[hidden] {
+    display: none;
+}
 .btn-primary {
     background-color: var(--text-main);
     color: white;
@@ -889,6 +937,24 @@ body {
 }
 .data-table tbody tr:hover {
     background-color: #f8fafc;
+}
+.booking-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 34px 18px;
+    text-align: center;
+}
+.booking-empty-state strong {
+    color: var(--text-main);
+    font-size: 0.95rem;
+}
+.booking-empty-state span {
+    max-width: 520px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
 }
 
 /* STATUS BADGES */
@@ -1268,6 +1334,10 @@ body {
         min-height: 36px;
         padding: 9px 28px 9px 10px;
         font-size: 0.8rem;
+    }
+
+    .filter-popover.is-open {
+        z-index: 31;
     }
 
     .dropdown-filters select {

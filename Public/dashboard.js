@@ -403,6 +403,21 @@ let currentBookingsList = [];
 let currentFilteredList = []; // Track filtered results for pagination
 let currentPage = 1;
 const ITEMS_PER_PAGE = 10;
+const BOOKING_STATUS_OPTIONS = [
+    { id: 'all', label: 'All' },
+    { id: 'open', label: 'Open' },
+    { id: 'quoted', label: 'Quoted' },
+    { id: 'approved', label: 'Customer Approved' },
+    { id: 'assignment', label: 'For Assignment' },
+    { id: 'pending', label: 'Pending Payment' },
+    { id: 'confirmed', label: 'Confirmed' },
+    { id: 'ongoing', label: 'Ongoing' },
+    { id: 'completed', label: 'Completed' },
+    { id: 'deposited', label: 'Deposited' },
+    { id: 'cancelled', label: 'Cancelled' },
+    { id: 'no-avail', label: 'Cancelled - No Availability' },
+    { id: 'lost', label: 'Cancelled - Lost' }
+];
 
 function persistBookingStatus(statusId) {
     activeStatus = statusId || 'open';
@@ -465,6 +480,100 @@ function applyBookingFilters(bookingsList = currentBookingsList) {
 
     currentFilteredList = filteredList;
     renderTableFiltered(filteredList);
+}
+
+function getActiveBookingStatusLabel() {
+    const activePill = Array.from(document.querySelectorAll('#statusPills .pill'))
+        .find(pill => pill.dataset.status === activeStatus);
+    return activePill?.querySelector('.pill-label')?.textContent.trim()
+        || activeStatus.replace(/-/g, ' ').replace(/\b\w/g, character => character.toUpperCase());
+}
+
+function updateBookingResultsSummary(totalCount, filtersActive) {
+    const summary = document.getElementById('bookingResultsSummary');
+    const clearFiltersButton = document.getElementById('clearBookingFiltersBtn');
+    if (!summary || !clearFiltersButton) return;
+
+    const statusLabel = getActiveBookingStatusLabel().toLowerCase();
+    const start = totalCount ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0;
+    const end = Math.min(currentPage * ITEMS_PER_PAGE, totalCount);
+    const bookingNoun = totalCount === 1 ? 'booking' : 'bookings';
+
+    if (filtersActive) {
+        summary.textContent = totalCount
+            ? `Showing ${start}–${end} of ${totalCount} matching ${statusLabel} ${bookingNoun} (${currentBookingsList.length} total)`
+            : `0 matching ${statusLabel} bookings (${currentBookingsList.length} total)`;
+    } else {
+        summary.textContent = totalCount
+            ? `Showing ${start}–${end} of ${totalCount} ${statusLabel} ${bookingNoun}`
+            : `0 ${statusLabel} bookings`;
+    }
+
+    clearFiltersButton.hidden = !filtersActive;
+}
+
+function renderBookingEmptyState(filtersActive) {
+    const tableBody = document.getElementById('tableBody');
+    if (!tableBody) return;
+
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 7;
+    cell.className = 'no-data';
+
+    const emptyState = document.createElement('div');
+    emptyState.className = 'booking-empty-state';
+    const title = document.createElement('strong');
+    const description = document.createElement('span');
+
+    if (filtersActive) {
+        title.textContent = 'No bookings match these filters';
+        description.textContent = 'Try changing your search or filters, or clear them to see all bookings in this status.';
+    } else {
+        title.textContent = `No ${getActiveBookingStatusLabel().toLowerCase()} bookings`;
+        description.textContent = 'Bookings in this status will appear here.';
+    }
+
+    emptyState.append(title, description);
+    cell.appendChild(emptyState);
+    row.appendChild(cell);
+    tableBody.replaceChildren(row);
+}
+
+function clearBookingFilters() {
+    const searchBar = document.getElementById('searchBar');
+    const serviceFilter = document.getElementById('filterService');
+    const typeFilter = document.getElementById('filterType');
+    const areaFilter = document.getElementById('filterArea');
+    const startDateFilter = document.getElementById('filterStartDate');
+    const endDateFilter = document.getElementById('filterEndDate');
+    const moreFiltersButton = document.getElementById('moreFiltersBtn');
+    const advancedFilters = document.getElementById('advancedFilters');
+
+    if (searchBar) searchBar.value = '';
+    [serviceFilter, typeFilter, areaFilter].forEach(select => {
+        if (!select) return;
+        select.value = '';
+        const popover = select.closest('.filter-popover');
+        const trigger = popover?.querySelector('.filter-popover-trigger');
+        if (trigger) {
+            trigger.textContent = popover.dataset.label;
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+        popover?.classList.remove('is-open');
+        popover?.querySelectorAll('[role="option"]').forEach(option => {
+            option.setAttribute('aria-selected', String(option.textContent.trim() === select.selectedOptions[0]?.textContent.trim()));
+        });
+    });
+    if (startDateFilter) startDateFilter.value = '';
+    if (endDateFilter) endDateFilter.value = '';
+    if (startDateFilter) startDateFilter.max = '';
+    if (endDateFilter) endDateFilter.min = '';
+    if (advancedFilters) advancedFilters.hidden = true;
+    if (moreFiltersButton) moreFiltersButton.setAttribute('aria-expanded', 'false');
+
+    filterCurrentBookings();
+    searchBar?.focus();
 }
 
 function initializeFilterPopovers() {
@@ -574,6 +683,29 @@ function initializeFilterPopovers() {
         document.querySelectorAll('.filter-popover.is-open').forEach(popover => {
             if (!popover.contains(event.target)) closeFilterPopover(popover);
         });
+
+        const moreFiltersDropdown = document.querySelector('.more-filters-dropdown');
+        const moreFiltersButton = document.getElementById('moreFiltersBtn');
+        const advancedFilters = document.getElementById('advancedFilters');
+        if (
+            moreFiltersButton?.getAttribute('aria-expanded') === 'true'
+            && !moreFiltersDropdown?.contains(event.target)
+        ) {
+            moreFiltersButton.setAttribute('aria-expanded', 'false');
+            if (advancedFilters) advancedFilters.hidden = true;
+        }
+    });
+
+    document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+
+        const moreFiltersButton = document.getElementById('moreFiltersBtn');
+        const advancedFilters = document.getElementById('advancedFilters');
+        if (moreFiltersButton?.getAttribute('aria-expanded') === 'true') {
+            moreFiltersButton.setAttribute('aria-expanded', 'false');
+            if (advancedFilters) advancedFilters.hidden = true;
+            moreFiltersButton.focus();
+        }
     });
 }
 
@@ -587,21 +719,10 @@ async function fetchStatusCounts() {
         
         const counts = await response.json();
         
-        const statuses = [
-            { id: 'all', label: 'All', count: counts['all'] || 0 },
-            { id: 'open', label: 'Open', count: counts['open'] || 0 },
-            { id: 'quoted', label: 'Quoted', count: counts['quoted'] || 0 },
-            { id: 'approved', label: 'Customer Approved', count: counts['approved'] || 0 },
-            { id: 'assignment', label: 'For Assignment', count: counts['assignment'] || 0 },
-            { id: 'pending', label: 'Pending Payment', count: counts['pending'] || 0 },
-            { id: 'confirmed', label: 'Confirmed', count: counts['confirmed'] || 0 },
-            { id: 'ongoing', label: 'Ongoing', count: counts['ongoing'] || 0 },
-            { id: 'completed', label: 'Completed', count: counts['completed'] || 0 },
-            { id: 'deposited', label: 'Deposited', count: counts['deposited'] || 0 },
-            { id: 'cancelled', label: 'Cancelled', count: counts['cancelled'] || 0 },
-            { id: 'no-avail', label: 'Cancelled - No Availability', count: counts['no-avail'] || 0 },
-            { id: 'lost', label: 'Cancelled - Lost', count: counts['lost'] || 0 }
-        ];
+        const statuses = BOOKING_STATUS_OPTIONS.map(status => ({
+            ...status,
+            count: counts[status.id] || 0
+        }));
 
         renderStatusPills(statuses);
     } catch (error) {
@@ -618,8 +739,11 @@ function renderStatusPills(statuses) {
     container.innerHTML = '';
 
     statuses.forEach(status => {
-        const pill = document.createElement('div');
+        const pill = document.createElement('button');
+        pill.type = 'button';
         pill.className = `pill ${status.id === activeStatus ? 'active' : ''}`;
+        pill.dataset.status = status.id;
+        pill.setAttribute('aria-pressed', String(status.id === activeStatus));
         
         pill.innerHTML = `
             <span class="pill-label">${status.label}</span>
@@ -631,8 +755,12 @@ function renderStatusPills(statuses) {
             persistBookingStatus(status.id);
             currentPage = 1;
             
-            document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('#statusPills .pill').forEach(p => {
+                p.classList.remove('active');
+                p.setAttribute('aria-pressed', 'false');
+            });
             pill.classList.add('active');
+            pill.setAttribute('aria-pressed', 'true');
             
             fetchBookings();
         });
@@ -646,9 +774,13 @@ function renderStatusPills(statuses) {
 // ========================================================
 async function fetchBookings() {
     const tableBody = document.getElementById('tableBody');
+    const resultsSummary = document.getElementById('bookingResultsSummary');
+    const clearFiltersButton = document.getElementById('clearBookingFiltersBtn');
     if (tableBody) {
         tableBody.innerHTML = `<tr><td colspan="7" class="loading-text">Loading bookings...</td></tr>`;
     }
+    if (resultsSummary) resultsSummary.textContent = 'Loading bookings...';
+    if (clearFiltersButton) clearFiltersButton.hidden = true;
 
     try {
         const response = await fetch(`${API_URL}/bookings?status=${activeStatus}`);
@@ -659,6 +791,7 @@ async function fetchBookings() {
         applyBookingFilters(currentBookingsList);
     } catch (error) {
         console.error("Error fetching bookings:", error);
+        if (resultsSummary) resultsSummary.textContent = 'Unable to load bookings. Please try again.';
         if (tableBody) {
             tableBody.innerHTML = `<tr><td colspan="7" class="error-text" style="color: #ff4d4d; text-align: center; padding: 20px;">Server connection lost. Please try again.</td></tr>`;
         }
@@ -680,11 +813,8 @@ function renderTable(bookingsList, page = currentPage) {
     tableBody.innerHTML = '';
 
     if (!bookingsList || bookingsList.length === 0) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="7" class="no-data" style="text-align: center; padding: 30px; color: #888;">No data available</td>
-            </tr>
-        `;
+        updateBookingResultsSummary(0, false);
+        renderBookingEmptyState(false);
         renderPagination([]);
         return;
     }
@@ -692,6 +822,7 @@ function renderTable(bookingsList, page = currentPage) {
     const startIndex = (page - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     const paginatedList = bookingsList.slice(startIndex, endIndex);
+    updateBookingResultsSummary(bookingsList.length, false);
 
     paginatedList.forEach(booking => {
         const row = document.createElement('tr');
@@ -959,6 +1090,54 @@ async function deleteBooking(ref) {
 // ========================================================
 // 6. DETAILED WORKSPACE VIEW ENGINE (FIXED SAFE POSITIONING)
 // ========================================================
+function createQuickQuoteButton(bookingRef) {
+    const saveBtn = document.getElementById("fpSaveBtn");
+    if (!saveBtn?.parentNode) return null;
+
+    const quickQuoteButton = document.createElement("button");
+    quickQuoteButton.id = "dynamicQuickQuoteBtn";
+    quickQuoteButton.type = "button";
+    quickQuoteButton.style.backgroundColor = "#2563EB";
+    quickQuoteButton.style.color = "white";
+    quickQuoteButton.style.marginRight = "10px";
+    quickQuoteButton.style.padding = "14px 20px";
+    quickQuoteButton.style.border = "none";
+    quickQuoteButton.style.borderRadius = "4px";
+    quickQuoteButton.style.cursor = "pointer";
+    quickQuoteButton.style.fontWeight = "bold";
+    quickQuoteButton.style.fontSize = "0.95rem";
+    quickQuoteButton.innerHTML = `<i class="fa-solid fa-calculator"></i> Quick Cost Quote`;
+
+    quickQuoteButton.addEventListener("click", () => {
+        const drawer = document.getElementById("quickQuoteDrawer");
+        if (drawer && drawer.style.display === "block") {
+            drawer.style.display = "none";
+            quickQuoteButton.innerHTML = `<i class="fa-solid fa-calculator"></i> Quick Cost Quote`;
+        } else {
+            openQuickQuote(bookingRef);
+            quickQuoteButton.innerHTML = `<i class="fa-solid fa-eye-slash"></i> Hide Calculator`;
+        }
+    });
+
+    saveBtn.parentNode.insertBefore(quickQuoteButton, saveBtn);
+    return quickQuoteButton;
+}
+
+function updateQuickQuoteButtonVisibility(status) {
+    let quickQuoteButton = document.getElementById("dynamicQuickQuoteBtn");
+    const drawer = document.getElementById("quickQuoteDrawer");
+    const isOpenBooking = String(status || "").trim().toLowerCase() === "open";
+
+    if (isOpenBooking && !quickQuoteButton) {
+        quickQuoteButton = createQuickQuoteButton(currentQuotingRef);
+    }
+    if (quickQuoteButton) quickQuoteButton.hidden = !isOpenBooking;
+    if (!isOpenBooking && drawer) drawer.style.display = "none";
+    if (!isOpenBooking && quickQuoteButton) {
+        quickQuoteButton.innerHTML = `<i class="fa-solid fa-calculator"></i> Quick Cost Quote`;
+    }
+}
+
 function openFullPageDetails(booking) {
     currentQuotingRef = booking.ref;
     document.getElementById("fpRef").innerText = booking.ref;
@@ -1062,34 +1241,7 @@ function openFullPageDetails(booking) {
     const oldBtn = document.getElementById("dynamicQuickQuoteBtn");
     if (oldBtn) oldBtn.remove();
 
-    const saveBtn = document.getElementById("fpSaveBtn");
-    if (saveBtn) {
-        const qqBtn = document.createElement("button");
-        qqBtn.id = "dynamicQuickQuoteBtn";
-        qqBtn.type = "button";
-        qqBtn.style.backgroundColor = "#2563EB";
-        qqBtn.style.color = "white";
-        qqBtn.style.marginRight = "10px";
-        qqBtn.style.padding = "14px 20px";
-        qqBtn.style.border = "none";
-        qqBtn.style.borderRadius = "4px";
-        qqBtn.style.cursor = "pointer";
-        qqBtn.style.fontWeight = "bold";
-        qqBtn.style.fontSize = "0.95rem";
-        qqBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Quick Cost Quote`;
-
-        qqBtn.addEventListener("click", () => {
-            if (drawer && drawer.style.display === "block") {
-                drawer.style.display = "none";
-                qqBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Quick Cost Quote`;
-            } else {
-                openQuickQuote(booking.ref);
-                qqBtn.innerHTML = `<i class="fa-solid fa-eye-slash"></i> Hide Calculator`;
-            }
-        });
-
-        saveBtn.parentNode.insertBefore(qqBtn, saveBtn);
-    }
+    updateQuickQuoteButtonVisibility(bookingStatus);
 
     document.getElementById("mainDashboardView").style.display = "none";
     document.getElementById("fullPageDetailsView").style.display = "block";
@@ -1305,6 +1457,7 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
 // INITIAL PAGE TRIGGERS ON LOAD
 document.addEventListener("DOMContentLoaded", () => {
     initializeFilterPopovers();
+    renderStatusPills(BOOKING_STATUS_OPTIONS);
     fetchStatusCounts();
     fetchBookings();
 
@@ -1352,6 +1505,7 @@ document.addEventListener("DOMContentLoaded", () => {
             advancedFilters.hidden = isExpanded;
         });
     }
+    document.getElementById('clearBookingFiltersBtn')?.addEventListener('click', clearBookingFilters);
 
     // INCLUSIONS TABLE MANAGER EFFECT
     const incExcTable = document.getElementById('incExcTableBody');
@@ -1419,14 +1573,17 @@ function renderTableFiltered(filteredList) {
     if (!tableBody) return;
     tableBody.innerHTML = '';
 
+    const totalPages = Math.max(1, Math.ceil((filteredList?.length || 0) / ITEMS_PER_PAGE));
+    currentPage = Math.min(Math.max(currentPage, 1), totalPages);
+    updateBookingResultsSummary(filteredList?.length || 0, true);
+
     if (!filteredList || filteredList.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="7" class="no-data" style="text-align: center; padding: 30px; color: #888;">No bookings found.</td></tr>`;
+        renderBookingEmptyState(true);
         renderPagination([]);
         return;
     }
 
     // Calculate pagination
-    const totalPages = Math.ceil(filteredList.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     const paginatedList = filteredList.slice(startIndex, endIndex);
@@ -1963,6 +2120,7 @@ async function handleStatusChange() {
         try {
             if (!(await hasSavedQuote(bookingRef))) {
                 document.getElementById("fpStatus").value = previousStatus;
+                updateQuickQuoteButtonVisibility(previousStatus);
                 showMissingSavedQuoteNotice();
                 showNotificationToast("Create and save the quotation with Quick Cost Quote before marking this booking Quoted.", "warning");
                 openQuickQuote(bookingRef);
@@ -1971,6 +2129,7 @@ async function handleStatusChange() {
         } catch (error) {
             console.error("Error verifying saved quote before status change:", error);
             document.getElementById("fpStatus").value = previousStatus;
+            updateQuickQuoteButtonVisibility(previousStatus);
             showNotificationToast("Could not verify the saved quotation. Status was not changed.", "error");
             return;
         }
@@ -1986,9 +2145,13 @@ async function handleStatusChange() {
         
         const updateResult = await updateResponse.json();
         if (!updateResponse.ok || !updateResult.success) {
+            document.getElementById("fpStatus").value = previousStatus;
+            updateQuickQuoteButtonVisibility(previousStatus);
             showNotificationToast("Failed to update booking status", "error");
             return;
         }
+
+        updateQuickQuoteButtonVisibility(status);
         
         // If status changed to "Open", delete the saved quote
         if (status === "Open") {
@@ -2015,6 +2178,8 @@ async function handleStatusChange() {
         await fetchBookings();
     } catch (error) {
         console.error("Error updating status:", error);
+        document.getElementById("fpStatus").value = previousStatus;
+        updateQuickQuoteButtonVisibility(previousStatus);
         showNotificationToast("Error updating status", "error");
     }
 }
