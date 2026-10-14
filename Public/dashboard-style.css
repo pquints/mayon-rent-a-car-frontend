@@ -1995,6 +1995,97 @@ body {
 /* ========================================================
    MOBILE PORTRAIT VIEW - COMPACT CARD-BASED BOOKINGS (max-width: 600px)
    ======================================================== */
+.booking-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+}
+
+.booking-details-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.booking-save-btn,
+.booking-back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.booking-save-btn {
+    color: #ffffff;
+    background: #10b981;
+    border: 1px solid #10b981;
+}
+
+.booking-save-btn:hover {
+    background: #059669;
+    border-color: #059669;
+}
+
+.booking-back-btn {
+    color: #ffffff;
+    background: #0284c7;
+    border: 1px solid #0284c7;
+}
+
+.booking-back-btn:hover {
+    background: #0369a1;
+    border-color: #0369a1;
+}
+
+.booking-quote-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-color);
+}
+
+.booking-quote-actions[hidden],
+.booking-quote-btn[hidden] {
+    display: none;
+}
+
+.booking-quote-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 18px;
+    color: #ffffff;
+    background: #2563eb;
+    border: 1px solid #2563eb;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.booking-quote-btn:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
 @media (max-width: 600px) {
     .table-container {
         overflow-x: visible;
@@ -2104,20 +2195,6 @@ body {
         grid-column: 1;
     }
     
-    #fullPageDetailsView {
-        padding-bottom: 100px !important;
-    }
-
-    #fpSaveBtn {
-        position: fixed;
-        z-index: 20;
-        right: 16px;
-        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-        left: 16px;
-        width: calc(100% - 32px);
-        min-height: 48px;
-        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.24);
-    }
 }
 /* ========================================================
    RATES MANAGEMENT STYLES
@@ -2163,11 +2240,447 @@ body {
 #withDriverRatesTable,
 #selfDriveRatesTable,
 #selfDriveDeliveryRatesTable,
-#selfDriveReturnRatesTable {
+#selfDriveReturnRatesTable,
+#feesRatesTable,
+#addOnsRatesTable {
     max-width: 100%;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
+}
+
+.fees-toolbar {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.75fr) minmax(260px, 1.25fr);
+    gap: 14px 20px;
+    align-items: end;
+    margin: 22px 0 18px;
+}
+
+.fees-toolbar > div {
+    display: grid;
+    gap: 7px;
+}
+
+.fees-toolbar label {
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.fees-add-form {
+    grid-column: 1 / -1;
+    display: grid !important;
+    grid-template-columns: minmax(220px, 1.4fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr) auto;
+    align-items: end;
+    gap: 12px 16px !important;
+    padding: 18px 20px;
+    border: 1px solid #dbe4ee;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.fees-add-heading {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 3px;
+}
+
+.fees-add-heading strong {
+    color: #0f172a;
+    font-size: 0.95rem;
+}
+
+.fees-add-heading span {
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+.fees-add-form > div:not(.fees-add-heading) {
+    display: grid;
+    gap: 7px;
+}
+
+.fees-add-form .rates-input,
+.fees-toolbar .rates-input {
+    width: 100%;
+    min-height: 42px;
+    box-sizing: border-box;
+}
+
+.fees-add-form .fees-add-button {
+    min-height: 42px;
+    padding: 0 18px;
+    white-space: nowrap;
+    border-radius: 7px;
+}
+
+.fees-search-input {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.fees-search-input > i {
+    position: absolute;
+    left: 13px;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.fees-search-input input {
+    padding-left: 38px;
+    padding-right: 58px;
+}
+
+.fees-clear-btn {
+    position: absolute;
+    right: 8px;
+    padding: 5px 7px;
+    color: #0e7490;
+    background: transparent;
+    border: 0;
+    border-radius: 5px;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.fees-clear-btn:hover {
+    background: #ecfeff;
+}
+
+.fees-clear-btn[hidden] {
+    display: none;
+}
+
+.fees-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.fees-summary-card {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 12px;
+    align-items: center;
+    min-height: 72px;
+    padding: 14px 16px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+
+.fees-summary-icon {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    color: #0369a1;
+    background: #e0f2fe;
+    border-radius: 10px;
+}
+
+.fees-summary-icon.is-delivery {
+    color: #0f766e;
+    background: #ccfbf1;
+}
+
+.fees-summary-icon.is-return {
+    color: #7c3aed;
+    background: #ede9fe;
+}
+
+.fees-summary-label {
+    align-self: end;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.fees-summary-card strong {
+    align-self: start;
+    color: #0f172a;
+    font-size: 1.2rem;
+    line-height: 1.2;
+}
+
+.fees-list-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    margin: 22px 0 10px;
+}
+
+.fees-list-heading h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+}
+
+.fees-list-heading p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+.fees-table {
+    min-width: 0;
+    table-layout: fixed;
+    border-radius: 10px;
+}
+
+.fees-table th:first-child,
+.fees-table td:first-child {
+    width: 48%;
+}
+
+.fees-table th:nth-child(2),
+.fees-table td:nth-child(2) {
+    width: 19%;
+}
+
+.fees-table th:nth-child(3),
+.fees-table td:nth-child(3) {
+    width: 21%;
+}
+
+.fees-table th:last-child,
+.fees-table td:last-child {
+    width: 12%;
+    text-align: center;
+}
+
+.fees-table tbody tr {
+    height: 64px;
+}
+
+.fees-table .rates-input {
+    width: 100%;
+    min-height: 40px;
+    box-sizing: border-box;
+    border-color: #dbe4ee;
+    background: #fff;
+}
+
+.fees-table .rates-input:focus {
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.12);
+}
+
+.fees-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    color: #0f766e;
+    background: #ccfbf1;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.fees-type-badge.is-return {
+    color: #6d28d9;
+    background: #ede9fe;
+}
+
+.fees-remove-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    color: #dc2626;
+    background: #fff;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.fees-remove-btn:hover {
+    color: #fff;
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+.fees-remove-btn:focus-visible,
+.fees-clear-btn:focus-visible {
+    outline: 3px solid rgba(8, 145, 178, 0.35);
+    outline-offset: 2px;
+}
+
+.fees-empty-state {
+    height: 90px;
+    padding: 20px !important;
+    text-align: center;
+    color: #64748b !important;
+}
+
+.addons-description {
+    margin: 0 0 18px;
+    color: #64748b;
+    font-size: 0.88rem;
+}
+
+.addons-add-form {
+    padding: 18px 20px;
+    border: 1px solid #dbe4ee;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.addons-form-heading h3,
+.addons-list-heading h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+}
+
+.addons-form-heading p,
+.addons-list-heading p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+.addons-form-fields {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.3fr) minmax(160px, 0.8fr) auto;
+    gap: 12px 16px;
+    align-items: end;
+    margin-top: 16px;
+}
+
+.addons-form-fields > div {
+    display: grid;
+    gap: 7px;
+}
+
+.addons-form-fields label {
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.addons-form-fields .rates-input {
+    width: 100%;
+    min-height: 42px;
+    box-sizing: border-box;
+}
+
+.addons-submit-button {
+    min-height: 42px;
+    padding: 0 18px;
+    white-space: nowrap;
+    border-radius: 7px;
+}
+
+.addons-list-heading {
+    margin: 24px 0 10px;
+}
+
+.addons-table {
+    min-width: 0;
+    table-layout: fixed;
+}
+
+.addons-table th:first-child,
+.addons-table td:first-child {
+    width: 55%;
+}
+
+.addons-table th:nth-child(2),
+.addons-table td:nth-child(2) {
+    width: 25%;
+}
+
+.addons-table th:last-child,
+.addons-table td:last-child {
+    width: 20%;
+    text-align: right;
+}
+
+.addons-table tbody tr {
+    height: 64px;
+}
+
+.addons-table .rates-input {
+    width: 100%;
+    min-height: 40px;
+    box-sizing: border-box;
+}
+
+.addons-row-actions {
+    display: inline-flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.addons-action-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    color: #0284c7;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.addons-action-btn:hover {
+    color: #ffffff;
+    background: #0284c7;
+    border-color: #0284c7;
+}
+
+.addons-action-btn.is-save {
+    color: #15803d;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.addons-action-btn.is-save:hover {
+    color: #ffffff;
+    background: #16a34a;
+    border-color: #16a34a;
+}
+
+.addons-action-btn.is-cancel,
+.addons-action-btn.is-remove {
+    color: #dc2626;
+    background: #fff1f2;
+    border-color: #fecdd3;
+}
+
+.addons-action-btn.is-cancel:hover,
+.addons-action-btn.is-remove:hover {
+    color: #ffffff;
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+.addons-action-btn:focus-visible {
+    outline: 3px solid rgba(8, 145, 178, 0.35);
+    outline-offset: 2px;
+}
+
+.addons-empty-state {
+    height: 90px;
+    padding: 20px !important;
+    text-align: center !important;
+    color: #64748b !important;
 }
 
 @media (max-width: 767px) {
@@ -2284,9 +2797,25 @@ body {
         overflow-wrap: anywhere;
     }
 
+    .booking-details-actions {
+        flex: 1 1 100%;
+        flex-wrap: wrap;
+    }
+
+    #fpSaveBtn {
+        order: 1;
+    }
+
     #btnBackToDashboard {
+        order: 2;
+    }
+
+    .booking-quote-actions {
+        justify-content: stretch;
+    }
+
+    .booking-quote-btn {
         width: 100%;
-        justify-content: center;
     }
 
     .booking-details-fields,
@@ -2315,6 +2844,244 @@ body {
     #ratesTabControls .rates-tab {
         padding: 9px 10px;
         font-size: 12px;
+    }
+
+    .fees-toolbar {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-top: 16px;
+    }
+
+    .fees-add-form {
+        grid-column: auto;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        padding: 14px;
+    }
+
+    .fees-add-form .fees-add-heading,
+    .fees-add-location,
+    .fees-add-button {
+        grid-column: 1 / -1;
+    }
+
+    .fees-summary {
+        gap: 8px;
+    }
+
+    .fees-summary-card {
+        grid-template-columns: 30px minmax(0, 1fr);
+        column-gap: 7px;
+        min-height: 65px;
+        padding: 10px 8px;
+    }
+
+    .fees-summary-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+    }
+
+    .fees-summary-label {
+        font-size: 0.66rem;
+        line-height: 1.15;
+    }
+
+    .fees-summary-card strong {
+        font-size: 1.05rem;
+    }
+
+    .fees-list-heading {
+        margin-top: 18px;
+    }
+
+    #feesRatesTable {
+        overflow: visible;
+    }
+
+    .fees-table {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        overflow: visible;
+        border: 0;
+        background: transparent;
+    }
+
+    .fees-table thead {
+        display: none;
+    }
+
+    .fees-table tbody {
+        display: grid;
+        gap: 10px;
+    }
+
+    .fees-table tbody tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px 12px;
+        align-items: center;
+        height: auto;
+        padding: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+
+    .fees-table tbody tr:hover {
+        background: #ffffff;
+    }
+
+    .fees-table tbody td {
+        display: block;
+        min-width: 0;
+        width: auto !important;
+        padding: 0 !important;
+        border: 0 !important;
+        text-align: left !important;
+    }
+
+    .fees-table tbody td::before {
+        display: block;
+        margin-bottom: 5px;
+        color: #64748b;
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .fees-table tbody td:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .fees-table tbody td:first-child::before {
+        content: "Location";
+    }
+
+    .fees-table tbody td:nth-child(2)::before {
+        content: "Type";
+    }
+
+    .fees-table tbody td:nth-child(3) {
+        grid-column: 1;
+    }
+
+    .fees-table tbody td:nth-child(3)::before {
+        content: "Rate (₱)";
+    }
+
+    .fees-table tbody td:last-child {
+        grid-column: 2;
+        grid-row: 3;
+        justify-self: end;
+        align-self: end;
+    }
+
+    .fees-table tbody td:last-child::before {
+        content: none;
+    }
+
+    .fees-table .rates-input {
+        min-height: 42px;
+    }
+
+    .fees-table .fees-empty-state {
+        grid-column: 1 / -1;
+        padding: 18px !important;
+        text-align: center !important;
+    }
+
+    .addons-add-form {
+        padding: 14px;
+    }
+
+    .addons-form-fields {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .addons-form-heading,
+    .addons-submit-button {
+        grid-column: 1 / -1;
+    }
+
+    #addOnsRatesTable {
+        overflow: visible;
+    }
+
+    .addons-table {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        overflow: visible;
+        border: 0;
+        background: transparent;
+    }
+
+    .addons-table thead {
+        display: none;
+    }
+
+    .addons-table tbody {
+        display: grid;
+        gap: 10px;
+    }
+
+    .addons-table tbody tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px 12px;
+        align-items: center;
+        height: auto;
+        padding: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+
+    .addons-table tbody td {
+        display: block;
+        min-width: 0;
+        width: auto !important;
+        padding: 0 !important;
+        border: 0 !important;
+        text-align: left !important;
+    }
+
+    .addons-table tbody td::before {
+        display: block;
+        margin-bottom: 5px;
+        color: #64748b;
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .addons-table tbody td:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .addons-table tbody td:first-child::before { content: "Label"; }
+    .addons-table tbody td:nth-child(2)::before { content: "Rate (₱)"; }
+
+    .addons-table tbody td:last-child {
+        grid-column: 2;
+        grid-row: 2;
+        justify-self: end;
+        align-self: end;
+    }
+
+    .addons-table tbody td:last-child::before { content: none; }
+
+    .addons-table .addons-empty-state {
+        grid-column: 1 / -1;
+        padding: 18px !important;
+        text-align: center !important;
     }
 
     #selfDriveRatesTable .rates-table,

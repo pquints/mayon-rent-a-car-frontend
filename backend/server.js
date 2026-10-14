@@ -309,7 +309,8 @@ const DEFAULT_RATES = {
     withDriver: [],
     selfDrive: [],
     selfDriveDelivery: [],
-    selfDriveReturn: []
+    selfDriveReturn: [],
+    addOns: []
 };
 
 const getRates = () => {
@@ -327,6 +328,7 @@ const getRates = () => {
             selfDrive: [],
             selfDriveDelivery: [],
             selfDriveReturn: [],
+            addOns: [],
             ...parsed
         };
     } catch (err) {

@@ -1440,21 +1440,13 @@ function closeBookingDetails({ confirmDiscard = true } = {}) {
 }
 
 function createQuickQuoteButton(bookingRef) {
-    const saveBtn = document.getElementById("fpSaveBtn");
-    if (!saveBtn?.parentNode) return null;
+    const quoteActions = document.getElementById("bookingQuoteActions");
+    if (!quoteActions) return null;
 
     const quickQuoteButton = document.createElement("button");
     quickQuoteButton.id = "dynamicQuickQuoteBtn";
     quickQuoteButton.type = "button";
-    quickQuoteButton.style.backgroundColor = "#2563EB";
-    quickQuoteButton.style.color = "white";
-    quickQuoteButton.style.marginRight = "10px";
-    quickQuoteButton.style.padding = "14px 20px";
-    quickQuoteButton.style.border = "none";
-    quickQuoteButton.style.borderRadius = "4px";
-    quickQuoteButton.style.cursor = "pointer";
-    quickQuoteButton.style.fontWeight = "bold";
-    quickQuoteButton.style.fontSize = "0.95rem";
+    quickQuoteButton.className = "booking-quote-btn";
     quickQuoteButton.innerHTML = `<i class="fa-solid fa-calculator"></i> Quick Cost Quote`;
 
     quickQuoteButton.addEventListener("click", () => {
@@ -1468,19 +1460,22 @@ function createQuickQuoteButton(bookingRef) {
         }
     });
 
-    saveBtn.parentNode.insertBefore(quickQuoteButton, saveBtn);
+    quoteActions.appendChild(quickQuoteButton);
+    quoteActions.hidden = false;
     return quickQuoteButton;
 }
 
 function updateQuickQuoteButtonVisibility(status) {
     let quickQuoteButton = document.getElementById("dynamicQuickQuoteBtn");
     const drawer = document.getElementById("quickQuoteDrawer");
+    const quoteActions = document.getElementById("bookingQuoteActions");
     const isOpenBooking = String(status || "").trim().toLowerCase() === "open";
 
     if (isOpenBooking && !quickQuoteButton) {
         quickQuoteButton = createQuickQuoteButton(currentQuotingRef);
     }
     if (quickQuoteButton) quickQuoteButton.hidden = !isOpenBooking;
+    if (quoteActions) quoteActions.hidden = !isOpenBooking;
     if (!isOpenBooking && drawer) drawer.style.display = "none";
     if (!isOpenBooking && quickQuoteButton) {
         quickQuoteButton.innerHTML = `<i class="fa-solid fa-calculator"></i> Quick Cost Quote`;
@@ -1584,10 +1579,8 @@ function openFullPageDetails(booking, sourceButton = null) {
         drawer.style.position = "static";
         drawer.style.gridColumn = "1 / -1"; 
 
-        const saveBtn = document.getElementById("fpSaveBtn");
-        if (saveBtn && saveBtn.parentNode) {
-            saveBtn.parentNode.parentNode.appendChild(drawer);
-        }
+        const quoteActions = document.getElementById("bookingQuoteActions");
+        if (quoteActions) quoteActions.insertAdjacentElement("afterend", drawer);
     }
 
     const oldBtn = document.getElementById("dynamicQuickQuoteBtn");
@@ -3847,6 +3840,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 let _currentRates = null;
 let _activeRatesTab = 'airport';
+let _editingAddOnId = null;
 let _airportRatesSuggestionsBound = false;
 let _airportProvinceFilter = '';
 
@@ -3909,6 +3903,8 @@ async function loadRates() {
     _currentRates.inboundOutbound = _currentRates.inboundOutbound || [];
     _currentRates.selfDriveDelivery = _currentRates.selfDriveDelivery || [];
     _currentRates.selfDriveReturn = _currentRates.selfDriveReturn || [];
+    _currentRates.addOns = Array.isArray(_currentRates.addOns) ? _currentRates.addOns : [];
+    _editingAddOnId = null;
     initializeAirportRatesSuggestions();
     renderRatesTables(_currentRates);
     renderInboundOutboundProvinceOptions(_currentRates);
@@ -4043,6 +4039,10 @@ function renderInboundOutboundProvinceOptions(rates) {
 async function saveRates() {
     authToken = localStorage.getItem('authToken') || authToken;
     if (!ensureAuth()) return false;
+    if (_editingAddOnId) {
+        showRatesStatus('Save or cancel the add-on edit before saving changes.', 'error');
+        return false;
+    }
 
     collectRatesFromInputs();
     const { response, data } = await requestWithFallback('/rates', {
@@ -4052,7 +4052,7 @@ async function saveRates() {
     });
     if (response.ok) {
         _currentRates = data.rates;
-        showRatesStatus('Rates saved successfully!', 'success');
+        showRatesStatus(_activeRatesTab === 'addOns' ? 'Add-ons saved successfully!' : _activeRatesTab === 'fees' ? 'Fee changes saved successfully!' : 'Rates saved successfully!', 'success');
         return true;
     } else {
         showRatesStatus(data.error || 'Failed to save rates.', 'error');
@@ -4139,9 +4139,10 @@ function syncRatesTabControls() {
     if (!controls) return;
 
     const tabs = controls.querySelectorAll('.rates-tab');
-    controls.classList.remove('hidden');
-    controls.style.display = 'flex';
-    controls.style.pointerEvents = 'auto';
+    const showTabs = !['fees', 'addOns'].includes(_activeRatesTab);
+    controls.classList.toggle('hidden', !showTabs);
+    controls.style.display = showTabs ? 'flex' : 'none';
+    controls.style.pointerEvents = showTabs ? 'auto' : 'none';
     tabs.forEach((tab) => {
         tab.disabled = false;
         tab.classList.remove('disabled');
@@ -4252,31 +4253,277 @@ function renderRatesTables(rates) {
             </table>`;
     }
 
-    const renderSelfDriveLocationRates = (elementId, groupKey) => {
-        const element = document.getElementById(elementId);
-        if (!element) return;
+    renderFeesTable();
+    renderAddOnsTable();
+}
 
-        element.innerHTML = `
-            <table class="rates-table">
-                <thead><tr><th>Location</th><th>Additional Rate (₱)</th><th>Action</th></tr></thead>
-                <tbody>
-                    ${(rates[groupKey] || []).map(row => `
-                        <tr>
-                            <td><input type="text" id="sd-${groupKey}-${row.id}-location" value="${row.location}" class="rates-input rates-location-input"></td>
-                            <td><input type="number" id="sd-${groupKey}-${row.id}-rate" value="${row.rate}" min="0" class="rates-input"></td>
-                            <td>
-                                <div class="rates-row-actions">
-                                    ${renderSelfDriveMoveActions(groupKey, row.id)}
-                                    <button type="button" class="btn-secondary rates-remove-button" onclick="removeSelfDriveLocationRate('${groupKey}', '${row.id}')">Remove</button>
-                                </div>
-                            </td>
-                        </tr>`).join('') || '<tr><td colspan="3" style="text-align:center; color:#64748b; padding:18px;">No location rates configured.</td></tr>'}
-                </tbody>
-                    </table>`;
-    };
+function renderAddOnsTable() {
+    const container = document.getElementById('addOnsRatesTable');
+    if (!container || !_currentRates) return;
 
-    renderSelfDriveLocationRates('selfDriveDeliveryRatesTable', 'selfDriveDelivery');
-    renderSelfDriveLocationRates('selfDriveReturnRatesTable', 'selfDriveReturn');
+    const addOns = Array.isArray(_currentRates.addOns) ? _currentRates.addOns : [];
+    const summary = document.getElementById('addOnsResultSummary');
+    if (summary) summary.textContent = `${addOns.length} ${addOns.length === 1 ? 'add-on' : 'add-ons'} configured`;
+
+    container.replaceChildren();
+    const table = document.createElement('table');
+    table.className = 'rates-table addons-table';
+    table.innerHTML = '<thead><tr><th>Label</th><th>Rate (₱)</th><th>Action</th></tr></thead>';
+    const tbody = document.createElement('tbody');
+
+    if (!addOns.length) {
+        const emptyRow = document.createElement('tr');
+        const emptyCell = document.createElement('td');
+        emptyCell.colSpan = 3;
+        emptyCell.className = 'addons-empty-state';
+        emptyCell.textContent = 'No add-ons yet. Add child seats, damage waivers, or other optional items above.';
+        emptyRow.appendChild(emptyCell);
+        tbody.appendChild(emptyRow);
+    } else {
+        addOns.forEach((addOn) => {
+            const isEditing = addOn.id === _editingAddOnId;
+            const row = document.createElement('tr');
+            const labelCell = document.createElement('td');
+            labelCell.dataset.label = 'Label';
+            const rateCell = document.createElement('td');
+            rateCell.dataset.label = 'Rate (₱)';
+            const actionCell = document.createElement('td');
+            actionCell.dataset.label = 'Action';
+            const actions = document.createElement('div');
+            actions.className = 'addons-row-actions';
+
+            if (isEditing) {
+                const labelInput = document.createElement('input');
+                labelInput.type = 'text';
+                labelInput.id = `addOn-${addOn.id}-label`;
+                labelInput.className = 'rates-input';
+                labelInput.maxLength = 100;
+                labelInput.value = addOn.label || '';
+                labelInput.setAttribute('aria-label', 'Add-on label');
+                labelCell.appendChild(labelInput);
+
+                const rateInput = document.createElement('input');
+                rateInput.type = 'number';
+                rateInput.min = '0';
+                rateInput.step = '1';
+                rateInput.id = `addOn-${addOn.id}-rate`;
+                rateInput.className = 'rates-input';
+                rateInput.value = addOn.rate ?? 0;
+                rateInput.setAttribute('aria-label', 'Add-on rate in pesos');
+                rateCell.appendChild(rateInput);
+
+                actions.append(
+                    createAddOnActionButton('fa-solid fa-check', 'Save add-on edit', () => saveRateAddOnEdit(addOn.id), 'is-save'),
+                    createAddOnActionButton('fa-solid fa-xmark', 'Cancel add-on edit', cancelRateAddOnEdit, 'is-cancel')
+                );
+            } else {
+                const label = document.createElement('strong');
+                label.textContent = addOn.label || '';
+                labelCell.appendChild(label);
+
+                const rate = Number(addOn.rate);
+                rateCell.textContent = `₱${Number.isFinite(rate) ? rate.toLocaleString('en-PH') : '0'}`;
+
+                actions.append(
+                    createAddOnActionButton('fa-solid fa-pen', `Edit ${addOn.label || 'add-on'}`, () => editRateAddOn(addOn.id), 'is-edit'),
+                    createAddOnActionButton('fa-solid fa-trash-can', `Remove ${addOn.label || 'add-on'}`, () => removeRateAddOn(addOn.id), 'is-remove')
+                );
+            }
+
+            actionCell.appendChild(actions);
+            row.append(labelCell, rateCell, actionCell);
+            tbody.appendChild(row);
+        });
+    }
+
+    table.appendChild(tbody);
+    container.appendChild(table);
+}
+
+function createAddOnActionButton(iconClass, label, onClick, variant) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `addons-action-btn ${variant}`;
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    const icon = document.createElement('i');
+    icon.className = iconClass;
+    icon.setAttribute('aria-hidden', 'true');
+    button.appendChild(icon);
+    button.addEventListener('click', onClick);
+    return button;
+}
+
+function addRateAddOn(event) {
+    event.preventDefault();
+    if (!_currentRates) return;
+
+    const label = document.getElementById('newAddOnLabel')?.value.trim() || '';
+    const rateValue = document.getElementById('newAddOnRate')?.value;
+    const rate = Number(rateValue);
+
+    if (!label || rateValue === '' || !Number.isSafeInteger(rate) || rate < 0) {
+        showRatesStatus('Enter a label and a whole-number rate of 0 or more.', 'error');
+        return;
+    }
+
+    _currentRates.addOns.push({ id: `addon${Date.now()}`, label, rate });
+    document.getElementById('addOnForm')?.reset();
+    renderAddOnsTable();
+    showRatesStatus('Add-on added. Click Save Add-On Changes to apply live.', 'success');
+}
+
+function editRateAddOn(addOnId) {
+    _editingAddOnId = addOnId;
+    renderAddOnsTable();
+    document.getElementById(`addOn-${addOnId}-label`)?.focus();
+}
+
+function saveRateAddOnEdit(addOnId) {
+    const addOn = _currentRates?.addOns?.find(item => item.id === addOnId);
+    if (!addOn) return;
+
+    const label = document.getElementById(`addOn-${addOnId}-label`)?.value.trim() || '';
+    const rateValue = document.getElementById(`addOn-${addOnId}-rate`)?.value;
+    const rate = Number(rateValue);
+    if (!label || rateValue === '' || !Number.isSafeInteger(rate) || rate < 0) {
+        showRatesStatus('Enter a label and a whole-number rate of 0 or more.', 'error');
+        return;
+    }
+
+    Object.assign(addOn, { label, rate });
+    _editingAddOnId = null;
+    renderAddOnsTable();
+    showRatesStatus('Add-on updated. Click Save Add-On Changes to apply live.', 'success');
+}
+
+function cancelRateAddOnEdit() {
+    _editingAddOnId = null;
+    renderAddOnsTable();
+}
+
+function removeRateAddOn(addOnId) {
+    const addOn = _currentRates?.addOns?.find(item => item.id === addOnId);
+    if (!addOn || !window.confirm(`Remove ${addOn.label || 'this add-on'}?`)) return;
+
+    _currentRates.addOns = _currentRates.addOns.filter(item => item.id !== addOnId);
+    renderAddOnsTable();
+    showRatesStatus('Add-on removed. Click Save Add-On Changes to apply live.', 'success');
+}
+
+function renderFeesTable() {
+    const container = document.getElementById('feesRatesTable');
+    if (!container || !_currentRates) return;
+
+    if (document.activeElement?.matches('#feesSearch, #feesTypeFilter')) {
+        collectRatesFromInputs();
+    }
+
+    const selectedType = document.getElementById('feesTypeFilter')?.value || '';
+    const searchTerm = String(document.getElementById('feesSearch')?.value || '').trim().toLowerCase();
+    const allFeeRows = [
+        ...(_currentRates.selfDriveDelivery || []).map(row => ({ ...row, group: 'selfDriveDelivery', type: 'delivery' })),
+        ...(_currentRates.selfDriveReturn || []).map(row => ({ ...row, group: 'selfDriveReturn', type: 'return' }))
+    ];
+    const feeRows = allFeeRows.filter(row => (!selectedType || row.type === selectedType) &&
+        (!searchTerm || String(row.location || '').toLowerCase().includes(searchTerm)));
+    const deliveryCount = _currentRates.selfDriveDelivery?.length || 0;
+    const returnCount = _currentRates.selfDriveReturn?.length || 0;
+    const totalCount = deliveryCount + returnCount;
+    const resultSummary = document.getElementById('feesResultSummary');
+    const clearButton = document.getElementById('clearFeesFilters');
+    const hasFilters = Boolean(selectedType || searchTerm);
+
+    document.getElementById('feesTotalCount')?.replaceChildren(document.createTextNode(totalCount));
+    document.getElementById('feesDeliveryCount')?.replaceChildren(document.createTextNode(deliveryCount));
+    document.getElementById('feesReturnCount')?.replaceChildren(document.createTextNode(returnCount));
+    if (resultSummary) {
+        resultSummary.textContent = hasFilters
+            ? `Showing ${feeRows.length} of ${totalCount} fee locations`
+            : `${totalCount} ${totalCount === 1 ? 'location' : 'locations'} configured`;
+    }
+    if (clearButton) clearButton.hidden = !hasFilters;
+
+    container.replaceChildren();
+    const table = document.createElement('table');
+    table.className = 'rates-table fees-table';
+    table.innerHTML = '<thead><tr><th>Location</th><th>Type</th><th>Rate (₱)</th><th>Action</th></tr></thead>';
+    const tbody = document.createElement('tbody');
+
+    if (!feeRows.length) {
+        const emptyRow = document.createElement('tr');
+        const emptyCell = document.createElement('td');
+        emptyCell.colSpan = 4;
+        emptyCell.className = 'fees-empty-state';
+        emptyCell.textContent = hasFilters
+            ? 'No fees match your search. Try changing or clearing the filters.'
+            : 'No fee locations have been added yet.';
+        emptyRow.appendChild(emptyCell);
+        tbody.appendChild(emptyRow);
+    } else {
+        feeRows.forEach(row => {
+            const tr = document.createElement('tr');
+            const locationCell = document.createElement('td');
+            locationCell.dataset.label = 'Location';
+            const locationInput = document.createElement('input');
+            locationInput.type = 'text';
+            locationInput.id = `sd-${row.group}-${row.id}-location`;
+            locationInput.className = 'rates-input rates-location-input';
+            locationInput.value = row.location || '';
+            locationInput.setAttribute('aria-label', `${row.type} fee location`);
+            locationCell.appendChild(locationInput);
+
+            const typeCell = document.createElement('td');
+            typeCell.dataset.label = 'Type';
+            const typeBadge = document.createElement('span');
+            typeBadge.className = `fees-type-badge is-${row.type}`;
+            const typeIcon = document.createElement('i');
+            typeIcon.className = row.type === 'delivery' ? 'fa-solid fa-truck' : 'fa-solid fa-rotate-left';
+            typeIcon.setAttribute('aria-hidden', 'true');
+            typeBadge.append(typeIcon, document.createTextNode(row.type === 'delivery' ? 'Delivery' : 'Return'));
+            typeCell.appendChild(typeBadge);
+
+            const rateCell = document.createElement('td');
+            rateCell.dataset.label = 'Rate';
+            const rateInput = document.createElement('input');
+            rateInput.type = 'number';
+            rateInput.min = '0';
+            rateInput.step = '1';
+            rateInput.id = `sd-${row.group}-${row.id}-rate`;
+            rateInput.className = 'rates-input';
+            rateInput.value = row.rate ?? 0;
+            rateInput.setAttribute('aria-label', `${row.type} fee rate`);
+            rateCell.appendChild(rateInput);
+
+            const actionCell = document.createElement('td');
+            actionCell.dataset.label = 'Action';
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'fees-remove-btn';
+            removeButton.setAttribute('aria-label', `Remove ${row.type} fee for ${row.location}`);
+            removeButton.title = `Remove ${row.location}`;
+            const removeIcon = document.createElement('i');
+            removeIcon.className = 'fa-solid fa-trash-can';
+            removeIcon.setAttribute('aria-hidden', 'true');
+            removeButton.appendChild(removeIcon);
+            removeButton.addEventListener('click', () => removeSelfDriveLocationRate(row.group, row.id));
+            actionCell.appendChild(removeButton);
+
+            tr.append(locationCell, typeCell, rateCell, actionCell);
+            tbody.appendChild(tr);
+        });
+    }
+
+    table.appendChild(tbody);
+    container.appendChild(table);
+}
+
+function clearFeesFilters() {
+    const typeFilter = document.getElementById('feesTypeFilter');
+    const searchInput = document.getElementById('feesSearch');
+    if (typeFilter) typeFilter.value = '';
+    if (searchInput) searchInput.value = '';
+    renderFeesTable();
 }
 
 function renderAirportMoveActions(rowId) {
@@ -4337,14 +4584,16 @@ function moveSelfDriveLocationRate(groupKey, rowId, direction) {
     showRatesStatus('Location order changed. Click Save All Rates to apply live.', 'success');
 }
 
-function addSelfDriveLocationRate(groupKey) {
-    if (!_currentRates || !['selfDriveDelivery', 'selfDriveReturn'].includes(groupKey)) return;
+function addRateFee() {
+    if (!_currentRates) return;
 
-    const isDelivery = groupKey === 'selfDriveDelivery';
-    const locationInput = document.getElementById(isDelivery ? 'newSelfDriveDeliveryLocation' : 'newSelfDriveReturnLocation');
-    const rateInput = document.getElementById(isDelivery ? 'newSelfDriveDeliveryRate' : 'newSelfDriveReturnRate');
+    const typeInput = document.getElementById('newFeeType');
+    const locationInput = document.getElementById('newFeeLocation');
+    const rateInput = document.getElementById('newFeeRate');
+    const groupKey = typeInput?.value === 'return' ? 'selfDriveReturn' : 'selfDriveDelivery';
     const location = String(locationInput?.value || '').trim();
-    const rate = parseInt(rateInput?.value || '0', 10);
+    const rateValue = String(rateInput?.value ?? '').trim();
+    const rate = Number(rateValue);
 
     if (!location) {
         showRatesStatus('Location name is required.', 'error');
@@ -4352,8 +4601,15 @@ function addSelfDriveLocationRate(groupKey) {
         return;
     }
 
+    if (!rateValue || !Number.isFinite(rate) || rate < 0) {
+        showRatesStatus('Enter a valid non-negative fee rate.', 'error');
+        rateInput?.focus();
+        return;
+    }
+
+    collectRatesFromInputs();
     if ((_currentRates[groupKey] || []).some(row => row.location.toLowerCase() === location.toLowerCase())) {
-        showRatesStatus('That location already exists.', 'error');
+        showRatesStatus('That fee location already exists.', 'error');
         return;
     }
 
@@ -4361,17 +4617,18 @@ function addSelfDriveLocationRate(groupKey) {
     _currentRates[groupKey].push({
         id: `${groupKey === 'selfDriveDelivery' ? 'sdd' : 'sdr'}${Date.now()}`,
         location,
-        rate: Number.isFinite(rate) ? rate : 0
+        rate
     });
 
     renderRatesTables(_currentRates);
     if (locationInput) locationInput.value = '';
     if (rateInput) rateInput.value = '';
-    showRatesStatus('Location added. Click Save All Rates to apply live.', 'success');
+    showRatesStatus('Fee added. Click Save All Rates to apply live.', 'success');
 }
 
 function removeSelfDriveLocationRate(groupKey, rowId) {
     if (!_currentRates || !Array.isArray(_currentRates[groupKey])) return;
+    collectRatesFromInputs();
     const row = _currentRates[groupKey].find(item => item.id === rowId);
     if (!row || !window.confirm(`Remove ${row.location}?`)) return;
 
@@ -4388,6 +4645,27 @@ function switchRatesTab(tab) {
     const activePane = document.getElementById(`rates-tab-${tab}`);
     if (activeBtn) activeBtn.classList.add('active');
     if (activePane) activePane.style.display = 'block';
+
+    const title = document.getElementById('ratesManagementTitle');
+    const description = document.getElementById('ratesManagementDescription');
+    const saveButton = document.getElementById('saveAllRatesBtn');
+    const isFeesView = tab === 'fees';
+    const isAddOnsView = tab === 'addOns';
+    if (title) title.textContent = isFeesView ? 'Fees' : isAddOnsView ? 'Add-Ons' : 'Rates Management';
+    if (description) {
+        description.textContent = isFeesView
+            ? 'Manage delivery and return fees by location for self-drive bookings.'
+            : isAddOnsView
+                ? 'Manage optional add-ons and their rates.'
+                : 'Edit your service rates. These will be used as the basis for automatic quotations.';
+    }
+    if (saveButton) {
+        saveButton.innerHTML = isFeesView
+            ? '<i class="fa-solid fa-floppy-disk" style="margin-right:6px;"></i> Save Fee Changes'
+            : isAddOnsView
+                ? '<i class="fa-solid fa-floppy-disk" style="margin-right:6px;"></i> Save Add-On Changes'
+                : '<i class="fa-solid fa-floppy-disk" style="margin-right:6px;"></i> Save All Rates';
+    }
 }
 
 function addAirportRoute() {

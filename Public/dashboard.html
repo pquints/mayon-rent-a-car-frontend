@@ -206,6 +206,8 @@
                     <a href="#" class="nav-submenu-item" data-tab="withDriver" onclick="openRatesTab('withDriver'); return false;">With Driver</a>
                     <a href="#" class="nav-submenu-item" data-tab="airport" onclick="openRatesTab('airport'); return false;">Airport Transfers</a>
                     <a href="#" class="nav-submenu-item" data-tab="inboundOutbound" onclick="openRatesTab('inboundOutbound'); return false;">Inbound/Outbound</a>
+                    <a href="#" class="nav-submenu-item" data-tab="fees" onclick="openRatesTab('fees'); return false;">Fees</a>
+                    <a href="#" class="nav-submenu-item" data-tab="addOns" onclick="openRatesTab('addOns'); return false;">Add-Ons</a>
                 </div>
                 
                 <a href="#" class="nav-item nav-item--dropdown" aria-label="Team" title="Team" onclick="toggleTeamSubmenu(event); return false;" aria-expanded="false">
@@ -439,16 +441,17 @@
             </div>
 
             <div id="fullPageDetailsView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-                <div class="booking-details-header" style="display: flex; flex-direction: column; align-items: flex-start; gap: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 25px;">
-                    <button id="btnBackToDashboard" style="padding: 10px 20px; background: #f1f5f9; color: var(--text-main); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; transition: background 0.2s;">
-                        <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
-                    </button>
+                <div class="booking-details-header">
                     <h2 id="bookingDetailsTitle" tabindex="-1" style="margin: 0; font-size: 1.5rem; color: var(--text-main); font-weight: 700; letter-spacing: -0.5px; display: inline-flex; align-items: center; gap: 10px;">
     Booking Ref # <span id="fpRef" style="color: var(--text-main);">—</span>
     <button id="btnCopyDetails" title="Copy All Details" style="background: transparent; border: none; color: #06B6D4; cursor: pointer; font-size: 1.1rem; padding: 5px; display: inline-flex; align-items: center; justify-content: center;">
         <i class="fa-solid fa-copy"></i>
     </button>
 </h2>
+                    <div class="booking-details-actions">
+                        <button id="fpSaveBtn" type="button" class="booking-save-btn">Save</button>
+                        <button id="btnBackToDashboard" type="button" class="booking-back-btn">Go back</button>
+                    </div>
                 </div>
 
                 <input type="hidden" id="fpEditRef">
@@ -581,9 +584,7 @@
                     <button type="button" onclick="executeQuoteAction('download-pdf')" style="margin-top: 10px; background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.9rem;"><i class="fa-solid fa-download"></i> Download PDF</button>
                 </div>
 
-                <div style="display: flex; justify-content: flex-end; padding-top: 15px; border-top: 1px solid var(--border-color);">
-                    <button id="fpSaveBtn" style="background-color: #10b981; color: white; border: none; padding: 14px 35px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: background 0.2s;">Save Work Changes</button>
-                </div>
+                <div id="bookingQuoteActions" class="booking-quote-actions" hidden></div>
             </div>
             <!-- VEHICLE EDIT FULL PAGE VIEW -->
             <div id="vehicleEditView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
@@ -672,8 +673,8 @@
             <div id="ratesManagementView" style="display: none; padding: 25px;">
                 <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:24px;">
                     <div>
-                        <h2 style="margin:0; color:#0F172A; font-size:1.5rem;">Rates Management</h2>
-                        <p style="margin:4px 0 0; color:#64748b; font-size:0.9rem;">Edit your service rates. These will be used as the basis for automatic quotations.</p>
+                        <h2 id="ratesManagementTitle" style="margin:0; color:#0F172A; font-size:1.5rem;">Rates Management</h2>
+                        <p id="ratesManagementDescription" style="margin:4px 0 0; color:#64748b; font-size:0.9rem;">Edit your service rates. These will be used as the basis for automatic quotations.</p>
                     </div>
                     <button id="saveAllRatesBtn" class="btn-primary" onclick="saveRates()">
                         <i class="fa-solid fa-floppy-disk" style="margin-right:6px;"></i> Save All Rates
@@ -739,24 +740,105 @@
                 <div id="rates-tab-selfDrive" class="rates-tab-pane" style="display:none;">
                     <p style="color:#64748b; font-size:13px; margin-bottom:16px;">Daily rental rate per vehicle. This reflects the base price shown on the fleet page.</p>
                     <div id="selfDriveRatesTable"></div>
-                    <div class="self-drive-location-rates">
-                        <h3>Delivery Rates</h3>
-                        <p>Additional charges based on the vehicle delivery or pick-up location.</p>
-                        <div id="selfDriveDeliveryRatesTable"></div>
-                        <div class="self-drive-location-add-form">
-                            <input type="text" id="newSelfDriveDeliveryLocation" class="rates-input" placeholder="New delivery location">
-                            <input type="number" id="newSelfDriveDeliveryRate" class="rates-input" min="0" placeholder="Rate (₱)">
-                            <button type="button" class="btn-secondary" onclick="addSelfDriveLocationRate('selfDriveDelivery')">+ Add Delivery Location</button>
+                </div>
+
+                <div id="rates-tab-fees" class="rates-tab-pane" style="display:none;">
+                    <div class="fees-summary" aria-live="polite">
+                        <div class="fees-summary-card">
+                            <span class="fees-summary-icon"><i class="fa-solid fa-location-dot" aria-hidden="true"></i></span>
+                            <span class="fees-summary-label">Fee locations</span>
+                            <strong id="feesTotalCount">0</strong>
                         </div>
-                        <h3>Return Rates</h3>
-                        <p>Additional charges based on the vehicle return location.</p>
-                        <div id="selfDriveReturnRatesTable"></div>
-                        <div class="self-drive-location-add-form">
-                            <input type="text" id="newSelfDriveReturnLocation" class="rates-input" placeholder="New return location">
-                            <input type="number" id="newSelfDriveReturnRate" class="rates-input" min="0" placeholder="Rate (₱)">
-                            <button type="button" class="btn-secondary" onclick="addSelfDriveLocationRate('selfDriveReturn')">+ Add Return Location</button>
+                        <div class="fees-summary-card">
+                            <span class="fees-summary-icon is-delivery"><i class="fa-solid fa-truck" aria-hidden="true"></i></span>
+                            <span class="fees-summary-label">Delivery</span>
+                            <strong id="feesDeliveryCount">0</strong>
+                        </div>
+                        <div class="fees-summary-card">
+                            <span class="fees-summary-icon is-return"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></span>
+                            <span class="fees-summary-label">Return</span>
+                            <strong id="feesReturnCount">0</strong>
                         </div>
                     </div>
+                    <div class="fees-toolbar">
+                        <div class="fees-type-filter">
+                            <label for="feesTypeFilter">Type</label>
+                            <select id="feesTypeFilter" class="rates-input" onchange="renderFeesTable()">
+                                <option value="">All types</option>
+                                <option value="delivery">Delivery</option>
+                                <option value="return">Return</option>
+                            </select>
+                        </div>
+                        <div class="fees-search">
+                            <label for="feesSearch">Location</label>
+                            <div class="fees-search-input">
+                                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                                <input type="search" id="feesSearch" class="rates-input" placeholder="Search locations..." oninput="renderFeesTable()">
+                                <button type="button" id="clearFeesFilters" class="fees-clear-btn" onclick="clearFeesFilters()" hidden>Clear</button>
+                            </div>
+                        </div>
+                        <div class="fees-add-form">
+                            <div class="fees-add-heading">
+                                <strong>Add a fee location</strong>
+                                <span>Set a delivery or return fee for a location.</span>
+                            </div>
+                            <div class="fees-add-location">
+                                <label for="newFeeLocation">Location</label>
+                                <input type="text" id="newFeeLocation" class="rates-input" placeholder="e.g. Legazpi City">
+                            </div>
+                            <div>
+                                <label for="newFeeType">Type</label>
+                                <select id="newFeeType" class="rates-input">
+                                    <option value="delivery">Delivery</option>
+                                    <option value="return">Return</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="newFeeRate">Rate (₱)</label>
+                                <input type="number" id="newFeeRate" class="rates-input" min="0" step="1" placeholder="0">
+                            </div>
+                            <button type="button" class="btn-primary fees-add-button" onclick="addRateFee()">
+                                <i class="fa-solid fa-plus" aria-hidden="true"></i> Add Fee
+                            </button>
+                        </div>
+                    </div>
+                    <div class="fees-list-heading">
+                        <div>
+                            <h3>Fee locations</h3>
+                            <p id="feesResultSummary" aria-live="polite"></p>
+                        </div>
+                    </div>
+                    <div id="feesRatesTable"></div>
+                </div>
+
+                <div id="rates-tab-addOns" class="rates-tab-pane" style="display:none;">
+                    <p class="addons-description">Manage optional products and services, such as child seats and damage waivers, with their rate.</p>
+                    <form id="addOnForm" class="addons-add-form" onsubmit="addRateAddOn(event)">
+                        <div class="addons-form-heading">
+                            <h3>Add a new add-on</h3>
+                            <p>Add an item to the add-on catalog.</p>
+                        </div>
+                        <div class="addons-form-fields">
+                            <div>
+                                <label for="newAddOnLabel">Label</label>
+                                <input type="text" id="newAddOnLabel" class="rates-input" required maxlength="100" placeholder="e.g. Child Seat">
+                            </div>
+                            <div>
+                                <label for="newAddOnRate">Rate (₱)</label>
+                                <input type="number" id="newAddOnRate" class="rates-input" min="0" step="1" required placeholder="0">
+                            </div>
+                            <button type="submit" class="btn-primary addons-submit-button">
+                                <i class="fa-solid fa-plus" aria-hidden="true"></i> Add Add-On
+                            </button>
+                        </div>
+                    </form>
+                    <div class="addons-list-heading">
+                        <div>
+                            <h3>Add-on catalog</h3>
+                            <p id="addOnsResultSummary" aria-live="polite"></p>
+                        </div>
+                    </div>
+                    <div id="addOnsRatesTable"></div>
                 </div>
 
                 <!-- Inbound/Outbound Tab -->
@@ -848,7 +930,7 @@
         });
     </script>
     <script src="auth-utils.js?v=20260808-1"></script>
-    <script src="dashboard.js?v=20261014-12"></script>
+    <script src="dashboard.js?v=20261014-14"></script>
     
     <!-- USER MODAL -->
     <div id="userModal" class="user-modal-overlay" style="display: none !important;">
