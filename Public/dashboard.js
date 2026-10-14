@@ -4948,7 +4948,6 @@ function switchRatesTab(tab) {
     if (activePane) activePane.style.display = 'block';
 
     const title = document.getElementById('ratesManagementTitle');
-    const description = document.getElementById('ratesManagementDescription');
     const saveButton = document.getElementById('saveAllRatesBtn');
     const isFeesView = tab === 'fees';
     const isAddOnsView = tab === 'addOns';
@@ -4958,20 +4957,7 @@ function switchRatesTab(tab) {
         selfDrive: 'Self-Drive',
         inboundOutbound: 'Inbound/Outbound'
     };
-    const sectionDescriptions = {
-        airport: 'Manage airport transfer routes and vehicle-class rates.',
-        withDriver: 'Manage starting rates for with-driver services.',
-        selfDrive: 'Manage daily rental rates for self-drive vehicles.',
-        inboundOutbound: 'Manage inbound and outbound transfer routes and rates.'
-    };
     if (title) title.textContent = isFeesView ? 'Fees' : isAddOnsView ? 'Add-Ons' : sectionTitles[tab] || 'Rates Management';
-    if (description) {
-        description.textContent = isFeesView
-            ? 'Manage delivery and return fees by location for self-drive bookings.'
-            : isAddOnsView
-                ? 'Manage optional add-ons and their rates.'
-                : sectionDescriptions[tab] || 'Manage service rates used as the basis for automatic quotations.';
-    }
     if (saveButton) {
         saveButton.innerHTML = isFeesView
             ? '<i class="fa-solid fa-floppy-disk" style="margin-right:6px;"></i> Save Fee Changes'

@@ -2239,7 +2239,7 @@ body {
     padding: 24px !important;
 }
 
-.rates-pane-heading {
+.rates-pane-meta {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -2247,14 +2247,8 @@ body {
     margin: 0 0 18px;
 }
 
-.rates-pane-heading h3 {
+.rates-context-note {
     margin: 0;
-    color: #0f172a;
-    font-size: 1.12rem;
-}
-
-.rates-pane-heading p {
-    margin: 5px 0 0;
     color: #64748b;
     font-size: 0.86rem;
     line-height: 1.45;
@@ -2365,15 +2359,19 @@ body {
     border: 1px solid #cbd5e1;
     border-radius: 8px;
     cursor: grab;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
 }
 
 #feesRatesTable .fees-drag-handle {
     flex: 0 0 auto;
     width: 36px;
     height: 36px;
+}
+
+#airportRatesTable .rates-drag-handle,
+#feesRatesTable .fees-drag-handle {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 #airportRatesTable .rates-drag-handle:hover,
@@ -3047,16 +3045,11 @@ body.is-fee-row-dragging {
         padding: 16px !important;
     }
 
-    .rates-pane-heading {
-        align-items: flex-start;
+    .rates-pane-meta {
         margin-bottom: 14px;
     }
 
-    .rates-pane-heading h3 {
-        font-size: 1rem;
-    }
-
-    .rates-pane-heading p {
+    .rates-context-note {
         font-size: 0.8rem;
     }
 
