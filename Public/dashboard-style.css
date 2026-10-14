@@ -1553,7 +1553,7 @@ body {
         color: white;
         min-height: 70px;
     }
-    
+
     .toggle-sidebar-btn {
         display: flex;
         position: static;
@@ -1575,8 +1575,18 @@ body {
         display: none;
     }
     
-    .sidebar-logo {
-        display: none;
+    .sidebar .brand {
+        display: flex;
+        justify-content: center;
+        padding: 12px 20px;
+    }
+
+    .sidebar .brand .sidebar-logo {
+        display: block;
+        width: min(150px, 70%);
+        max-width: 150px;
+        max-height: 68px;
+        object-fit: contain;
     }
     
     .user-profile {
@@ -1589,6 +1599,7 @@ body {
         gap: 8px;
         cursor: pointer;
         margin-left: auto;
+        flex-shrink: 0;
     }
 
     .user-profile-mobile .user-avatar {
@@ -2009,10 +2020,11 @@ body {
         flex-direction: column;
         background: white;
         border: 1px solid var(--border-color);
-        border-radius: 8px;
-        margin-bottom: 12px;
+        border-radius: 12px;
+        margin-bottom: 14px;
         padding: 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
     }
     
     .data-table tbody tr:hover {
@@ -2022,11 +2034,11 @@ body {
     
     .data-table tbody tr td {
         display: grid;
-        grid-template-columns: 45% 1fr;
-        gap: 12px;
-        text-align: right;
+        grid-template-columns: minmax(90px, 38%) minmax(0, 1fr);
+        gap: 10px;
+        text-align: left;
         align-items: center;
-        padding: 12px;
+        padding: 10px 12px;
         border: none;
         border-bottom: 1px solid var(--border-color);
         word-break: break-word;
@@ -2035,29 +2047,50 @@ body {
     
     .data-table tbody tr td:last-child {
         display: flex;
-        justify-content: flex-end;
-        gap: 8px;
+        justify-content: flex-start;
+        gap: 10px;
         border-bottom: none;
+        padding-top: 12px;
+        background: #f8fafc;
     }
 
     .data-table tbody tr td:last-child::before {
         margin-right: auto;
+        text-align: left;
     }
 
     .data-table tbody tr td:last-child .btn-action {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
-        height: 36px;
+        width: 40px;
+        height: 40px;
         margin: 0;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        background: #f8fafc;
+        padding: 0;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        cursor: pointer;
+    }
+
+    .data-table tbody tr td:last-child .btn-view {
+        color: #0e7490;
+        border-color: #a5f3fc;
+        background: #ecfeff;
     }
 
     .data-table tbody tr td:last-child .btn-delete {
         color: var(--color-cancelled);
+    }
+
+    .data-table tbody tr td:nth-child(2) {
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .data-table tbody tr td:nth-child(6) .status-badge {
+        justify-self: start;
+        text-align: left;
     }
     
     .data-table tbody tr td::before {
@@ -2071,20 +2104,20 @@ body {
         grid-column: 1;
     }
     
-    /* Position value on the right */
-    .data-table tbody tr td {
-        text-align: right;
-        grid-template-columns: auto 1fr;
+    #fullPageDetailsView {
+        padding-bottom: 100px !important;
     }
-    
-    /* Add data-label attributes to each cell */
-    .data-table tbody tr td:nth-child(1)::before { content: "Ref #"; }
-    .data-table tbody tr td:nth-child(2)::before { content: "Name"; }
-    .data-table tbody tr td:nth-child(3)::before { content: "Rental"; }
-    .data-table tbody tr td:nth-child(4)::before { content: "Service"; }
-    .data-table tbody tr td:nth-child(5)::before { content: "Vehicle"; }
-    .data-table tbody tr td:nth-child(6)::before { content: "Status"; }
-    .data-table tbody tr td:nth-child(7)::before { content: "Actions"; text-align: center; }
+
+    #fpSaveBtn {
+        position: fixed;
+        z-index: 20;
+        right: 16px;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        left: 16px;
+        width: calc(100% - 32px);
+        min-height: 48px;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.24);
+    }
 }
 /* ========================================================
    RATES MANAGEMENT STYLES

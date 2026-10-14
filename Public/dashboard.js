@@ -680,6 +680,9 @@ let activeStatus = 'open';
 let currentBookingsList = [];
 let currentFilteredList = []; // Track filtered results for pagination
 let currentPage = 1;
+let bookingDetailsReturnScrollY = 0;
+let bookingDetailsReturnButton = null;
+let bookingDetailsInitialState = null;
 const ITEMS_PER_PAGE = 10;
 const BOOKING_STATUS_OPTIONS = [
     { id: 'all', label: 'All' },
@@ -1079,6 +1082,81 @@ async function fetchBookings() {
 // ========================================================
 // 4. GRID TABLE VIEW DISPLAY LAYOUT
 // ========================================================
+function createBookingTableRow(booking) {
+    const displayStatus = booking.status || 'Open';
+    const statusClass = `badge-${displayStatus.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const displayRentalType = booking.rentalType === 'with-driver' || booking.rentalType === 'with driver'
+        ? 'With Driver'
+        : 'Self-Drive';
+    const row = document.createElement('tr');
+    const columns = [
+        ['Ref #', booking.ref || '—'],
+        ['Name', booking.name || '—'],
+        ['Rental Type', displayRentalType],
+        ['Service Option', booking.serviceOption || '—'],
+        ['Vehicle Type', booking.vehicleType || '—']
+    ];
+
+    columns.forEach(([label, value], index) => {
+        const cell = document.createElement('td');
+        cell.dataset.label = label;
+        if (index === 0 || index === 1) {
+            const strong = document.createElement('strong');
+            strong.textContent = value;
+            cell.appendChild(strong);
+        } else {
+            cell.textContent = value;
+        }
+        row.appendChild(cell);
+    });
+
+    const statusCell = document.createElement('td');
+    statusCell.dataset.label = 'Status';
+    const statusBadge = document.createElement('span');
+    statusBadge.className = `status-badge ${statusClass}`;
+    statusBadge.textContent = displayStatus;
+    statusCell.appendChild(statusBadge);
+    row.appendChild(statusCell);
+
+    const actionsCell = document.createElement('td');
+    actionsCell.dataset.label = 'Actions';
+    actionsCell.className = 'booking-row-actions';
+    [
+        { className: 'btn-view', icon: 'fa-eye', label: 'View booking' },
+        { className: 'btn-delete', icon: 'fa-trash', label: 'Delete booking' }
+    ].forEach(action => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `btn-action ${action.className}`;
+        button.dataset.ref = booking.ref || '';
+        button.setAttribute('aria-label', `${action.label}${booking.ref ? ` ${booking.ref}` : ''}`);
+        button.title = action.label;
+        const icon = document.createElement('i');
+        icon.className = `fa-solid ${action.icon}`;
+        icon.setAttribute('aria-hidden', 'true');
+        button.appendChild(icon);
+        actionsCell.appendChild(button);
+    });
+    row.appendChild(actionsCell);
+    return row;
+}
+
+function bindBookingTableActions(tableBody) {
+    tableBody.querySelectorAll('.btn-view').forEach(button => {
+        button.addEventListener('click', function() {
+            const ref = this.dataset.ref;
+            const selectedBooking = currentBookingsList.find(booking => booking.ref === ref);
+            if (selectedBooking) openFullPageDetails(selectedBooking, this);
+        });
+    });
+
+    tableBody.querySelectorAll('.btn-delete').forEach(button => {
+        button.addEventListener('click', function() {
+            if (this.dataset.ref) deleteBooking(this.dataset.ref);
+        });
+    });
+}
+
 function renderTable(bookingsList, page = currentPage) {
     currentBookingsList = bookingsList;
 
@@ -1102,43 +1180,8 @@ function renderTable(bookingsList, page = currentPage) {
     const paginatedList = bookingsList.slice(startIndex, endIndex);
     updateBookingResultsSummary(bookingsList.length, false);
 
-    paginatedList.forEach(booking => {
-        const row = document.createElement('tr');
-        const displayStatus = booking.status || 'Open';
-        const statusClass = `badge-${displayStatus.toLowerCase().replace(/\s+/g, '-')}`;
-        const displayRentalType = booking.rentalType === 'with-driver' || booking.rentalType === 'with driver' ? 'With Driver' : 'Self-Drive';
-
-        row.innerHTML = `
-            <td><strong>${booking.ref || '—'}</strong></td>
-            <td>${booking.name || '—'}</td>
-            <td>${displayRentalType}</td>
-            <td>${booking.serviceOption || '—'}</td>
-            <td>${booking.vehicleType || '—'}</td>
-            <td><span class="status-badge ${statusClass}">${displayStatus}</span></td>
-            <td>
-                <button class="btn-action btn-view" data-ref="${booking.ref || ''}" title="View Details"><i class="fa-solid fa-eye"></i></button>
-                <button class="btn-action btn-delete" data-ref="${booking.ref || ''}" title="Delete"><i class="fa-solid fa-trash"></i></button>
-            </td>
-        `;
-        tableBody.appendChild(row);
-    });
-
-    tableBody.querySelectorAll('.btn-view').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const ref = this.getAttribute('data-ref');
-            const selectedBooking = currentBookingsList.find(b => b.ref === ref);
-            if (selectedBooking) {
-                openFullPageDetails(selectedBooking);
-            }
-        });
-    });
-
-    tableBody.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const ref = this.getAttribute('data-ref');
-            if (ref) deleteBooking(ref);
-        });
-    });
+    paginatedList.forEach(booking => tableBody.appendChild(createBookingTableRow(booking)));
+    bindBookingTableActions(tableBody);
 
     // Render pagination controls
     renderPagination(bookingsList);
@@ -1368,6 +1411,34 @@ async function deleteBooking(ref) {
 // ========================================================
 // 6. DETAILED WORKSPACE VIEW ENGINE (FIXED SAFE POSITIONING)
 // ========================================================
+function getBookingDetailsFormState() {
+    const detailsView = document.getElementById('fullPageDetailsView');
+    if (!detailsView) return '';
+    return JSON.stringify(Array.from(detailsView.querySelectorAll('input:not([type="hidden"]), select, textarea'))
+        .filter(control => !control.closest('#quickQuoteDrawer'))
+        .map(control => [control.id, control.value, control.type === 'checkbox' ? control.checked : null]));
+}
+
+function closeBookingDetails({ confirmDiscard = true } = {}) {
+    if (confirmDiscard && bookingDetailsInitialState !== null &&
+        getBookingDetailsFormState() !== bookingDetailsInitialState &&
+        !window.confirm('You have unsaved changes. Leave without saving?')) {
+        return;
+    }
+
+    document.getElementById('fullPageDetailsView').style.display = 'none';
+    document.getElementById('mainDashboardView').style.display = 'block';
+    window.requestAnimationFrame(() => {
+        window.scrollTo({ top: bookingDetailsReturnScrollY, behavior: 'auto' });
+        const focusTarget = bookingDetailsReturnButton?.isConnected
+            ? bookingDetailsReturnButton
+            : document.getElementById('bookingResultsSummary');
+        focusTarget?.focus({ preventScroll: true });
+    });
+    bookingDetailsReturnButton = null;
+    bookingDetailsInitialState = null;
+}
+
 function createQuickQuoteButton(bookingRef) {
     const saveBtn = document.getElementById("fpSaveBtn");
     if (!saveBtn?.parentNode) return null;
@@ -1416,7 +1487,10 @@ function updateQuickQuoteButtonVisibility(status) {
     }
 }
 
-function openFullPageDetails(booking) {
+function openFullPageDetails(booking, sourceButton = null) {
+    bookingDetailsReturnScrollY = window.scrollY;
+    bookingDetailsReturnButton = sourceButton;
+    bookingDetailsInitialState = null;
     currentQuotingRef = booking.ref;
     document.getElementById("fpRef").innerText = booking.ref;
     document.getElementById("fpEditRef").value = booking.ref;
@@ -1523,6 +1597,9 @@ function openFullPageDetails(booking) {
 
     document.getElementById("mainDashboardView").style.display = "none";
     document.getElementById("fullPageDetailsView").style.display = "block";
+    bookingDetailsInitialState = getBookingDetailsFormState();
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    document.getElementById('bookingDetailsTitle')?.focus({ preventScroll: true });
 
     // Load saved quote if exists (after UI is displayed)
     setTimeout(() => loadSavedQuote(booking.ref), 100);
@@ -1682,8 +1759,6 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
 
         if (response.ok && result.success) {
             alert(refFlag === "NEW_BOOKING_FLAG" ? "New booking created successfully!" : "Changes saved successfully!");
-            document.getElementById("fullPageDetailsView").style.display = "none";
-            document.getElementById("mainDashboardView").style.display = "block";
 
             // Refresh counts
             fetchStatusCounts();
@@ -1721,8 +1796,9 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
                 }
             } else {
                 // Fallback: refetch if server didn't return booking data
-                fetchBookings();
+                await fetchBookings();
             }
+            closeBookingDetails({ confirmDiscard: false });
         } else {
             alert("Failed to save: " + (result.error || "Server rejected."));
         }
@@ -1866,49 +1942,15 @@ function renderTableFiltered(filteredList) {
     const endIndex = startIndex + ITEMS_PER_PAGE;
     const paginatedList = filteredList.slice(startIndex, endIndex);
 
-    paginatedList.forEach(booking => {
-        const row = document.createElement('tr');
-        const displayStatus = booking.status || 'Open';
-        const statusClass = `badge-${displayStatus.toLowerCase().replace(/\s+/g, '-')}`;
-        const displayRentalType = booking.rentalType === 'with-driver' || booking.rentalType === 'with driver' ? 'With Driver' : 'Self-Drive';
-
-        row.innerHTML = `
-            <td><strong>${booking.ref || '—'}</strong></td>
-            <td>${booking.name || '—'}</td>
-            <td>${displayRentalType}</td>
-            <td>${booking.serviceOption || '—'}</td>
-            <td>${booking.vehicleType || '—'}</td>
-            <td><span class="status-badge ${statusClass}">${displayStatus}</span></td>
-            <td>
-                <button class="btn-action btn-view" data-ref="${booking.ref || ''}" title="View Details"><i class="fa-solid fa-eye"></i></button>
-                <button class="btn-action btn-delete" data-ref="${booking.ref || ''}" title="Delete"><i class="fa-solid fa-trash"></i></button>
-            </td>
-        `;
-        tableBody.appendChild(row);
-    });
-
-    tableBody.querySelectorAll('.btn-view').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const ref = this.getAttribute('data-ref');
-            const selectedBooking = currentBookingsList.find(b => b.ref === ref);
-            if (selectedBooking) openFullPageDetails(selectedBooking);
-        });
-    });
-
-    tableBody.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const ref = this.getAttribute('data-ref');
-            if (ref) deleteBooking(ref);
-        });
-    });
+    paginatedList.forEach(booking => tableBody.appendChild(createBookingTableRow(booking)));
+    bindBookingTableActions(tableBody);
 
     // Render pagination for filtered results
     renderPaginationFiltered(filteredList);
 }
 
 document.getElementById("btnBackToDashboard").addEventListener("click", () => {
-    document.getElementById("fullPageDetailsView").style.display = "none";
-    document.getElementById("mainDashboardView").style.display = "block";
+    closeBookingDetails();
 });
 
 // ========================================================
@@ -2916,6 +2958,11 @@ function prepareNewBookingForm(rentalType) {
 
     document.getElementById("mainDashboardView").style.display = "none";
     document.getElementById("fullPageDetailsView").style.display = "block";
+    bookingDetailsReturnScrollY = window.scrollY;
+    bookingDetailsReturnButton = null;
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    document.getElementById('bookingDetailsTitle')?.focus({ preventScroll: true });
+    bookingDetailsInitialState = getBookingDetailsFormState();
 }
 
 function toggleReturnScheduleVisibility(rentalType) {
