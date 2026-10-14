@@ -3841,6 +3841,14 @@ document.addEventListener('DOMContentLoaded', function() {
 let _currentRates = null;
 let _activeRatesTab = 'airport';
 let _editingAddOnId = null;
+let _airportRouteDrag = null;
+let _airportRouteDragTimer = null;
+let _keyboardAirportRouteId = null;
+let _airportRouteSortBound = false;
+let _feeRowDrag = null;
+let _feeRowDragTimer = null;
+let _keyboardFeeRowId = null;
+let _feeRowSortBound = false;
 let _airportRatesSuggestionsBound = false;
 let _airportProvinceFilter = '';
 
@@ -4113,7 +4121,7 @@ function toggleRatesSubmenu(event) {
 
 async function openRatesTab(tab) {
     showView('ratesManagement');
-    await loadRates();
+    if (!_currentRates) await loadRates();
     switchRatesTab(tab);
     syncRatesTabControls();
 
@@ -4138,17 +4146,16 @@ function syncRatesTabControls() {
     const controls = document.getElementById('ratesTabControls');
     if (!controls) return;
 
-    const tabs = controls.querySelectorAll('.rates-tab');
-    const showTabs = !['fees', 'addOns'].includes(_activeRatesTab);
-    controls.classList.toggle('hidden', !showTabs);
-    controls.style.display = showTabs ? 'flex' : 'none';
-    controls.style.pointerEvents = showTabs ? 'auto' : 'none';
-    tabs.forEach((tab) => {
-        tab.disabled = false;
-        tab.classList.remove('disabled');
-        tab.style.pointerEvents = 'auto';
-        tab.style.opacity = '1';
-    });
+    controls.classList.add('hidden');
+    controls.style.display = 'none';
+}
+
+function updateRatesCount(elementId, visibleCount, totalCount, itemLabel) {
+    const countElement = document.getElementById(elementId);
+    if (!countElement) return;
+    countElement.textContent = visibleCount === totalCount
+        ? `${totalCount} ${totalCount === 1 ? itemLabel : `${itemLabel}s`}`
+        : `${visibleCount} shown · ${totalCount} total`;
 }
 
 function renderRatesTables(rates) {
@@ -4159,30 +4166,32 @@ function renderRatesTables(rates) {
         const airportRows = activeProvinceFilter
             ? rates.airportTransfers.filter((row) => normalizeTitleCase(row.province) === activeProvinceFilter)
             : rates.airportTransfers;
+        updateRatesCount('airportRatesCount', airportRows.length, rates.airportTransfers.length, 'route');
 
         atEl.innerHTML = `
             <table class="rates-table">
                 <thead><tr>
                     <th>Province</th><th>Destination</th>
-                    <th>Sedan (₱)</th><th>MPV (₱)</th><th>Electric MPV (₱)</th><th>Action</th>
+                    <th>Sedan (₱)</th><th>MPV (₱)</th><th>Electric MPV (₱)</th><th>Reorder / Action</th>
                 </tr></thead>
                 <tbody>
                     ${airportRows.map(r => `
-                        <tr>
-                            <td><span class="rates-badge">${r.province}</span></td>
-                            <td><input type="text" id="at-${r.id}-destination" value="${r.destination}" class="rates-input rates-location-input"></td>
-                            <td><input type="number" id="at-${r.id}-sedan" value="${r.sedan}" min="0" class="rates-input"></td>
-                            <td><input type="number" id="at-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input"></td>
-                            <td><input type="number" id="at-${r.id}-ev" value="${r.ev}" min="0" class="rates-input"></td>
-                            <td>
+                        <tr data-route-id="${r.id}" class="${_keyboardAirportRouteId === r.id ? 'is-keyboard-dragging' : ''}">
+                            <td data-label="Province"><span class="rates-badge">${r.province}</span></td>
+                            <td data-label="Destination"><input type="text" id="at-${r.id}-destination" value="${r.destination}" class="rates-input rates-location-input" aria-label="Destination for ${r.province} route"></td>
+                            <td data-label="Sedan (₱)"><input type="number" id="at-${r.id}-sedan" value="${r.sedan}" min="0" class="rates-input" aria-label="Sedan rate for ${r.destination}"></td>
+                            <td data-label="MPV (₱)"><input type="number" id="at-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input" aria-label="MPV rate for ${r.destination}"></td>
+                            <td data-label="Electric MPV (₱)"><input type="number" id="at-${r.id}-ev" value="${r.ev}" min="0" class="rates-input" aria-label="Electric MPV rate for ${r.destination}"></td>
+                            <td data-label="Actions">
                                 <div class="rates-row-actions">
-                                    ${renderAirportMoveActions(r.id)}
-                                    <button type="button" class="btn-secondary rates-remove-button" onclick="removeAirportRoute('${r.id}')">Remove</button>
+                                    ${renderAirportDragHandle(r.id)}
+                                    <button type="button" class="btn-action btn-delete rates-delete-action" onclick="removeAirportRoute('${r.id}')" aria-label="Remove ${r.destination} airport route" title="Remove ${r.destination}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
                                 </div>
                             </td>
                         </tr>`).join('') || '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:18px;">No routes for selected province.</td></tr>'}
                 </tbody>
             </table>`;
+        bindAirportRouteSorting(atEl);
     }
 
     // Inbound/Outbound table
@@ -4202,20 +4211,22 @@ function renderRatesTables(rates) {
                 <tbody>
                     ${inboundRows.map(r => `
                         <tr>
-                            <td><span class="rates-badge">${r.province}</span></td>
-                            <td><strong>${r.destination}</strong></td>
-                            <td><input type="number" id="ib-${r.id}-sedan" value="${r.sedan}" min="0" class="rates-input"></td>
-                            <td><input type="number" id="ib-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input"></td>
-                            <td><input type="number" id="ib-${r.id}-ev" value="${r.ev}" min="0" class="rates-input"></td>
-                            <td><button type="button" class="btn-secondary" onclick="removeInboundOutboundRoute('${r.id}')" style="padding:6px 10px; font-size:12px;">Remove</button></td>
+                            <td data-label="Province"><span class="rates-badge">${r.province}</span></td>
+                            <td data-label="Destination"><strong>${r.destination}</strong></td>
+                            <td data-label="Sedan (₱)"><input type="number" id="ib-${r.id}-sedan" value="${r.sedan}" min="0" class="rates-input" aria-label="Sedan rate for ${r.destination}"></td>
+                            <td data-label="MPV (₱)"><input type="number" id="ib-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input" aria-label="MPV rate for ${r.destination}"></td>
+                            <td data-label="Electric MPV (₱)"><input type="number" id="ib-${r.id}-ev" value="${r.ev}" min="0" class="rates-input" aria-label="Electric MPV rate for ${r.destination}"></td>
+                            <td data-label="Actions"><button type="button" class="btn-action btn-delete rates-delete-action" onclick="removeInboundOutboundRoute('${r.id}')" aria-label="Remove ${r.destination} route" title="Remove ${r.destination}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button></td>
                         </tr>`).join('') || '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:18px;">No routes for selected province.</td></tr>'}
                 </tbody>
             </table>`;
+        updateRatesCount('inboundOutboundRatesCount', inboundRows.length, rates.inboundOutbound.length, 'route');
     }
 
     // With driver table
     const wdEl = document.getElementById('withDriverRatesTable');
     if (wdEl && rates.withDriver) {
+        updateRatesCount('withDriverRatesCount', rates.withDriver.length, rates.withDriver.length, 'service');
         wdEl.innerHTML = `
             <table class="rates-table">
                 <thead><tr>
@@ -4225,10 +4236,10 @@ function renderRatesTables(rates) {
                 <tbody>
                     ${rates.withDriver.map(r => `
                         <tr>
-                            <td><strong>${r.service}</strong></td>
-                            <td><input type="number" id="wd-${r.id}-sedan" value="${r.sedan}" min="0" class="rates-input"></td>
-                            <td><input type="number" id="wd-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input"></td>
-                            <td><input type="number" id="wd-${r.id}-ev" value="${r.ev}" min="0" class="rates-input"></td>
+                            <td data-label="Service"><strong>${r.service}</strong></td>
+                            <td data-label="Sedan (₱)"><input type="number" id="wd-${r.id}-sedan" value="${r.sedan}" min="0" class="rates-input" aria-label="Sedan rate for ${r.service}"></td>
+                            <td data-label="MPV (₱)"><input type="number" id="wd-${r.id}-mpv" value="${r.mpv}" min="0" class="rates-input" aria-label="MPV rate for ${r.service}"></td>
+                            <td data-label="Electric MPV (₱)"><input type="number" id="wd-${r.id}-ev" value="${r.ev}" min="0" class="rates-input" aria-label="Electric MPV rate for ${r.service}"></td>
                         </tr>`).join('')}
                 </tbody>
             </table>`;
@@ -4237,6 +4248,7 @@ function renderRatesTables(rates) {
     // Self-drive table
     const sdEl = document.getElementById('selfDriveRatesTable');
     if (sdEl && rates.selfDrive) {
+        updateRatesCount('selfDriveRatesCount', rates.selfDrive.length, rates.selfDrive.length, 'vehicle');
         sdEl.innerHTML = `
             <table class="rates-table">
                 <thead><tr>
@@ -4245,9 +4257,9 @@ function renderRatesTables(rates) {
                 <tbody>
                     ${rates.selfDrive.map(r => `
                         <tr>
-                            <td><strong>${r.vehicle}</strong></td>
-                            <td><span class="rates-badge">${r.type}</span></td>
-                            <td><input type="number" id="sd-${r.id}-daily" value="${r.dailyRate}" min="0" class="rates-input"></td>
+                            <td data-label="Vehicle"><strong>${r.vehicle}</strong></td>
+                            <td data-label="Type"><span class="rates-badge">${r.type}</span></td>
+                            <td data-label="Daily Rate (₱)"><input type="number" id="sd-${r.id}-daily" value="${r.dailyRate}" min="0" class="rates-input" aria-label="Daily rate for ${r.vehicle}"></td>
                         </tr>`).join('')}
                 </tbody>
             </table>`;
@@ -4326,7 +4338,7 @@ function renderAddOnsTable() {
 
                 actions.append(
                     createAddOnActionButton('fa-solid fa-pen', `Edit ${addOn.label || 'add-on'}`, () => editRateAddOn(addOn.id), 'is-edit'),
-                    createAddOnActionButton('fa-solid fa-trash-can', `Remove ${addOn.label || 'add-on'}`, () => removeRateAddOn(addOn.id), 'is-remove')
+                    createAddOnActionButton('fa-solid fa-trash', `Remove ${addOn.label || 'add-on'}`, () => removeRateAddOn(addOn.id), 'is-remove')
                 );
             }
 
@@ -4343,7 +4355,9 @@ function renderAddOnsTable() {
 function createAddOnActionButton(iconClass, label, onClick, variant) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = `addons-action-btn ${variant}`;
+    button.className = variant === 'is-remove'
+        ? 'btn-action btn-delete rates-delete-action addons-action-btn is-remove'
+        : `addons-action-btn ${variant}`;
     button.setAttribute('aria-label', label);
     button.title = label;
     const icon = document.createElement('i');
@@ -4447,7 +4461,7 @@ function renderFeesTable() {
     container.replaceChildren();
     const table = document.createElement('table');
     table.className = 'rates-table fees-table';
-    table.innerHTML = '<thead><tr><th>Location</th><th>Type</th><th>Rate (₱)</th><th>Action</th></tr></thead>';
+    table.innerHTML = '<thead><tr><th>Location</th><th>Type</th><th>Rate (₱)</th><th>Reorder / Action</th></tr></thead>';
     const tbody = document.createElement('tbody');
 
     if (!feeRows.length) {
@@ -4463,6 +4477,9 @@ function renderFeesTable() {
     } else {
         feeRows.forEach(row => {
             const tr = document.createElement('tr');
+            tr.dataset.feeRowId = row.id;
+            tr.dataset.feeGroup = row.group;
+            if (_keyboardFeeRowId === row.id) tr.classList.add('is-keyboard-dragging');
             const locationCell = document.createElement('td');
             locationCell.dataset.label = 'Location';
             const locationInput = document.createElement('input');
@@ -4497,17 +4514,32 @@ function renderFeesTable() {
 
             const actionCell = document.createElement('td');
             actionCell.dataset.label = 'Action';
+            const dragHandle = document.createElement('button');
+            dragHandle.type = 'button';
+            dragHandle.className = `rates-drag-handle fees-drag-handle${_keyboardFeeRowId === row.id ? ' is-active' : ''}`;
+            dragHandle.dataset.feeDragHandle = row.id;
+            dragHandle.dataset.feeGroup = row.group;
+            dragHandle.setAttribute('aria-label', `Reorder ${row.type} fee`);
+            dragHandle.setAttribute('aria-pressed', String(_keyboardFeeRowId === row.id));
+            dragHandle.title = 'Press and hold, then drag to reorder';
+            const dragIcon = document.createElement('i');
+            dragIcon.className = 'fa-solid fa-grip-vertical';
+            dragIcon.setAttribute('aria-hidden', 'true');
+            dragHandle.appendChild(dragIcon);
             const removeButton = document.createElement('button');
             removeButton.type = 'button';
-            removeButton.className = 'fees-remove-btn';
+            removeButton.className = 'btn-action btn-delete rates-delete-action fees-remove-btn';
             removeButton.setAttribute('aria-label', `Remove ${row.type} fee for ${row.location}`);
             removeButton.title = `Remove ${row.location}`;
             const removeIcon = document.createElement('i');
-            removeIcon.className = 'fa-solid fa-trash-can';
+            removeIcon.className = 'fa-solid fa-trash';
             removeIcon.setAttribute('aria-hidden', 'true');
             removeButton.appendChild(removeIcon);
             removeButton.addEventListener('click', () => removeSelfDriveLocationRate(row.group, row.id));
-            actionCell.appendChild(removeButton);
+            const actions = document.createElement('div');
+            actions.className = 'fees-row-actions';
+            actions.append(dragHandle, removeButton);
+            actionCell.appendChild(actions);
 
             tr.append(locationCell, typeCell, rateCell, actionCell);
             tbody.appendChild(tr);
@@ -4516,6 +4548,7 @@ function renderFeesTable() {
 
     table.appendChild(tbody);
     container.appendChild(table);
+    bindFeeRowSorting(container);
 }
 
 function clearFeesFilters() {
@@ -4526,10 +4559,278 @@ function clearFeesFilters() {
     renderFeesTable();
 }
 
-function renderAirportMoveActions(rowId) {
-    return `
-    <button type="button" class="btn-secondary rates-move-button" onclick="moveAirportRoute('${rowId}', 'up')" title="Move up" aria-label="Move route up">↑</button>
-    <button type="button" class="btn-secondary rates-move-button" onclick="moveAirportRoute('${rowId}', 'down')" title="Move down" aria-label="Move route down">↓</button>`;
+function bindFeeRowSorting(container) {
+    if (_feeRowSortBound) return;
+    _feeRowSortBound = true;
+
+    container.addEventListener('pointerdown', (event) => {
+        const handle = event.target.closest('[data-fee-drag-handle]');
+        if (!handle || (event.pointerType === 'mouse' && event.button !== 0)) return;
+
+        event.preventDefault();
+        collectRatesFromInputs();
+        _keyboardFeeRowId = null;
+        clearTimeout(_feeRowDragTimer);
+        _feeRowDrag = {
+            rowId: handle.dataset.feeDragHandle,
+            group: handle.dataset.feeGroup,
+            pointerId: event.pointerId,
+            started: false
+        };
+        _feeRowDragTimer = setTimeout(() => {
+            if (!_feeRowDrag) return;
+            _feeRowDrag.started = true;
+            container.querySelector(`tr[data-fee-row-id="${CSS.escape(_feeRowDrag.rowId)}"]`)?.classList.add('is-dragging');
+            document.body.classList.add('is-fee-row-dragging');
+        }, 180);
+    });
+
+    container.addEventListener('keydown', (event) => {
+        const handle = event.target.closest('[data-fee-drag-handle]');
+        if (!handle) return;
+        const rowId = handle.dataset.feeDragHandle;
+        const group = handle.dataset.feeGroup;
+
+        if (event.code === 'Space') {
+            event.preventDefault();
+            if (_keyboardFeeRowId === rowId) {
+                _keyboardFeeRowId = null;
+                renderFeesTable();
+                document.querySelector(`[data-fee-drag-handle="${CSS.escape(rowId)}"]`)?.focus();
+            } else if (!_keyboardFeeRowId) {
+                collectRatesFromInputs();
+                _keyboardFeeRowId = rowId;
+                renderFeesTable();
+                document.querySelector(`[data-fee-drag-handle="${CSS.escape(rowId)}"]`)?.focus();
+                showRatesStatus('Fee selected. Use the arrow keys to move it, then press Space to finish.', 'success');
+            }
+            return;
+        }
+
+        if (_keyboardFeeRowId !== rowId) return;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            _keyboardFeeRowId = null;
+            renderFeesTable();
+            document.querySelector(`[data-fee-drag-handle="${CSS.escape(rowId)}"]`)?.focus();
+            return;
+        }
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            moveFeeRowInVisibleList(rowId, group, event.key === 'ArrowUp' ? -1 : 1);
+            document.querySelector(`[data-fee-drag-handle="${CSS.escape(rowId)}"]`)?.focus();
+        }
+    });
+
+    document.addEventListener('pointermove', (event) => {
+        if (!_feeRowDrag || event.pointerId !== _feeRowDrag.pointerId || !_feeRowDrag.started) return;
+        event.preventDefault();
+
+        const draggedRow = container.querySelector(`tr[data-fee-row-id="${CSS.escape(_feeRowDrag.rowId)}"]`);
+        const targetRow = document.elementFromPoint(event.clientX, event.clientY)?.closest('tr[data-fee-row-id]');
+        container.querySelectorAll('.is-drop-before, .is-drop-after').forEach(row => row.classList.remove('is-drop-before', 'is-drop-after'));
+        if (!draggedRow || !targetRow || targetRow === draggedRow || !container.contains(targetRow) || targetRow.dataset.feeGroup !== _feeRowDrag.group) return;
+
+        const bounds = targetRow.getBoundingClientRect();
+        const insertAfter = event.clientY >= bounds.top + bounds.height / 2;
+        targetRow.classList.add(insertAfter ? 'is-drop-after' : 'is-drop-before');
+        targetRow.parentElement.insertBefore(draggedRow, insertAfter ? targetRow.nextSibling : targetRow);
+    }, { passive: false });
+
+    const finishDrag = (event, cancelled = false) => {
+        if (!_feeRowDrag || event.pointerId !== _feeRowDrag.pointerId) return;
+        clearTimeout(_feeRowDragTimer);
+        const drag = _feeRowDrag;
+        _feeRowDrag = null;
+        document.body.classList.remove('is-fee-row-dragging');
+        container.querySelectorAll('.is-dragging, .is-drop-before, .is-drop-after').forEach(row => {
+            row.classList.remove('is-dragging', 'is-drop-before', 'is-drop-after');
+        });
+
+        if (!drag.started) return;
+        if (cancelled) {
+            renderFeesTable();
+            return;
+        }
+
+        collectRatesFromInputs();
+        const orderedIds = Array.from(container.querySelectorAll(`tbody tr[data-fee-group="${CSS.escape(drag.group)}"]`)).map(row => row.dataset.feeRowId);
+        if (reorderVisibleFeeRows(drag.group, orderedIds)) {
+            renderFeesTable();
+            showRatesStatus('Fee order changed. Click Save Fee Changes to apply live.', 'success');
+        } else {
+            renderFeesTable();
+        }
+    };
+
+    document.addEventListener('pointerup', event => finishDrag(event));
+    document.addEventListener('pointercancel', event => finishDrag(event, true));
+}
+
+function getFilteredFeeRowIds(group) {
+    const selectedType = document.getElementById('feesTypeFilter')?.value || '';
+    const searchTerm = String(document.getElementById('feesSearch')?.value || '').trim().toLowerCase();
+    const rows = _currentRates?.[group] || [];
+    const type = group === 'selfDriveDelivery' ? 'delivery' : 'return';
+    if (selectedType && selectedType !== type) return [];
+    return rows.filter(row => !searchTerm || String(row.location || '').toLowerCase().includes(searchTerm)).map(row => row.id);
+}
+
+function reorderVisibleFeeRows(group, orderedIds) {
+    const rows = _currentRates?.[group];
+    if (!Array.isArray(rows) || orderedIds.length < 2) return false;
+
+    const visibleIds = getFilteredFeeRowIds(group);
+    if (orderedIds.length !== visibleIds.length || orderedIds.every((id, index) => id === visibleIds[index])) return false;
+
+    const positions = [];
+    rows.forEach((row, index) => {
+        if (visibleIds.includes(row.id)) positions.push(index);
+    });
+    const rowById = new Map(rows.map(row => [row.id, row]));
+    const reorderedRows = orderedIds.map(id => rowById.get(id)).filter(Boolean);
+    if (reorderedRows.length !== positions.length) return false;
+    positions.forEach((position, index) => {
+        rows[position] = reorderedRows[index];
+    });
+    return true;
+}
+
+function moveFeeRowInVisibleList(rowId, group, direction) {
+    const orderedIds = Array.from(document.querySelectorAll(`#feesRatesTable tbody tr[data-fee-group="${CSS.escape(group)}"]`)).map(row => row.dataset.feeRowId);
+    const index = orderedIds.indexOf(rowId);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= orderedIds.length) return;
+    [orderedIds[index], orderedIds[targetIndex]] = [orderedIds[targetIndex], orderedIds[index]];
+    if (reorderVisibleFeeRows(group, orderedIds)) {
+        renderFeesTable();
+        showRatesStatus('Fee order changed. Click Save Fee Changes to apply live.', 'success');
+    }
+}
+
+function renderAirportDragHandle(rowId) {
+    const isKeyboardDragging = _keyboardAirportRouteId === rowId;
+    return `<button type="button" class="rates-drag-handle${isKeyboardDragging ? ' is-active' : ''}" data-route-drag-handle="${rowId}" aria-label="Reorder route" aria-pressed="${isKeyboardDragging}" title="Press and hold, then drag to reorder">
+        <i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>
+    </button>`;
+}
+
+function bindAirportRouteSorting(container) {
+    if (_airportRouteSortBound) return;
+    _airportRouteSortBound = true;
+
+    container.addEventListener('pointerdown', (event) => {
+        const handle = event.target.closest('[data-route-drag-handle]');
+        if (!handle || (event.pointerType === 'mouse' && event.button !== 0)) return;
+
+        event.preventDefault();
+        collectRatesFromInputs();
+        _keyboardAirportRouteId = null;
+        clearTimeout(_airportRouteDragTimer);
+        _airportRouteDrag = {
+            routeId: handle.dataset.routeDragHandle,
+            pointerId: event.pointerId,
+            started: false
+        };
+        _airportRouteDragTimer = setTimeout(() => {
+            if (!_airportRouteDrag) return;
+            _airportRouteDrag.started = true;
+            container.querySelector(`tr[data-route-id="${CSS.escape(_airportRouteDrag.routeId)}"]`)?.classList.add('is-dragging');
+            document.body.classList.add('is-airport-route-dragging');
+        }, 180);
+    });
+
+    container.addEventListener('keydown', (event) => {
+        const handle = event.target.closest('[data-route-drag-handle]');
+        if (!handle) return;
+        const routeId = handle.dataset.routeDragHandle;
+
+        if (event.code === 'Space') {
+            event.preventDefault();
+            if (_keyboardAirportRouteId === routeId) {
+                _keyboardAirportRouteId = null;
+                renderRatesTables(_currentRates);
+                document.querySelector(`[data-route-drag-handle="${CSS.escape(routeId)}"]`)?.focus();
+            } else if (!_keyboardAirportRouteId) {
+                collectRatesFromInputs();
+                _keyboardAirportRouteId = routeId;
+                renderRatesTables(_currentRates);
+                document.querySelector(`[data-route-drag-handle="${CSS.escape(routeId)}"]`)?.focus();
+                showRatesStatus('Route selected. Use the arrow keys to move it, then press Space to finish.', 'success');
+            }
+            return;
+        }
+
+        if (_keyboardAirportRouteId !== routeId) return;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            _keyboardAirportRouteId = null;
+            renderRatesTables(_currentRates);
+            document.querySelector(`[data-route-drag-handle="${CSS.escape(routeId)}"]`)?.focus();
+            return;
+        }
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            moveAirportRoute(routeId, event.key === 'ArrowUp' ? 'up' : 'down');
+            document.querySelector(`[data-route-drag-handle="${CSS.escape(routeId)}"]`)?.focus();
+        }
+    });
+
+    document.addEventListener('pointermove', (event) => {
+        if (!_airportRouteDrag || event.pointerId !== _airportRouteDrag.pointerId || !_airportRouteDrag.started) return;
+        event.preventDefault();
+
+        const draggedRow = container.querySelector(`tr[data-route-id="${CSS.escape(_airportRouteDrag.routeId)}"]`);
+        const targetRow = document.elementFromPoint(event.clientX, event.clientY)?.closest('tr[data-route-id]');
+        container.querySelectorAll('.is-drop-before, .is-drop-after').forEach(row => row.classList.remove('is-drop-before', 'is-drop-after'));
+        if (!draggedRow || !targetRow || targetRow === draggedRow || !container.contains(targetRow)) return;
+
+        const bounds = targetRow.getBoundingClientRect();
+        const insertAfter = event.clientY >= bounds.top + bounds.height / 2;
+        targetRow.classList.add(insertAfter ? 'is-drop-after' : 'is-drop-before');
+        targetRow.parentElement.insertBefore(draggedRow, insertAfter ? targetRow.nextSibling : targetRow);
+    }, { passive: false });
+
+    const finishDrag = (event, cancelled = false) => {
+        if (!_airportRouteDrag || event.pointerId !== _airportRouteDrag.pointerId) return;
+        clearTimeout(_airportRouteDragTimer);
+        const didStart = _airportRouteDrag.started;
+        _airportRouteDrag = null;
+        document.body.classList.remove('is-airport-route-dragging');
+        container.querySelectorAll('.is-dragging, .is-drop-before, .is-drop-after').forEach(row => {
+            row.classList.remove('is-dragging', 'is-drop-before', 'is-drop-after');
+        });
+
+        if (!didStart) return;
+        if (cancelled) {
+            renderRatesTables(_currentRates);
+            return;
+        }
+
+        collectRatesFromInputs();
+        const rows = _currentRates?.airportTransfers || [];
+        const orderedIds = Array.from(container.querySelectorAll('tbody tr[data-route-id]')).map(row => row.dataset.routeId);
+        const activeProvinceFilter = getAirportProvinceFilterValue();
+        const visibleIds = rows
+            .filter(row => !activeProvinceFilter || normalizeTitleCase(row.province) === activeProvinceFilter)
+            .map(row => row.id);
+        if (orderedIds.every((id, index) => id === visibleIds[index])) return;
+
+        const positions = [];
+        rows.forEach((row, index) => {
+            if (!activeProvinceFilter || normalizeTitleCase(row.province) === activeProvinceFilter) positions.push(index);
+        });
+        const rowById = new Map(rows.map(row => [row.id, row]));
+        const reorderedRows = orderedIds.map(id => rowById.get(id)).filter(Boolean);
+        positions.forEach((position, index) => {
+            if (reorderedRows[index]) rows[position] = reorderedRows[index];
+        });
+        renderRatesTables(_currentRates);
+        showRatesStatus('Route order changed. Click Save All Rates to apply live.', 'success');
+    };
+
+    document.addEventListener('pointerup', event => finishDrag(event));
+    document.addEventListener('pointercancel', event => finishDrag(event, true));
 }
 
 function moveAirportRoute(routeId, direction) {
@@ -4651,13 +4952,25 @@ function switchRatesTab(tab) {
     const saveButton = document.getElementById('saveAllRatesBtn');
     const isFeesView = tab === 'fees';
     const isAddOnsView = tab === 'addOns';
-    if (title) title.textContent = isFeesView ? 'Fees' : isAddOnsView ? 'Add-Ons' : 'Rates Management';
+    const sectionTitles = {
+        airport: 'Airport Transfers',
+        withDriver: 'With Driver',
+        selfDrive: 'Self-Drive',
+        inboundOutbound: 'Inbound/Outbound'
+    };
+    const sectionDescriptions = {
+        airport: 'Manage airport transfer routes and vehicle-class rates.',
+        withDriver: 'Manage starting rates for with-driver services.',
+        selfDrive: 'Manage daily rental rates for self-drive vehicles.',
+        inboundOutbound: 'Manage inbound and outbound transfer routes and rates.'
+    };
+    if (title) title.textContent = isFeesView ? 'Fees' : isAddOnsView ? 'Add-Ons' : sectionTitles[tab] || 'Rates Management';
     if (description) {
         description.textContent = isFeesView
             ? 'Manage delivery and return fees by location for self-drive bookings.'
             : isAddOnsView
                 ? 'Manage optional add-ons and their rates.'
-                : 'Edit your service rates. These will be used as the basis for automatic quotations.';
+                : sectionDescriptions[tab] || 'Manage service rates used as the basis for automatic quotations.';
     }
     if (saveButton) {
         saveButton.innerHTML = isFeesView
