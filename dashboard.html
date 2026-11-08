@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mayon Rent a Car - Admin Dashboard</title>
-    <link rel="stylesheet" href="dashboard-style.css?v=20261014-19">
+    <link rel="stylesheet" href="dashboard-style.css?v=20261109-05">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/svg+xml" href="images/Mayon.svg?v=20260713">
     <link rel="shortcut icon" href="images/Mayon.svg?v=20260713">
@@ -210,15 +210,10 @@
                     <a href="#" class="nav-submenu-item" data-tab="addOns" onclick="openRatesTab('addOns'); return false;">Add-Ons</a>
                 </div>
                 
-                <a href="#" class="nav-item nav-item--dropdown" aria-label="Team" title="Team" onclick="toggleTeamSubmenu(event); return false;" aria-expanded="false">
+                <a href="#" class="nav-item" aria-label="Users" title="Users" onclick="openUsers(); return false;">
                     <i class="fa-solid fa-users"></i>
-                    <span class="nav-text">Team</span>
-                    <i class="fa-solid fa-chevron-down nav-item-chevron"></i>
+                    <span class="nav-text">Users</span>
                 </a>
-                <div id="teamSubmenu" class="nav-submenu hidden" aria-label="Team categories submenu">
-                    <a href="#" class="nav-submenu-item" data-role="admin" onclick="openTeamTab('admin'); return false;">Admin</a>
-                    <a href="#" class="nav-submenu-item" data-role="driver" onclick="openTeamTab('driver'); return false;">Driver</a>
-                </div>
                 
                 <a href="#" class="nav-item" aria-label="Account Settings" title="Account Settings" onclick="showView('accountSettings'); return false;">
                     <i class="fa-solid fa-sliders"></i>
@@ -350,23 +345,60 @@
 
             <div id="userManagementView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 0px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
                 <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 25px;">
-                    <h2 id="userManagementTitle" style="margin: 0; color: #0F172A;">User Management</h2>
-                    <button type="button" onclick="openAddUserModal()" class="btn-primary"><i class="fa-solid fa-plus"></i> Add New User</button>
+                    <h2 id="userManagementTitle" style="margin: 0; color: #0F172A;">Users</h2>
+                    <button type="button" onclick="openAddUserModal()" class="btn-primary"><i class="fa-solid fa-user-plus"></i> Add User</button>
                 </div>
-                
-                <table id="usersTable" style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <div class="users-filter-toolbar">
+                    <div class="users-filter-field users-search-field">
+                        <label for="usersSearch">Search</label>
+                        <input type="search" id="usersSearch" placeholder="Name, email, or phone">
+                    </div>
+                    <div class="users-filter-field">
+                        <label for="usersRoleFilter">Role</label>
+                        <select id="usersRoleFilter">
+                            <option value="">All roles</option>
+                            <option value="admin">Admin</option>
+                            <option value="affiliate">Affiliate</option>
+                            <option value="driver">Driver</option>
+                        </select>
+                    </div>
+                    <div class="users-filter-field">
+                        <label for="usersStatusFilter">Status</label>
+                        <select id="usersStatusFilter">
+                            <option value="">All statuses</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <button type="button" id="usersClearFilters" class="clear-filters-btn">Clear</button>
+                </div>
+
+                <div class="users-table-wrap">
+                <table id="usersTable" class="data-table">
+                    <colgroup>
+                        <col class="users-column-name">
+                        <col class="users-column-email">
+                        <col class="users-column-phone">
+                        <col class="users-column-role">
+                        <col class="users-column-affiliate">
+                        <col class="users-column-status">
+                        <col class="users-column-actions">
+                    </colgroup>
                     <thead>
-                        <tr style="background: #f8fafc; border-bottom: 2px solid #E2E8F0;">
-                            <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Full Name</th>
-                            <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Email</th>
-                            <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Role</th>
-                            <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Last Login</th>
-                            <th style="text-align: center; padding: 12px; font-weight: 600; color: #64748b;">Actions</th>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone number</th>
+                            <th>Role</th>
+                            <th>Affiliate account</th>
+                            <th>Status</th>
+                            <th class="users-actions-heading">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="usersTableBody">
                     </tbody>
                 </table>
+                </div>
             </div>
 
             <!-- ACCOUNT SETTINGS VIEW (Full Page, not modal) -->
@@ -938,78 +970,118 @@
         });
     </script>
     <script src="auth-utils.js?v=20260808-1"></script>
-    <script src="dashboard.js?v=20261014-20"></script>
+    <script src="dashboard.js?v=20261109-03"></script>
     
-    <!-- USER MODAL -->
+    <!-- USER FORM -->
     <div id="userModal" class="user-modal-overlay" style="display: none !important;">
         <div class="user-modal-panel">
             <div class="user-modal-header">
-                <h3 id="modalTitle">User Information</h3>
-                <button type="button" class="user-modal-close" onclick="closeUserModal()" aria-label="Close">&times;</button>
+                <div>
+                    <h3 id="modalTitle">Add User</h3>
+                    <p class="user-modal-header-hint">Create a user profile and assign their access role.</p>
+                </div>
             </div>
             <form id="userForm">
                 <div class="user-modal-body">
                     <div class="user-modal-section">
                         <p class="user-modal-section-title">Personal Information</p>
-
-                        <div class="avatar-upload">
-                            <label class="avatar-upload-circle" for="uPhoto" id="uPhotoPreviewWrap">
-                                <span id="uPhotoPreviewText">Add photo</span>
-                            </label>
-                            <input type="file" id="uPhoto" name="photo" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="handleUserPhotoSelected(this)">
-                            <div>
-                                <span class="avatar-upload-hint">JPG, PNG or WEBP. Uploaded to the server on save.</span>
-                                <button type="button" id="uRemovePhotoBtn" onclick="removeUserPhoto()" style="display:none; background:none; border:none; color:#dc2626; font-size:0.8rem; padding:4px 0 0; cursor:pointer;">Remove photo</button>
+                        <p class="user-modal-section-hint">Enter the user’s contact details and account information.</p>
+                        <div class="user-modal-grid">
+                            <div class="user-modal-field">
+                                <label for="uFirstName">First Name <span class="required-mark">*</span></label>
+                                <input type="text" id="uFirstName" required>
+                            </div>
+                            <div class="user-modal-field">
+                                <label for="uLastName">Last Name <span class="required-mark">*</span></label>
+                                <input type="text" id="uLastName" required>
                             </div>
                         </div>
 
                         <div class="user-modal-grid">
                             <div class="user-modal-field">
-                                <label>First Name <span class="required-mark">*</span></label>
-                                <input type="text" id="uFirstName" required>
-                            </div>
-                            <div class="user-modal-field">
-                                <label>Last Name <span class="required-mark">*</span></label>
-                                <input type="text" id="uLastName">
-                            </div>
-                        </div>
-
-                        <div class="user-modal-grid" style="grid-template-columns: 1fr;">
-                            <div class="user-modal-field">
-                                <label>Email <span class="required-mark">*</span></label>
+                                <label for="uEmail">Email <span class="required-mark">*</span></label>
                                 <input type="email" id="uEmail" required>
                             </div>
-                        </div>
-
-                        <div class="user-modal-grid" style="grid-template-columns: 1fr;">
                             <div class="user-modal-field">
-                                <label>Mobile <span class="required-mark">*</span></label>
+                                <label for="uMobile">Phone Number <span class="required-mark">*</span></label>
                                 <div class="mobile-input-group">
                                     <span class="mobile-input-prefix">🇵🇭 +63</span>
                                     <input type="tel" id="uMobile" placeholder="9XXXXXXXXX" required>
                                 </div>
                             </div>
                         </div>
+
+                        <p class="user-modal-subsection-title">Access &amp; Eligibility</p>
+                        <div class="user-modal-grid user-role-grid">
+                            <div class="user-modal-field">
+                                <label for="uRole">Role <span class="required-mark">*</span></label>
+                                <select id="uRole" required>
+                                    <option value="">Select a role</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="affiliate">Affiliate</option>
+                                    <option value="driver">Driver</option>
+                                </select>
+                            </div>
+                            <div class="user-modal-field corporate-bookings-field">
+                                <label for="uCorporate">Eligible for Corporate Bookings</label>
+                                <label class="checkbox-field">
+                                    <input type="checkbox" id="uCorporate">
+                                    <span>Allow corporate bookings</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <p class="user-modal-subsection-title">Location &amp; Tax Information</p>
+                        <div class="user-modal-grid">
+                            <div class="user-modal-field">
+                                <label for="uRegion">Region</label>
+                                <select id="uRegion">
+                                    <option value="">Select a region</option>
+                                    <option value="Albay">Albay</option>
+                                    <option value="Sorsogon">Sorsogon</option>
+                                    <option value="Camarines Sur">Camarines Sur</option>
+                                </select>
+                            </div>
+                            <div class="user-modal-field">
+                                <label for="uAddress">Address</label>
+                                <input type="text" id="uAddress" autocomplete="street-address">
+                            </div>
+                        </div>
+
+                        <div class="user-modal-grid tin-grid">
+                            <div class="user-modal-field">
+                                <label for="uTin">TIN</label>
+                                <input type="text" id="uTin" placeholder="0000-0000-0000" inputmode="numeric">
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="user-modal-section">
-                        <p class="user-modal-section-title">Roles &amp; Status</p>
-                        <div class="user-modal-field" style="margin-bottom: 16px;">
-                            <label>Roles <span class="required-mark">*</span></label>
-                            <select id="uRole" required>
-                                <option value="">Select a role</option>
-                                <option value="driver">Driver</option>
-                                <option value="admin">Admin</option>
-                            </select>
+                    <div class="user-form-profile-settings">
+                        <div class="user-modal-section user-modal-section-card">
+                            <p class="user-modal-section-title">Profile Photo</p>
+                            <div class="avatar-upload">
+                                <label class="avatar-upload-circle" for="uPhoto" id="uPhotoPreviewWrap">
+                                    <span id="uPhotoPreviewText">Add photo</span>
+                                </label>
+                                <input type="file" id="uPhoto" name="photo" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="handleUserPhotoSelected(this)">
+                                <div>
+                                    <span class="avatar-upload-hint">JPG, PNG or WEBP.</span>
+                                    <button type="button" id="uRemovePhotoBtn" onclick="removeUserPhoto()" style="display:none; background:none; border:none; color:#dc2626; font-size:0.8rem; padding:4px 0 0; cursor:pointer;">Remove photo</button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="toggle-switch-row">
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="uActive" checked>
-                                <span class="toggle-switch-slider"></span>
-                            </label>
-                            <div>
-                                <p class="toggle-switch-row-text">Enabled</p>
-                                <p class="toggle-switch-row-hint">Disable to prevent user access.</p>
+
+                        <div class="user-modal-section user-modal-section-card">
+                            <p class="user-modal-section-title">Account Status</p>
+                            <div class="toggle-switch-row">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="uActive" checked>
+                                    <span class="toggle-switch-slider"></span>
+                                </label>
+                                <div>
+                                    <p class="toggle-switch-row-text">Enabled</p>
+                                    <p class="toggle-switch-row-hint">Disable to prevent user access.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1028,19 +1100,20 @@
                     </div>
 
                     <div class="user-modal-section">
-                        <p class="user-modal-section-title">Security</p>
+                        <p class="user-modal-section-title">Login Security</p>
+                        <p class="user-modal-section-hint">Set a secure password for the user’s account.</p>
                         <div class="security-note">
                             <i class="fa-solid fa-lock" style="margin-top:2px;"></i>
                             <span>By creating a user account, they will be able to login to the system.</span>
                         </div>
                         <div class="user-modal-grid">
                             <div class="user-modal-field">
-                                <label>Password</label>
-                                <input type="password" id="uPassword">
+                                <label for="uPassword">Password <span class="required-mark">*</span></label>
+                                <input type="password" id="uPassword" autocomplete="new-password">
                             </div>
                             <div class="user-modal-field">
-                                <label>Confirm Password</label>
-                                <input type="password" id="uPasswordConfirm">
+                                <label for="uPasswordConfirm">Confirm Password <span class="required-mark">*</span></label>
+                                <input type="password" id="uPasswordConfirm" autocomplete="new-password">
                             </div>
                         </div>
                     </div>
@@ -1049,8 +1122,8 @@
                 </div>
 
                 <div class="user-modal-footer">
-                    <button type="button" onclick="closeUserModal()" class="btn-secondary">Discard</button>
-                    <button type="submit" class="btn-primary">Save</button>
+                    <button type="button" onclick="closeUserModal()" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Create</button>
                 </div>
             </form>
         </div>
