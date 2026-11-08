@@ -340,8 +340,9 @@ function restoreAdminView() {
     }
 
     if (savedView === 'userManagement') {
-        const savedTeamRole = localStorage.getItem('adminActiveTeamRole');
-        _activeTeamRole = savedTeamRole === 'admin' || savedTeamRole === 'driver' ? savedTeamRole : null;
+        const savedRole = localStorage.getItem('adminActiveUserRole') || localStorage.getItem('adminActiveTeamRole');
+        const roleFilter = document.getElementById('usersRoleFilter');
+        if (roleFilter) roleFilter.value = ['admin', 'affiliate', 'driver'].includes(savedRole) ? savedRole : '';
         showView('userManagement');
         loadUsers();
     } else if (savedView === 'vehicleManagement') {
@@ -564,7 +565,8 @@ function updateUserDisplay() {
         const initials = (currentUser.fullname || 'U').substring(0, 1).toUpperCase();
         document.getElementById('userAvatar').textContent = initials;
         document.getElementById('userFullname').textContent = currentUser.fullname || currentUser.username;
-        document.getElementById('userRoleDisplay').textContent = currentUser.role === 'admin' ? 'Administrator' : 'Driver';
+        const roleLabels = { admin: 'Administrator', affiliate: 'Affiliate', driver: 'Driver' };
+        document.getElementById('userRoleDisplay').textContent = roleLabels[currentUser.role] || 'User';
     }
 }
 
@@ -573,7 +575,6 @@ function updateUserDisplay() {
 function showUserManagementIfAdmin() {
     const usersNavItem = getNavItemByIcon('fa-users');
     const vehiclesNavItem = getNavItemByIcon('fa-car');
-    const teamSubmenu = document.getElementById('teamSubmenu');
     if (currentUser && currentUser.role === 'admin') {
         if (usersNavItem) usersNavItem.style.display = 'block';
         if (vehiclesNavItem) vehiclesNavItem.style.display = 'block';
@@ -581,7 +582,6 @@ function showUserManagementIfAdmin() {
     } else {
         if (usersNavItem) usersNavItem.style.display = 'none';
         if (vehiclesNavItem) vehiclesNavItem.style.display = 'none';
-        if (teamSubmenu) teamSubmenu.style.display = 'none';
     }
 }
 
@@ -3119,7 +3119,6 @@ async function saveAccountSettings() {
 }
 
 let _allUsers = [];
-let _activeTeamRole = null;
 
 async function loadUsers() {
     if (!ensureAuth()) return;
@@ -3131,7 +3130,7 @@ async function loadUsers() {
 
         if (!response.ok) throw new Error(data.error || 'Failed to load users');
         _allUsers = data.users;
-        applyTeamRoleFilter();
+        applyUserFilters();
         showView('userManagement');
     } catch (error) {
         console.error("Error loading users:", error);
@@ -3139,27 +3138,14 @@ async function loadUsers() {
     }
 }
 
-function applyTeamRoleFilter() {
-    const titleEl = document.getElementById('userManagementTitle');
-    const filteredUsers = _activeTeamRole
-        ? _allUsers.filter(user => user.role === _activeTeamRole)
-        : _allUsers;
-
-    if (titleEl) {
-        titleEl.textContent = _activeTeamRole === 'admin' ? 'Admins'
-            : _activeTeamRole === 'driver' ? 'Drivers'
-            : 'User Management';
-    }
-
-    document.querySelectorAll('#teamSubmenu .nav-submenu-item').forEach(item => {
-        item.classList.toggle('active', item.dataset.role === _activeTeamRole);
-    });
-
-    renderUsersTable(filteredUsers);
-}
-
-function toggleTeamSubmenu(event) {
-    toggleSidebarSubmenu(event, 'teamSubmenu');
+function openUsers() {
+    localStorage.removeItem('adminActiveUserRole');
+    localStorage.removeItem('adminActiveTeamRole');
+    document.getElementById('usersSearch').value = '';
+    const roleFilter = document.getElementById('usersRoleFilter');
+    if (roleFilter) roleFilter.value = '';
+    document.getElementById('usersStatusFilter').value = '';
+    loadUsers();
 }
 
 function toggleSidebarSubmenu(event, submenuId) {
@@ -3187,45 +3173,73 @@ function toggleSidebarSubmenu(event, submenuId) {
     button.querySelector('.nav-item-chevron')?.classList.toggle('is-open', isOpen);
 }
 
-async function openTeamTab(role) {
-    _activeTeamRole = role;
-    localStorage.setItem('adminActiveTeamRole', role);
-    showView('userManagement');
-    await loadUsers();
+function applyUserFilters() {
+    const searchTerm = (document.getElementById('usersSearch')?.value || '').trim().toLowerCase();
+    const role = document.getElementById('usersRoleFilter')?.value || '';
+    const status = document.getElementById('usersStatusFilter')?.value || '';
 
-    const submenu = document.getElementById('teamSubmenu');
-    const button = getNavItemByIcon('fa-users');
-    if (submenu) {
-        submenu.classList.remove('is-open');
-        submenu.classList.add('hidden');
-        submenu.style.display = 'none';
-    }
-    if (button) {
-        button.setAttribute('aria-expanded', 'false');
-        button.querySelector('.nav-item-chevron')?.classList.remove('is-open');
-    }
+    if (role) localStorage.setItem('adminActiveUserRole', role);
+    else localStorage.removeItem('adminActiveUserRole');
+
+    const filteredUsers = _allUsers.filter(user => {
+        const searchableText = [user.fullname, user.email, user.mobile]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+        const matchesSearch = !searchTerm || searchableText.includes(searchTerm);
+        const matchesRole = !role || user.role === role;
+        const matchesStatus = !status || (status === 'active' ? user.active !== false : user.active === false);
+        return matchesSearch && matchesRole && matchesStatus;
+    });
+
+    renderUsersTable(filteredUsers);
+}
+
+function escapeUserMarkup(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[character]);
 }
 
 function renderUsersTable(users) {
     const tbody = document.getElementById('usersTableBody');
     if (!tbody) return;
-    
-    tbody.innerHTML = users.map(user => `
-        <tr style="border-bottom: 1px solid #E2E8F0;">
-            <td style="padding: 12px; color: #0F172A;">${user.fullname}</td>
-            <td style="padding: 12px; color: #0F172A;">${user.email}</td>
-            <td style="padding: 12px;">
-                <span style="display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; background: ${user.role === 'admin' ? '#dbeafe' : '#dcfce7'}; color: ${user.role === 'admin' ? '#0369a1' : '#166534'};">
-                    ${user.role === 'admin' ? 'Admin' : 'Driver'}
-                </span>
-            </td>
-            <td style="padding: 12px; color: #64748b; font-size: 0.85rem;">${user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}</td>
-            <td style="padding: 12px; text-align: center;">
-                <button type="button" onclick="editUser('${user.id}')" title="Edit" style="background: none; border: none; color: #06B6D4; cursor: pointer; font-size: 1.1rem; margin: 0 5px;"><i class="fa-solid fa-pencil"></i></button>
-                <button type="button" onclick="deleteUser('${user.id}', '${user.email}')" title="Delete" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; margin: 0 5px;"><i class="fa-solid fa-trash"></i></button>
-            </td>
-        </tr>
-    `).join('');
+
+    if (!tbody.dataset.actionsBound) {
+        tbody.addEventListener('click', event => {
+            const button = event.target.closest('button[data-user-action]');
+            if (!button) return;
+            const user = _allUsers.find(item => item.id === button.dataset.userId);
+            if (!user) return;
+
+            if (button.dataset.userAction === 'edit') editUser(user.id);
+            else if (button.dataset.userAction === 'delete') deleteUser(user.id, user.email);
+        });
+        tbody.dataset.actionsBound = 'true';
+    }
+
+    const roleLabels = { admin: 'Admin', affiliate: 'Affiliate', driver: 'Driver' };
+    tbody.innerHTML = users.length ? users.map(user => {
+        const role = roleLabels[user.role] || 'Unknown';
+        const active = user.active !== false;
+        return `
+            <tr>
+                <td data-label="Name">${escapeUserMarkup(user.fullname)}</td>
+                <td data-label="Email">${escapeUserMarkup(user.email)}</td>
+                <td data-label="Phone number">${escapeUserMarkup(user.mobile || 'N/A')}</td>
+                <td data-label="Role"><span class="user-role-badge user-role-${escapeUserMarkup(user.role)}">${role}</span></td>
+                <td data-label="Affiliate account">${escapeUserMarkup(user.affiliateAccount || 'N/A')}</td>
+                <td data-label="Status"><span class="user-status-badge ${active ? 'is-active' : 'is-inactive'}">${active ? 'Active' : 'Inactive'}</span></td>
+                <td data-label="Actions" class="user-row-actions">
+                    <button type="button" data-user-action="edit" data-user-id="${escapeUserMarkup(user.id)}" title="Edit user" aria-label="Edit ${escapeUserMarkup(user.fullname)}"><i class="fa-solid fa-pencil"></i></button>
+                    <button type="button" data-user-action="delete" data-user-id="${escapeUserMarkup(user.id)}" title="Delete user" aria-label="Delete ${escapeUserMarkup(user.fullname)}"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`;
+    }).join('') : '<tr><td class="users-empty-state" colspan="7">No users found.</td></tr>';
 }
 
 let _selectedUserDocuments = [];
@@ -3234,13 +3248,18 @@ let _userPhotoPreviewUrl = null;
 let _removeExistingUserPhoto = false;
 
 function openAddUserModal() {
-    document.getElementById('modalTitle').textContent = 'User Information';
+    document.getElementById('modalTitle').textContent = 'Add User';
+    document.querySelector('.user-modal-header-hint').textContent = 'Create a user profile and assign their access role.';
     document.getElementById('userForm').reset();
     document.getElementById('userForm').dataset.userId = '';
     const passwordInput = document.getElementById('uPassword');
     const confirmInput = document.getElementById('uPasswordConfirm');
     if (passwordInput) passwordInput.required = true;
     if (confirmInput) confirmInput.required = true;
+    document.querySelectorAll('#uPassword, #uPasswordConfirm').forEach(input => {
+        input.labels[0]?.querySelector('.required-mark')?.classList.remove('is-hidden');
+    });
+    document.querySelector('#userForm .user-modal-footer .btn-primary').textContent = 'Create';
     document.getElementById('uActive').checked = true;
     document.getElementById('userFormError').style.display = 'none';
     resetUserPhotoPreview();
@@ -3354,24 +3373,34 @@ async function editUser(userId) {
         if (!response.ok) throw new Error(data.error || 'Failed to load user');
 
         const user = data.user;
-        document.getElementById('modalTitle').textContent = 'User Information';
+        document.getElementById('modalTitle').textContent = 'Edit User';
+        document.querySelector('.user-modal-header-hint').textContent = 'Update this user’s profile and account access.';
         document.getElementById('userForm').reset();
         document.getElementById('userForm').dataset.userId = user.id;
+        document.querySelector('#userForm .user-modal-footer .btn-primary').textContent = 'Save Changes';
 
         document.getElementById('uEmail').value = user.email || '';
 
         const nameParts = (user.fullname || '').split(' ');
-        document.getElementById('uFirstName').value = nameParts.shift() || '';
-        document.getElementById('uLastName').value = nameParts.join(' ');
+        const legacyFirstName = nameParts.shift() || '';
+        document.getElementById('uFirstName').value = user.firstName || legacyFirstName;
+        document.getElementById('uLastName').value = user.lastName || nameParts.join(' ');
 
         document.getElementById('uMobile').value = (user.mobile || '').replace(/^\+63/, '');
         document.getElementById('uRole').value = user.role;
+        document.getElementById('uCorporate').checked = user.eligibleForCorporateBookings === true;
+        document.getElementById('uRegion').value = user.region || '';
+        document.getElementById('uAddress').value = user.address || '';
+        document.getElementById('uTin').value = user.tin || '';
         document.getElementById('uActive').checked = user.active !== false;
 
         const passwordInput = document.getElementById('uPassword');
         const confirmInput = document.getElementById('uPasswordConfirm');
         if (passwordInput) passwordInput.required = false;
         if (confirmInput) confirmInput.required = false;
+        document.querySelectorAll('#uPassword, #uPasswordConfirm').forEach(input => {
+            input.labels[0]?.querySelector('.required-mark')?.classList.add('is-hidden');
+        });
 
         document.getElementById('userFormError').style.display = 'none';
         resetUserPhotoPreview();
@@ -3429,6 +3458,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (userForm) {
         userForm.addEventListener('submit', handleSaveUser);
     }
+
+    document.getElementById('usersSearch')?.addEventListener('input', applyUserFilters);
+    ['usersRoleFilter', 'usersStatusFilter'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', applyUserFilters);
+    });
+    document.getElementById('usersClearFilters')?.addEventListener('click', () => {
+        document.getElementById('usersSearch').value = '';
+        document.getElementById('usersRoleFilter').value = '';
+        document.getElementById('usersStatusFilter').value = '';
+        applyUserFilters();
+    });
 });
 
 async function handleSaveUser(e) {
@@ -3466,10 +3506,16 @@ async function handleSaveUser(e) {
         const path = userId ? `/users/${userId}` : '/users';
 
         const formData = new FormData();
+        formData.append('firstName', firstName);
+        formData.append('lastName', lastName);
         formData.append('fullname', fullname);
         formData.append('email', email);
         formData.append('mobile', mobile ? `+63${mobile}` : '');
         formData.append('role', role);
+        formData.append('eligibleForCorporateBookings', String(document.getElementById('uCorporate').checked));
+        formData.append('region', document.getElementById('uRegion').value);
+        formData.append('address', document.getElementById('uAddress').value.trim());
+        formData.append('tin', document.getElementById('uTin').value.trim());
         formData.append('active', String(active));
         if (password) formData.append('password', password);
         if (userId && _removeExistingUserPhoto) formData.append('removePhoto', 'true');

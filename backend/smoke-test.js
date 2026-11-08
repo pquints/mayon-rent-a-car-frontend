@@ -68,7 +68,7 @@ async function run() {
     const userRes = await fetch(`${API}/users`, {
       method: 'POST',
       headers: authHeaders(token),
-      body: JSON.stringify({ username: 'smoke_user', password: 'Password123!', email: 'smoke_user@example.com', fullname: 'Smoke User', role: 'driver' })
+      body: JSON.stringify({ username: 'smoke_user', password: 'Password123!', email: 'smoke_user@example.com', fullname: 'Smoke User', firstName: 'Smoke', lastName: 'User', mobile: '+639171234567', role: 'driver' })
     });
     console.log('/users ->', await userRes.json());
 

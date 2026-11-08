@@ -822,9 +822,16 @@ app.get('/api/users', verifyToken, verifyAdmin, (req, res) => {
         const safeUsers = users.map(u => ({
             id: u.id,
             fullname: u.fullname,
+            firstName: u.firstName || '',
+            lastName: u.lastName || '',
             email: u.email,
             mobile: u.mobile || '',
             role: u.role,
+            eligibleForCorporateBookings: u.eligibleForCorporateBookings === true,
+            region: u.region || '',
+            address: u.address || '',
+            tin: u.tin || '',
+            affiliateAccount: u.affiliateAccount || '',
             active: u.active !== false,
             hasPhoto: !!u.photo,
             documentCount: Array.isArray(u.documents) ? u.documents.length : 0,
@@ -849,9 +856,16 @@ app.get('/api/users/:id', verifyToken, verifyAdmin, (req, res) => {
             user: {
                 id: user.id,
                 fullname: user.fullname,
+                firstName: user.firstName || '',
+                lastName: user.lastName || '',
                 email: user.email,
                 mobile: user.mobile || '',
                 role: user.role,
+                eligibleForCorporateBookings: user.eligibleForCorporateBookings === true,
+                region: user.region || '',
+                address: user.address || '',
+                tin: user.tin || '',
+                affiliateAccount: user.affiliateAccount || '',
                 active: user.active !== false,
                 photo: user.photo || null,
                 documents: Array.isArray(user.documents) ? user.documents : [],
@@ -869,13 +883,16 @@ app.post('/api/users', verifyToken, verifyAdmin, handleUserUploads, async (req, 
     try {
         const { password, email, fullname, role, mobile } = req.body;
         const active = req.body.active !== 'false';
+        const nameParts = String(fullname || '').trim().split(/\s+/).filter(Boolean);
+        const firstName = String(req.body.firstName || nameParts.shift() || '').trim();
+        const lastName = String(req.body.lastName || nameParts.join(' ')).trim();
 
-        if (!password || !email || !fullname || !role) {
-            return res.status(400).json({ success: false, error: "All fields are required" });
+        if (!password || !email || !firstName || !lastName || !String(mobile || '').trim() || !role) {
+            return res.status(400).json({ success: false, error: "First name, last name, email, phone number, password, and role are required" });
         }
 
-        if (!['admin', 'driver'].includes(role)) {
-            return res.status(400).json({ success: false, error: "Role must be 'admin' or 'driver'" });
+        if (!['admin', 'affiliate', 'driver'].includes(role)) {
+            return res.status(400).json({ success: false, error: "Role must be 'admin', 'affiliate', or 'driver'" });
         }
 
         const users = getUsers();
@@ -896,9 +913,15 @@ app.post('/api/users', verifyToken, verifyAdmin, handleUserUploads, async (req, 
             id: `USR-${Date.now()}`,
             password: hashedPassword,
             email,
-            fullname,
-            mobile: mobile || '',
+            fullname: String(fullname || `${firstName} ${lastName}`).trim(),
+            firstName,
+            lastName,
+            mobile: String(mobile).trim(),
             role,
+            eligibleForCorporateBookings: req.body.eligibleForCorporateBookings === 'true',
+            region: String(req.body.region || '').trim(),
+            address: String(req.body.address || '').trim(),
+            tin: String(req.body.tin || '').trim(),
             active,
             photo: photoFile ? path.basename(photoFile.path) : null,
             documents: documentFiles.map(f => ({ filename: path.basename(f.path), originalName: f.originalname })),
@@ -933,10 +956,23 @@ app.put('/api/users/:id', verifyToken, verifyAdmin, handleUserUploads, async (re
             return res.status(404).json({ success: false, error: "User not found" });
         }
 
-        if (fullname) users[userIndex].fullname = fullname;
+        if (fullname) users[userIndex].fullname = String(fullname).trim();
+        if (typeof req.body.firstName !== 'undefined') users[userIndex].firstName = String(req.body.firstName).trim();
+        if (typeof req.body.lastName !== 'undefined') users[userIndex].lastName = String(req.body.lastName).trim();
         if (email) users[userIndex].email = email;
         if (typeof mobile !== 'undefined') users[userIndex].mobile = mobile;
-        if (role && ['admin', 'driver'].includes(role)) users[userIndex].role = role;
+        if (typeof role !== 'undefined') {
+            if (!['admin', 'affiliate', 'driver'].includes(role)) {
+                return res.status(400).json({ success: false, error: "Role must be 'admin', 'affiliate', or 'driver'" });
+            }
+            users[userIndex].role = role;
+        }
+        if (typeof req.body.eligibleForCorporateBookings !== 'undefined') {
+            users[userIndex].eligibleForCorporateBookings = req.body.eligibleForCorporateBookings === 'true';
+        }
+        if (typeof req.body.region !== 'undefined') users[userIndex].region = String(req.body.region).trim();
+        if (typeof req.body.address !== 'undefined') users[userIndex].address = String(req.body.address).trim();
+        if (typeof req.body.tin !== 'undefined') users[userIndex].tin = String(req.body.tin).trim();
         if (password) users[userIndex].password = await bcrypt.hash(password, 10);
         if (typeof req.body.active !== 'undefined') users[userIndex].active = req.body.active !== 'false';
 
