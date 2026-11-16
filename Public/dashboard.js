@@ -1492,7 +1492,123 @@ function updateQuickQuoteButtonVisibility(status) {
     }
 }
 
-function openFullPageDetails(booking, sourceButton = null) {
+async function loadBookingLocationOptions() {
+    const { response, data } = await requestWithFallback('/rates', {
+        headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+        throw new Error(data.error || `Unable to load self-drive locations: ${response.status}`);
+    }
+
+    const rates = data.rates || {};
+    const pickup = Array.isArray(rates.selfDriveDelivery) ? rates.selfDriveDelivery : [];
+    const returns = Array.isArray(rates.selfDriveReturn) ? rates.selfDriveReturn : [];
+    if (!pickup.length || !returns.length) {
+        throw new Error('Self-drive pick-up and return locations are not configured.');
+    }
+
+    return { pickup, returns };
+}
+
+function populateBookingLocationSelect(selectId, options, selectedValue) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    select.replaceChildren();
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '-- Select Location --';
+    select.appendChild(placeholder);
+
+    const optionValues = new Set();
+    options.forEach((locationOption) => {
+        const location = String(locationOption?.location || '').trim();
+        if (!location || optionValues.has(location)) return;
+
+        const option = document.createElement('option');
+        option.value = location;
+        option.textContent = location;
+        select.appendChild(option);
+        optionValues.add(location);
+    });
+
+    const currentValue = String(selectedValue || '').trim();
+    if (currentValue && !optionValues.has(currentValue)) {
+        const savedOption = document.createElement('option');
+        savedOption.value = currentValue;
+        savedOption.textContent = `Saved location: ${currentValue}`;
+        select.appendChild(savedOption);
+    }
+
+    select.value = currentValue;
+}
+
+function setBookingLocationValue(type, value) {
+    const isPickup = type === 'pickup';
+    const input = document.getElementById(isPickup ? 'fpPickAddr' : 'fpReturnAddr');
+    const select = document.getElementById(isPickup ? 'fpPickAddrSelect' : 'fpReturnAddrSelect');
+    const currentValue = String(value || '').trim();
+
+    if (input) input.value = currentValue;
+    if (!select) return;
+
+    const hasOption = Array.from(select.options).some(option => option.value === currentValue);
+    if (currentValue && !hasOption) {
+        const savedOption = document.createElement('option');
+        savedOption.value = currentValue;
+        savedOption.textContent = `Saved location: ${currentValue}`;
+        select.appendChild(savedOption);
+    }
+    select.value = currentValue;
+}
+
+function getBookingLocationValue(type) {
+    const isPickup = type === 'pickup';
+    const isSelfDrive = document.getElementById('fpRentalType')?.value !== 'with-driver';
+    const input = document.getElementById(isPickup ? 'fpPickAddr' : 'fpReturnAddr');
+    const select = document.getElementById(isPickup ? 'fpPickAddrSelect' : 'fpReturnAddrSelect');
+    return isSelfDrive ? (select?.value || '') : (input?.value.trim() || '');
+}
+
+function toggleBookingLocationControl(type, isSelfDrive) {
+    const isPickup = type === 'pickup';
+    const input = document.getElementById(isPickup ? 'fpPickAddr' : 'fpReturnAddr');
+    const select = document.getElementById(isPickup ? 'fpPickAddrSelect' : 'fpReturnAddrSelect');
+    if (!input || !select) return;
+
+    if (isSelfDrive) {
+        if (input.value.trim()) setBookingLocationValue(type, input.value);
+        select.hidden = false;
+        input.hidden = true;
+    } else {
+        if (select.value) input.value = select.value;
+        select.hidden = true;
+        input.hidden = false;
+    }
+}
+
+function populateBookingLocationOptions(options, pickupValue, returnValue) {
+    populateBookingLocationSelect('fpPickAddrSelect', options.pickup, pickupValue);
+    populateBookingLocationSelect('fpReturnAddrSelect', options.returns, returnValue);
+    setBookingLocationValue('pickup', pickupValue);
+    setBookingLocationValue('return', returnValue);
+}
+
+async function openFullPageDetails(booking, sourceButton = null) {
+    let locationOptions = { pickup: [], returns: [] };
+    try {
+        locationOptions = await loadBookingLocationOptions();
+    } catch (error) {
+        console.error('Unable to load self-drive location options:', error);
+        showNotificationToast('Could not load location choices. Saved locations are preserved; please try again later.', 'error');
+    }
+    populateBookingLocationOptions(
+        locationOptions,
+        booking.pickup_address || '',
+        booking.return_address && booking.return_address !== '—' ? booking.return_address : ''
+    );
+
     bookingDetailsReturnScrollY = window.scrollY;
     bookingDetailsReturnButton = sourceButton;
     bookingDetailsInitialState = null;
@@ -1570,14 +1686,14 @@ function openFullPageDetails(booking, sourceButton = null) {
 
     document.getElementById("fpPickDate").value = booking.pickup_date || "";
     document.getElementById("fpPickTime").value = booking.pickup_time || "";
-    document.getElementById("fpPickAddr").value = booking.pickup_address || "";
+    setBookingLocationValue('pickup', booking.pickup_address || '');
     document.getElementById("fpPickLocationAddr").value = booking.pickup_location_address && booking.pickup_location_address !== "—" ? booking.pickup_location_address : "";
     document.getElementById("fpPickFlightNumber").value = booking.pickup_flight_number && booking.pickup_flight_number !== "—" ? booking.pickup_flight_number : "";
 
     // Mula sa dating fpReturnDate, fpReturnTime, fpReturnAddr:
     document.getElementById("fpReturnDate").value = booking.return_date && booking.return_date !== "—" ? booking.return_date : "";
     document.getElementById("fpReturnTime").value = booking.return_time && booking.return_time !== "—" ? booking.return_time : "";
-    document.getElementById("fpReturnAddr").value = booking.return_address && booking.return_address !== "—" ? booking.return_address : "";
+    setBookingLocationValue('return', booking.return_address && booking.return_address !== "—" ? booking.return_address : '');
     document.getElementById("fpReturnLocationAddr").value = booking.return_location_address && booking.return_location_address !== "—" ? booking.return_location_address : "";
     document.getElementById("fpReturnFlightNumber").value = booking.return_flight_number && booking.return_flight_number !== "—" ? booking.return_flight_number : "";
 
@@ -1731,12 +1847,12 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
         passengers: document.getElementById("fpPassengers").value || "—",
         pickup_date: document.getElementById("fpPickDate").value,
         pickup_time: document.getElementById("fpPickTime").value,
-        pickup_address: document.getElementById("fpPickAddr").value,
+        pickup_address: getBookingLocationValue('pickup'),
         pickup_location_address: document.getElementById("fpPickLocationAddr").value,
         pickup_flight_number: document.getElementById("fpPickFlightNumber").value,
         return_date: document.getElementById("fpReturnDate").value || "—", returnDate: document.getElementById("fpReturnDate").value || "—",
         return_time: document.getElementById("fpReturnTime").value || "—", returnTime: document.getElementById("fpReturnTime").value || "—",
-        return_address: document.getElementById("fpReturnAddr").value || "—", returnAddress: document.getElementById("fpReturnAddr").value || "—",
+        return_address: getBookingLocationValue('return') || "—", returnAddress: getBookingLocationValue('return') || "—",
         return_location_address: document.getElementById("fpReturnLocationAddr").value || "—",
         return_flight_number: document.getElementById("fpReturnFlightNumber").value || "—",
         itinerary: document.getElementById("fpDetails").value
@@ -1973,11 +2089,11 @@ document.getElementById("btnCopyDetails").addEventListener("click", async () => 
     
     const pickDate = document.getElementById("fpPickDate").value || "—";
     const pickTime = document.getElementById("fpPickTime").value || "—";
-    const pickAddr = document.getElementById("fpPickAddr").value || "—";
+    const pickAddr = getBookingLocationValue('pickup') || "—";
     
     const retDate = document.getElementById("fpReturnDate").value || "—";
     const retTime = document.getElementById("fpReturnTime").value || "—";
-    const retAddr = document.getElementById("fpReturnAddr").value || "—";
+    const retAddr = getBookingLocationValue('return') || "—";
     
     const itinerary = document.getElementById("fpDetails").value || "—";
 
@@ -2346,10 +2462,10 @@ async function saveQuoteToServer(showNotification = true, keepViewOpen = false) 
         pickTime: document.getElementById("fpPickTime").value,
         returnDate: document.getElementById("fpReturnDate").value,
         returnTime: document.getElementById("fpReturnTime").value,
-        pickupAddress: document.getElementById("fpPickAddr")?.value || "—",
+        pickupAddress: getBookingLocationValue('pickup') || "—",
         pickupLocationAddress: document.getElementById("fpPickLocationAddr")?.value || "",
         pickupFlightNumber: document.getElementById("fpPickFlightNumber")?.value || "",
-        returnAddress: document.getElementById("fpReturnAddr")?.value || "—",
+        returnAddress: getBookingLocationValue('return') || "—",
         returnLocationAddress: document.getElementById("fpReturnLocationAddr")?.value || "",
         returnFlightNumber: document.getElementById("fpReturnFlightNumber")?.value || "",
         itinerary: document.getElementById("fpDetails")?.value || "",
@@ -2600,8 +2716,8 @@ async function executeQuoteAction(actionType) {
             const rawPickTime = document.getElementById("fpPickTime")?.value || "";
             const rawRetDate = document.getElementById("fpReturnDate")?.value || "";
             const rawRetTime = document.getElementById("fpReturnTime")?.value || "";
-            const pickupAddr = document.getElementById("fpPickAddr")?.value || "—";
-            const returnAddr = document.getElementById("fpReturnAddr")?.value || "—";
+            const pickupAddr = getBookingLocationValue('pickup') || "—";
+            const returnAddr = getBookingLocationValue('return') || "—";
             const pickupLocationAddress = document.getElementById("fpPickLocationAddr")?.value.trim() || "";
             const pickupFlightNumber = document.getElementById("fpPickFlightNumber")?.value.trim() || "";
             const returnLocationAddress = document.getElementById("fpReturnLocationAddr")?.value.trim() || "";
@@ -2927,7 +3043,16 @@ async function executeQuoteAction(actionType) {
     }
 }
 
-function prepareNewBookingForm(rentalType) {
+async function prepareNewBookingForm(rentalType) {
+    let locationOptions = { pickup: [], returns: [] };
+    try {
+        locationOptions = await loadBookingLocationOptions();
+    } catch (error) {
+        console.error('Unable to load self-drive location options:', error);
+        showNotificationToast('Could not load location choices. Please try again later.', 'error');
+    }
+    populateBookingLocationOptions(locationOptions, '', '');
+
     const tempRef = "NEW-" + Math.floor(10000 + Math.random() * 90000);
     
     document.getElementById("fpRef").innerText = tempRef;
@@ -2943,11 +3068,11 @@ function prepareNewBookingForm(rentalType) {
     
     document.getElementById("fpPickDate").value = "";
     document.getElementById("fpPickTime").value = "";
-    document.getElementById("fpPickAddr").value = "";
+    setBookingLocationValue('pickup', '');
     
     document.getElementById("fpReturnDate").value = "";
     document.getElementById("fpReturnTime").value = "";
-    document.getElementById("fpReturnAddr").value = "";
+    setBookingLocationValue('return', '');
     
     document.getElementById("fpDetails").value = "";
     document.getElementById("fpRentalType").value = rentalType;
@@ -2976,15 +3101,18 @@ function toggleReturnScheduleVisibility(rentalType) {
 
     const rDate = document.getElementById("fpReturnDate");
     const rTime = document.getElementById("fpReturnTime");
-    const rAddr = document.getElementById("fpReturnAddr");
     const serviceOption = document.getElementById("fpServiceOption");
+    const isSelfDrive = rentalType !== "with-driver";
+
+    toggleBookingLocationControl('pickup', isSelfDrive);
+    toggleBookingLocationControl('return', isSelfDrive);
 
     if (rentalType === "with-driver") {
         // Hide return schedule for with-driver
         if (returnSection) returnSection.style.display = "none";
         if (rDate) rDate.value = "";
         if (rTime) rTime.value = "";
-        if (rAddr) rAddr.value = "";
+        setBookingLocationValue('return', '');
         
         // Show service option for with-driver
         if (serviceOptionSection) serviceOptionSection.style.display = "block";
@@ -2994,7 +3122,10 @@ function toggleReturnScheduleVisibility(rentalType) {
         if (returnSection) returnSection.style.display = "block";
         if (rDate) { rDate.disabled = false; rDate.removeAttribute("readonly"); }
         if (rTime) { rTime.disabled = false; rTime.removeAttribute("readonly"); }
-        if (rAddr) { rAddr.disabled = false; rAddr.removeAttribute("readonly"); }
+        ['fpReturnAddr', 'fpReturnAddrSelect'].forEach((id) => {
+            const locationField = document.getElementById(id);
+            if (locationField) { locationField.disabled = false; locationField.removeAttribute("readonly"); }
+        });
         
         // Hide service option for self-drive
         if (serviceOptionSection) serviceOptionSection.style.display = "none";
