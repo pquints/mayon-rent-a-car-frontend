@@ -19,8 +19,8 @@ function formatMoney(value) {
     return `₱${formatMoneyNumber(value)}`;
 }
 
-// Check authentication on page load
-document.addEventListener("DOMContentLoaded", function() {
+// Verify the server-side account role before showing any dashboard data.
+document.addEventListener("DOMContentLoaded", async function() {
     const token = localStorage.getItem('authToken');
     const user = localStorage.getItem('currentUser');
     
@@ -30,17 +30,54 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     try {
-        currentUser = JSON.parse(user);
+        JSON.parse(user);
         authToken = token;
+        const { response, data } = await requestWithFallback('/users/me', {
+            headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                authToken = null;
+                currentUser = null;
+            }
+            showLoginView();
+            showLoginError(data.error || 'Unable to verify your account. Please try again.');
+            return;
+        }
+
+        currentUser = data.user;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        if (currentUser.role !== 'admin') {
+            const dashboardPath = getDashboardPath(currentUser.role);
+            if (dashboardPath) {
+                window.location.replace(dashboardPath);
+                return;
+            }
+            showLoginView();
+            showLoginError('This account role cannot access dashboards.');
+            return;
+        }
+
         showDashboardView();
         initializeDashboard();
         restoreAdminView();
         updateUserDisplay();
     } catch (error) {
-        console.error("Error parsing user data:", error);
+        console.error("Account verification failed:", error);
         showLoginView();
+        showLoginError('Unable to verify your account. Please try again.');
     }
 });
+
+function showLoginError(message) {
+    const errorDiv = document.getElementById('loginError');
+    if (!errorDiv) return;
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+}
 
 function getNavItemByIcon(iconClass) {
     const navItems = document.querySelectorAll('.nav-item');
@@ -342,7 +379,7 @@ function restoreAdminView() {
     if (savedView === 'userManagement') {
         const savedRole = localStorage.getItem('adminActiveUserRole') || localStorage.getItem('adminActiveTeamRole');
         const roleFilter = document.getElementById('usersRoleFilter');
-        if (roleFilter) roleFilter.value = ['admin', 'affiliate', 'driver'].includes(savedRole) ? savedRole : '';
+        if (roleFilter) roleFilter.value = ['admin', 'affiliate', 'customer', 'driver'].includes(savedRole) ? savedRole : '';
         showView('userManagement');
         loadUsers();
     } else if (savedView === 'vehicleManagement' && ['admin', 'affiliate'].includes(currentUser?.role)) {
@@ -360,7 +397,7 @@ async function handleLogin(e) {
     e.preventDefault();
     
     const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value.trim();
+    const password = document.getElementById('loginPassword').value;
     const errorDiv = document.getElementById('loginError');
     const emailField = document.getElementById('loginEmail');
     const passwordField = document.getElementById('loginPassword');
@@ -399,13 +436,23 @@ async function handleLogin(e) {
             return;
         }
         
-        // Store auth credentials and show the dashboard directly
+        const dashboardPath = getDashboardPath(data.user?.role);
+        if (!dashboardPath) {
+            showLoginError('This account role cannot access dashboards.');
+            return;
+        }
+
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('currentUser', JSON.stringify(data.user));
-        localStorage.setItem('adminActiveView', 'dashboard');
         currentUser = data.user;
         authToken = data.token;
 
+        if (currentUser.role !== 'admin') {
+            window.location.replace(dashboardPath);
+            return;
+        }
+
+        localStorage.setItem('adminActiveView', 'dashboard');
         updateUserDisplay();
         showDashboardView();
         showView('dashboard');
@@ -556,10 +603,10 @@ function logout() {
     if (confirm('Are you sure you want to logout?')) {
         localStorage.removeItem('authToken');
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('adminActiveView');
         currentUser = null;
         authToken = null;
         showLoginView();
-        document.getElementById('dashboardContainer').innerHTML = '<div id="mainDashboardView"></div><div id="fullPageDetailsView"></div>';
     }
 }
 
@@ -568,7 +615,7 @@ function updateUserDisplay() {
         const initials = (currentUser.fullname || 'U').substring(0, 1).toUpperCase();
         document.getElementById('userAvatar').textContent = initials;
         document.getElementById('userFullname').textContent = currentUser.fullname || currentUser.username;
-        const roleLabels = { admin: 'Administrator', affiliate: 'Affiliate', driver: 'Driver' };
+        const roleLabels = { admin: 'Administrator', affiliate: 'Affiliate', customer: 'Customer', driver: 'Driver' };
         document.getElementById('userRoleDisplay').textContent = roleLabels[currentUser.role] || 'User';
     }
 }
@@ -1073,7 +1120,9 @@ async function fetchBookings() {
     if (clearFiltersButton) clearFiltersButton.hidden = true;
 
     try {
-        const response = await fetch(`${API_URL}/bookings?status=${activeStatus}`);
+        const response = await fetch(`${API_URL}/bookings?status=${activeStatus}`, {
+            headers: getAuthHeaders()
+        });
         if (!response.ok) throw new Error('Failed to fetch bookings');
         
         const bookings = await response.json();
@@ -3504,7 +3553,7 @@ function renderUsersTable(users) {
         tbody.dataset.actionsBound = 'true';
     }
 
-    const roleLabels = { admin: 'Admin', affiliate: 'Affiliate', driver: 'Driver' };
+    const roleLabels = { admin: 'Admin', affiliate: 'Affiliate', customer: 'Customer', driver: 'Driver' };
     tbody.innerHTML = users.length ? users.map(user => {
         const role = roleLabels[user.role] || 'Unknown';
         const active = user.active !== false;
@@ -3517,8 +3566,8 @@ function renderUsersTable(users) {
                 <td data-label="Affiliate account">${escapeUserMarkup(user.affiliateAccount || 'N/A')}</td>
                 <td data-label="Status"><span class="user-status-badge ${active ? 'is-active' : 'is-inactive'}">${active ? 'Active' : 'Inactive'}</span></td>
                 <td data-label="Actions" class="user-row-actions">
-                    <button type="button" data-user-action="edit" data-user-id="${escapeUserMarkup(user.id)}" title="Edit user" aria-label="Edit ${escapeUserMarkup(user.fullname)}"><i class="fa-solid fa-pencil"></i></button>
-                    <button type="button" data-user-action="delete" data-user-id="${escapeUserMarkup(user.id)}" title="Delete user" aria-label="Delete ${escapeUserMarkup(user.fullname)}"><i class="fa-solid fa-trash"></i></button>
+                    <button type="button" class="btn-action btn-edit" data-user-action="edit" data-user-id="${escapeUserMarkup(user.id)}" title="Edit user" aria-label="Edit ${escapeUserMarkup(user.fullname)}"><i class="fa-solid fa-pencil" aria-hidden="true"></i></button>
+                    <button type="button" class="btn-action btn-delete" data-user-action="delete" data-user-id="${escapeUserMarkup(user.id)}" title="Delete user" aria-label="Delete ${escapeUserMarkup(user.fullname)}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
                 </td>
             </tr>`;
     }).join('') : '<tr><td class="users-empty-state" colspan="7">No users found.</td></tr>';
@@ -4077,8 +4126,8 @@ function renderVehiclesTable() {
                 <td data-label="Daily Rate">${formatMoney(vehicle.dailyRate || 0)}</td>
                 <td data-label="Actions" class="vehicle-row-actions">
                     ${isAdmin ? `
-                        <button type="button" data-vehicle-action="edit" data-vehicle-id="${escapeUserMarkup(vehicle.id)}" title="Edit vehicle" aria-label="Edit ${escapeUserMarkup(vehicle.plate)}"><i class="fa-solid fa-pencil"></i></button>
-                        <button type="button" data-vehicle-action="delete" data-vehicle-id="${escapeUserMarkup(vehicle.id)}" data-vehicle-plate="${escapeUserMarkup(vehicle.plate)}" title="Delete vehicle" aria-label="Delete ${escapeUserMarkup(vehicle.plate)}"><i class="fa-solid fa-trash"></i></button>
+                        <button type="button" class="btn-action btn-edit" data-vehicle-action="edit" data-vehicle-id="${escapeUserMarkup(vehicle.id)}" title="Edit vehicle" aria-label="Edit ${escapeUserMarkup(vehicle.plate)}"><i class="fa-solid fa-pencil" aria-hidden="true"></i></button>
+                        <button type="button" class="btn-action btn-delete" data-vehicle-action="delete" data-vehicle-id="${escapeUserMarkup(vehicle.id)}" data-vehicle-plate="${escapeUserMarkup(vehicle.plate)}" title="Delete vehicle" aria-label="Delete ${escapeUserMarkup(vehicle.plate)}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
                     ` : '<span class="vehicle-action-placeholder">—</span>'}
                 </td>
             </tr>`;
@@ -4405,8 +4454,8 @@ function renderVehicleApprovalRequests() {
             <td data-label="Review Note">${escapeUserMarkup(request.reviewNote || '—')}</td>
             <td data-label="Actions" class="vehicle-row-actions">
                 ${isAdmin && request.status === 'Pending' ? `
-                    <button type="button" data-request-action="Approved" data-request-id="${escapeUserMarkup(request.id)}" class="vehicle-approve-action">Approve</button>
-                    <button type="button" data-request-action="Rejected" data-request-id="${escapeUserMarkup(request.id)}" class="vehicle-reject-action">Reject</button>
+                    <button type="button" data-request-action="Approved" data-request-id="${escapeUserMarkup(request.id)}" class="btn-action btn-approve vehicle-approve-action" title="Approve vehicle" aria-label="Approve ${escapeUserMarkup(request.plate || request.make || 'vehicle')}"><i class="fa-solid fa-check" aria-hidden="true"></i></button>
+                    <button type="button" data-request-action="Rejected" data-request-id="${escapeUserMarkup(request.id)}" class="btn-action btn-delete vehicle-reject-action" title="Reject vehicle" aria-label="Reject ${escapeUserMarkup(request.plate || request.make || 'vehicle')}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                 ` : '<span class="vehicle-action-placeholder">—</span>'}
             </td>
         </tr>
@@ -4991,9 +5040,12 @@ function renderAddOnsTable() {
 function createAddOnActionButton(iconClass, label, onClick, variant) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = variant === 'is-remove'
-        ? 'btn-action btn-delete rates-delete-action addons-action-btn is-remove'
-        : `addons-action-btn ${variant}`;
+    const actionClass = variant === 'is-remove' || variant === 'is-cancel'
+        ? 'btn-delete'
+        : variant === 'is-save'
+            ? 'btn-approve'
+            : 'btn-edit';
+    button.className = `btn-action ${actionClass} addons-action-btn ${variant}${variant === 'is-remove' ? ' rates-delete-action' : ''}`;
     button.setAttribute('aria-label', label);
     button.title = label;
     const icon = document.createElement('i');

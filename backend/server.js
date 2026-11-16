@@ -15,6 +15,7 @@ const { autoCancelPastQuotedBookings } = require('./booking-cleanup');
 const { appendActivityEvent, getRecentActivity } = require('./activity-log');
 const { buildOperationalReport, isValidReportDate } = require('./operational-reports');
 const { normalizeVehicleSubmission, createApprovedVehicle } = require('./vehicle-approvals');
+const { getCustomerBookings } = require('./customer-dashboard');
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const QUOTED_BOOKING_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -430,7 +431,16 @@ const verifyToken = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded;
+        const user = getUsers().find(candidate => candidate.id === decoded.id);
+        if (!user || user.active === false) {
+            return res.status(401).json({ success: false, error: 'Account is unavailable. Please sign in again.' });
+        }
+        req.user = {
+            id: user.id,
+            fullname: user.fullname,
+            email: user.email,
+            role: user.role
+        };
         next();
     } catch (err) {
         if (DEBUG) console.warn('[AUTH] token verify error:', err && err.message);
@@ -443,7 +453,17 @@ const optionalVerifyToken = (req, res, next) => {
     if (!token) return next();
 
     try {
-        req.user = jwt.verify(token, JWT_SECRET);
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const user = getUsers().find(candidate => candidate.id === decoded.id);
+        if (!user || user.active === false) {
+            return res.status(401).json({ success: false, error: 'Account is unavailable. Please sign in again.' });
+        }
+        req.user = {
+            id: user.id,
+            fullname: user.fullname,
+            email: user.email,
+            role: user.role
+        };
         next();
     } catch (error) {
         res.status(401).json({ success: false, error: 'Invalid token' });
@@ -530,7 +550,7 @@ app.get('/api/reports/operations', verifyToken, verifyAdmin, (req, res) => {
     }
 });
 
-app.get('/api/bookings', (req, res) => {
+app.get('/api/bookings', verifyToken, verifyAdmin, (req, res) => {
     const { status } = req.query;
     const bookings = getBookings();
     if (!status || status.toLowerCase() === 'all') return res.json(bookings);
@@ -576,9 +596,15 @@ app.post('/api/bookings', bookingLimiter, optionalVerifyToken, async (req, res) 
         const rentalType = clientInput.rentalType || clientInput.rental_type || 'self-drive';
         const serviceOption = clientInput.serviceOption || clientInput.driver_service || '—';
         const status = clientInput.status || 'Open';
+        const customer = req.user?.role === 'customer'
+            ? getUsers().find(user =>
+                user.id === req.user.id && user.role === 'customer' && user.active !== false
+            )
+            : null;
 
         const newBookingRecord = {
             ref: `MRAC-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
+            ...(customer ? { customerId: customer.id } : {}),
             name: clientInput.client_name || '—', // Isinalin mula client_name patungong name!
             contact_no: clientInput.contact_no || '—',
             email: clientInput.email || '—',
@@ -752,6 +778,16 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
             return res.status(401).json({ success: false, error: "Invalid email or password" });
         }
 
+        if (user.role === 'driver') {
+            return res.status(403).json({
+                success: false,
+                error: 'Driver accounts are for booking assignments only and cannot access dashboards.'
+            });
+        }
+        if (!['admin', 'affiliate', 'customer'].includes(user.role)) {
+            return res.status(403).json({ success: false, error: 'This account role cannot access dashboards.' });
+        }
+
         // Update last login
         user.last_login = new Date().toISOString();
         saveUsers(users);
@@ -772,6 +808,109 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
         console.error(error);
         res.status(500).json({ success: false, error: "Internal Server Error" });
     }
+});
+
+app.get('/api/users/me', verifyToken, (req, res) => {
+    if (!['admin', 'affiliate', 'customer'].includes(req.user.role)) {
+        return res.status(403).json({
+            success: false,
+            error: req.user.role === 'driver'
+                ? 'Driver accounts cannot access dashboards.'
+                : 'This account role cannot access dashboards.',
+            role: req.user.role
+        });
+    }
+
+    const user = getUsers().find(candidate => candidate.id === req.user.id);
+    if (!user || user.active === false) {
+        return res.status(401).json({ success: false, error: 'Account is unavailable. Please sign in again.' });
+    }
+
+    res.json({
+        success: true,
+        user: {
+            id: user.id,
+            fullname: user.fullname || '',
+            email: user.email || '',
+            mobile: user.mobile || '',
+            role: user.role,
+            photo: user.photo || null
+        }
+    });
+});
+
+app.put('/api/users/me', verifyToken, (req, res) => {
+    if (!['admin', 'affiliate', 'customer'].includes(req.user.role)) {
+        return res.status(403).json({ success: false, error: 'This account role cannot manage a dashboard profile.' });
+    }
+
+    const users = getUsers();
+    const user = users.find(candidate => candidate.id === req.user.id);
+    if (!user || user.active === false) {
+        return res.status(401).json({ success: false, error: 'Account is unavailable. Please sign in again.' });
+    }
+
+    const fullname = typeof req.body.fullname === 'string' ? req.body.fullname.trim() : '';
+    const mobile = typeof req.body.mobile === 'string' ? req.body.mobile.trim() : '';
+    if (!fullname || fullname.length > 120) {
+        return res.status(400).json({ success: false, error: 'Name is required and must be 120 characters or fewer.' });
+    }
+    if (mobile.length > 40) {
+        return res.status(400).json({ success: false, error: 'Mobile number must be 40 characters or fewer.' });
+    }
+
+    const changedFields = [];
+    if (user.fullname !== fullname) {
+        user.fullname = fullname;
+        const nameParts = fullname.split(/\s+/);
+        user.firstName = nameParts.shift() || '';
+        user.lastName = nameParts.join(' ');
+        changedFields.push('fullname');
+    }
+    if ((user.mobile || '') !== mobile) {
+        user.mobile = mobile;
+        changedFields.push('mobile');
+    }
+
+    if (changedFields.length) {
+        saveUsers(users);
+        recordActivity(req, {
+            action: 'updated',
+            entityType: 'user',
+            entityId: user.id,
+            summary: 'Updated own profile',
+            details: { changedFields }
+        });
+    }
+
+    res.json({
+        success: true,
+        user: {
+            id: user.id,
+            fullname: user.fullname || '',
+            email: user.email || '',
+            mobile: user.mobile || '',
+            role: user.role,
+            photo: user.photo || null
+        }
+    });
+});
+
+app.get('/api/customer/bookings', verifyToken, (req, res) => {
+    if (req.user.role !== 'customer') {
+        return res.status(403).json({ success: false, error: 'Customer booking access required.' });
+    }
+
+    const user = getUsers().find(candidate =>
+        candidate.id === req.user.id &&
+        candidate.role === 'customer' &&
+        candidate.active !== false
+    );
+    if (!user) {
+        return res.status(401).json({ success: false, error: 'Customer account is unavailable.' });
+    }
+
+    res.json({ success: true, bookings: getCustomerBookings(getBookings(), user) });
 });
 
 const PASSWORD_RECOVERY_CODE_TTL_MS = 15 * 60 * 1000;
@@ -1072,8 +1211,8 @@ app.post('/api/users', verifyToken, verifyAdmin, handleUserUploads, async (req, 
             return res.status(400).json({ success: false, error: "First name, last name, email, phone number, password, and role are required" });
         }
 
-        if (!['admin', 'affiliate', 'driver'].includes(role)) {
-            return res.status(400).json({ success: false, error: "Role must be 'admin', 'affiliate', or 'driver'" });
+        if (!['admin', 'affiliate', 'customer', 'driver'].includes(role)) {
+            return res.status(400).json({ success: false, error: "Role must be 'admin', 'affiliate', 'customer', or 'driver'" });
         }
 
         const users = getUsers();
@@ -1167,8 +1306,8 @@ app.put('/api/users/:id', verifyToken, verifyAdmin, handleUserUploads, async (re
         if (email) users[userIndex].email = email;
         if (typeof mobile !== 'undefined') users[userIndex].mobile = mobile;
         if (typeof role !== 'undefined') {
-            if (!['admin', 'affiliate', 'driver'].includes(role)) {
-                return res.status(400).json({ success: false, error: "Role must be 'admin', 'affiliate', or 'driver'" });
+            if (!['admin', 'affiliate', 'customer', 'driver'].includes(role)) {
+                return res.status(400).json({ success: false, error: "Role must be 'admin', 'affiliate', 'customer', or 'driver'" });
             }
             users[userIndex].role = role;
         }

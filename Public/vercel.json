@@ -10,6 +10,26 @@
       "destination": "/Public/dashboard"
     },
     {
+      "source": "/dashboard.html",
+      "destination": "/Public/dashboard"
+    },
+    {
+      "source": "/customer-dashboard",
+      "destination": "/Public/customer-dashboard"
+    },
+    {
+      "source": "/customer-dashboard.html",
+      "destination": "/Public/customer-dashboard"
+    },
+    {
+      "source": "/affiliate-dashboard",
+      "destination": "/Public/affiliate-dashboard"
+    },
+    {
+      "source": "/affiliate-dashboard.html",
+      "destination": "/Public/affiliate-dashboard"
+    },
+    {
       "source": "/about",
       "destination": "/Public/about"
     },
@@ -48,6 +68,14 @@
     {
       "source": "/dashboard-style.css",
       "destination": "/Public/dashboard-style.css"
+    },
+    {
+      "source": "/account-dashboard.js",
+      "destination": "/Public/account-dashboard.js"
+    },
+    {
+      "source": "/account-dashboard.css",
+      "destination": "/Public/account-dashboard.css"
     },
     {
       "source": "/robots.txt",

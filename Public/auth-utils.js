@@ -4,7 +4,28 @@
         module.exports = api;
     }
     root.decodeJwtPayload = api.decodeJwtPayload;
+    root.getDashboardPath = api.getDashboardPath;
 }(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+    const DASHBOARD_PATHS = Object.freeze({
+        admin: '/dashboard',
+        affiliate: '/affiliate-dashboard',
+        customer: '/customer-dashboard'
+    });
+
+    function getDashboardPath(role) {
+        const path = Object.prototype.hasOwnProperty.call(DASHBOARD_PATHS, role)
+            ? DASHBOARD_PATHS[role]
+            : null;
+        if (!path) return null;
+
+        if (typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+            const directory = window.location.pathname.slice(0, window.location.pathname.lastIndexOf('/') + 1);
+            return `${directory}${path.slice(1)}.html`;
+        }
+
+        return path;
+    }
+
     function decodeJwtPayload(token) {
         if (typeof token !== 'string') return null;
 
@@ -33,5 +54,5 @@
         }
     }
 
-    return { decodeJwtPayload };
+    return { decodeJwtPayload, getDashboardPath };
 }));
