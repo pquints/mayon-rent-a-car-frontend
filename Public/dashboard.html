@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mayon Rent a Car - Admin Dashboard</title>
-    <link rel="stylesheet" href="dashboard-style.css?v=20261109-05">
+    <link rel="stylesheet" href="dashboard-style.css?v=20261117-01">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/svg+xml" href="images/Mayon.svg?v=20260713">
     <link rel="shortcut icon" href="images/Mayon.svg?v=20260713">
@@ -191,12 +191,27 @@
                     <span class="nav-text">Contacts</span>
                 </a>
                 
-                <a href="#" class="nav-item" aria-label="Fleet" title="Fleet" onclick="showView('vehicleManagement'); loadVehicles(); return false;">
+                <a href="#" id="fleetNavItem" class="nav-item nav-item--dropdown" aria-label="Fleet" title="Fleet" onclick="toggleFleetSubmenu(event); return false;" aria-expanded="false">
                     <i class="fa-solid fa-car"></i>
                     <span class="nav-text">Fleet</span>
+                    <i class="fa-solid fa-chevron-down nav-item-chevron"></i>
+                </a>
+                <div id="fleetSubmenu" class="nav-submenu hidden" aria-label="Fleet submenu">
+                    <a href="#" class="nav-submenu-item" data-fleet-view="vehicleManagement" onclick="openFleetTab('vehicleManagement'); return false;">Vehicles</a>
+                    <a href="#" class="nav-submenu-item" data-fleet-view="vehicleApproval" onclick="openFleetTab('vehicleApproval'); return false;">Vehicle Approval</a>
+                </div>
+
+                <a href="#" class="nav-item" aria-label="Operational Reports" title="Operational Reports" onclick="openOperationalReports(); return false;">
+                    <i class="fa-solid fa-chart-column"></i>
+                    <span class="nav-text">Reports</span>
+                </a>
+
+                <a href="#" class="nav-item" aria-label="Activity Log" title="Activity Log" onclick="openActivityLog(); return false;">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span class="nav-text">Activity Log</span>
                 </a>
                 
-                <a href="#" class="nav-item nav-item--dropdown" aria-label="Rates" title="Rates" onclick="toggleRatesSubmenu(event); return false;" aria-expanded="false">
+                <a href="#" id="ratesNavItem" class="nav-item nav-item--dropdown" aria-label="Rates" title="Rates" onclick="toggleRatesSubmenu(event); return false;" aria-expanded="false">
                     <i class="fa-solid fa-tags"></i>
                     <span class="nav-text">Rates</span>
                     <i class="fa-solid fa-chevron-down nav-item-chevron"></i>
@@ -449,28 +464,138 @@
                 </div>
             </div>
 
-            <div id="vehicleManagementView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 0px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 25px;">
-                    <h2 style="margin: 0; color: #0F172A;">Vehicle Management</h2>
-                    <button type="button" onclick="openAddVehicleModal()" class="btn-primary"><i class="fa-solid fa-plus"></i> Add New Vehicle</button>
+            <section id="vehicleManagementView" class="vehicle-page-panel" style="display: none;">
+                <header class="vehicle-page-header">
+                    <div>
+                        <p class="vehicle-page-eyebrow">Fleet management</p>
+                        <h2 id="vehiclePageTitle">Vehicles</h2>
+                        <p id="vehiclePageSubtitle">Manage vehicles, status, and affiliate ownership.</p>
+                    </div>
+                    <button id="addVehicleButton" type="button" onclick="openAddVehicleModal()" class="btn-primary">
+                        <i class="fa-solid fa-plus"></i> Add Vehicle
+                    </button>
+                </header>
+
+                <div class="vehicle-summary-grid" aria-label="Vehicle status summary">
+                    <article class="vehicle-summary-card">
+                        <span class="vehicle-summary-icon is-active"><i class="fa-solid fa-car"></i></span>
+                        <div><span class="vehicle-summary-label">Active</span><strong id="vehiclesActiveCount">0</strong><small>Available or rented</small></div>
+                    </article>
+                    <article class="vehicle-summary-card">
+                        <span class="vehicle-summary-icon is-inactive"><i class="fa-solid fa-screwdriver-wrench"></i></span>
+                        <div><span class="vehicle-summary-label">Inactive</span><strong id="vehiclesInactiveCount">0</strong><small>Under maintenance</small></div>
+                    </article>
                 </div>
-                
-                <table id="vehiclesTable" style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-                    <thead>
-                        <tr style="background: #f8fafc; border-bottom: 2px solid #E2E8F0;">
-                            <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Plate #</th>
-                            <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Make/Model</th>
-                            <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Type</th>
-                            <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Year</th>
-                            <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Seats</th>
-                            <th style="text-align: left; padding: 12px; font-weight: 600; color: #64748b;">Status</th>
-                            <th style="text-align: center; padding: 12px; font-weight: 600; color: #64748b;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="vehiclesTableBody">
-                    </tbody>
-                </table>
-            </div>
+
+                <div class="vehicle-toolbar">
+                    <label class="vehicle-search">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <span class="visually-hidden">Search vehicles</span>
+                        <input id="vehiclesSearch" type="search" placeholder="Search plate, make, model, or affiliate">
+                    </label>
+                    <label class="vehicle-filter">
+                        <span class="visually-hidden">Filter by vehicle type</span>
+                        <select id="vehiclesTypeFilter">
+                            <option value="">All vehicle types</option>
+                            <option value="Sedan">Sedan</option>
+                            <option value="SUV">SUV</option>
+                            <option value="MPV">MPV</option>
+                            <option value="Electric MPV">Electric MPV</option>
+                            <option value="Van">Van</option>
+                        </select>
+                    </label>
+                    <label class="vehicle-filter">
+                        <span class="visually-hidden">Filter by status</span>
+                        <select id="vehiclesStatusFilter">
+                            <option value="">All statuses</option>
+                            <option value="Available">Available</option>
+                            <option value="Rented">Rented</option>
+                            <option value="Maintenance">Maintenance</option>
+                        </select>
+                    </label>
+                    <button type="button" class="vehicle-clear-filters" onclick="clearVehicleFilters()">Clear filters</button>
+                </div>
+
+                <div class="vehicle-table-wrap">
+                    <table id="vehiclesTable" class="vehicle-data-table">
+                        <thead>
+                            <tr>
+                                <th>Affiliate Name</th>
+                                <th>Details</th>
+                                <th>Status</th>
+                                <th>Vehicle Type</th>
+                                <th>Daily Rate</th>
+                                <th class="vehicle-actions-heading">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vehiclesTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="vehicle-table-footer">
+                    <span id="vehiclesPageInfo" aria-live="polite"></span>
+                    <nav id="vehiclesPagination" class="vehicle-pagination" aria-label="Vehicle table pages"></nav>
+                </div>
+            </section>
+
+            <section id="vehicleApprovalView" class="vehicle-page-panel" style="display: none;">
+                <header class="vehicle-page-header">
+                    <div>
+                        <p class="vehicle-page-eyebrow">Fleet management</p>
+                        <h2>Vehicle Approval</h2>
+                        <p id="vehicleApprovalSubtitle">Review affiliate vehicle submissions before adding them to the fleet.</p>
+                    </div>
+                </header>
+
+                <div class="vehicle-summary-grid vehicle-approval-summary" aria-label="Vehicle approval summary">
+                    <article class="vehicle-summary-card">
+                        <span class="vehicle-summary-icon is-pending"><i class="fa-solid fa-hourglass-half"></i></span>
+                        <div><span class="vehicle-summary-label">Pending</span><strong id="vehicleRequestsPendingCount">0</strong></div>
+                    </article>
+                    <article class="vehicle-summary-card">
+                        <span class="vehicle-summary-icon is-active"><i class="fa-solid fa-check"></i></span>
+                        <div><span class="vehicle-summary-label">Approved</span><strong id="vehicleRequestsApprovedCount">0</strong></div>
+                    </article>
+                    <article class="vehicle-summary-card">
+                        <span class="vehicle-summary-icon is-inactive"><i class="fa-solid fa-xmark"></i></span>
+                        <div><span class="vehicle-summary-label">Rejected</span><strong id="vehicleRequestsRejectedCount">0</strong></div>
+                    </article>
+                </div>
+
+                <div class="vehicle-toolbar">
+                    <label class="vehicle-search">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <span class="visually-hidden">Search approval requests</span>
+                        <input id="vehicleApprovalSearch" type="search" placeholder="Search affiliate, plate, make, or model">
+                    </label>
+                    <label class="vehicle-filter">
+                        <span class="visually-hidden">Filter approval status</span>
+                        <select id="vehicleApprovalStatusFilter">
+                            <option value="">All statuses</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </label>
+                    <button type="button" class="vehicle-clear-filters" onclick="clearVehicleApprovalFilters()">Clear filters</button>
+                </div>
+
+                <div class="vehicle-table-wrap">
+                    <table id="vehicleApprovalTable" class="vehicle-data-table">
+                        <thead>
+                            <tr>
+                                <th>Affiliate Name</th>
+                                <th>Vehicle</th>
+                                <th>Vehicle Type</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                                <th>Review Note</th>
+                                <th class="vehicle-actions-heading">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vehicleApprovalTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
 
             <div id="fullPageDetailsView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
                 <div class="booking-details-header">
@@ -620,7 +745,7 @@
             </div>
             <!-- VEHICLE EDIT FULL PAGE VIEW -->
             <div id="vehicleEditView" style="display: none; padding: 25px; background: #ffffff; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-                <form id="vehicleForm" onsubmit="handleSaveVehicle(event)">
+                <form id="vehicleForm">
                     <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:20px;">
                         <h2 id="vehicleModalTitle" style="margin:0; color:#0F172A;">Vehicle</h2>
                         <div>
@@ -687,7 +812,7 @@
                                 <option value="Hybrid">Hybrid</option>
                             </select>
                         </div>
-                        <div>
+                        <div id="vehicleStatusField">
                             <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #64748b;">Status</label>
                             <select id="vehicleStatus" required style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px; box-sizing: border-box;">
                                 <option value="">-- Select --</option>
@@ -919,6 +1044,97 @@
                 </div>
             </div>
 
+            <section id="operationalReportsView" class="dashboard-extra-view" style="display: none;" aria-labelledby="operationalReportsTitle">
+                <div class="dashboard-extra-header">
+                    <div>
+                        <h2 id="operationalReportsTitle">Operational Reports</h2>
+                        <p>Booking activity is grouped by pickup date. Leave dates blank to include all records.</p>
+                    </div>
+                    <div class="report-date-filters">
+                        <div>
+                            <label for="reportFromDate">Pickup date from</label>
+                            <input type="date" id="reportFromDate">
+                        </div>
+                        <div>
+                            <label for="reportToDate">Pickup date to</label>
+                            <input type="date" id="reportToDate">
+                        </div>
+                        <button type="button" class="btn-primary" id="applyReportsFilters">Apply</button>
+                    </div>
+                </div>
+                <div id="reportsError" class="dashboard-view-message" role="alert" hidden></div>
+                <div id="reportsSummary" class="report-summary-grid" aria-live="polite"></div>
+                <div class="reports-grid">
+                    <section class="report-panel">
+                        <h3>Bookings by service</h3>
+                        <div class="report-table-wrap">
+                            <table class="data-table">
+                                <thead><tr><th>Service</th><th>Bookings</th></tr></thead>
+                                <tbody id="reportServicesBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                    <section class="report-panel">
+                        <h3>Bookings by pickup area</h3>
+                        <div class="report-table-wrap">
+                            <table class="data-table">
+                                <thead><tr><th>Area</th><th>Bookings</th></tr></thead>
+                                <tbody id="reportLocationsBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                    <section class="report-panel">
+                        <h3>Vehicle-type demand</h3>
+                        <p class="report-panel-note">Non-cancelled bookings by requested type; this is a demand proxy, not per-vehicle utilization.</p>
+                        <div class="report-table-wrap">
+                            <table class="data-table">
+                                <thead><tr><th>Vehicle type</th><th>Bookings</th></tr></thead>
+                                <tbody id="reportVehicleTypesBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                    <section class="report-panel">
+                        <h3>Cancellations by status</h3>
+                        <div class="report-table-wrap">
+                            <table class="data-table">
+                                <thead><tr><th>Status</th><th>Bookings</th></tr></thead>
+                                <tbody id="reportCancellationsBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+            </section>
+
+            <section id="activityLogView" class="dashboard-extra-view" style="display: none;" aria-labelledby="activityLogTitle">
+                <div class="dashboard-extra-header">
+                    <div>
+                        <h2 id="activityLogTitle">Activity Log</h2>
+                        <p>Recent booking, user, rate, and fleet changes. Sensitive field values are not stored here.</p>
+                    </div>
+                    <div class="activity-log-controls">
+                        <label for="activityEntityFilter">Show</label>
+                        <select id="activityEntityFilter">
+                            <option value="">All activity</option>
+                            <option value="booking">Bookings</option>
+                            <option value="user">Users</option>
+                            <option value="rate">Rates</option>
+                            <option value="vehicle">Fleet</option>
+                        </select>
+                        <input type="search" id="activityRecordFilter" aria-label="Find a booking or record ID" placeholder="Booking ref / record ID" maxlength="100">
+                        <button type="button" class="btn-secondary" id="refreshActivityLog">Refresh</button>
+                    </div>
+                </div>
+                <div id="activityLogMessage" class="dashboard-view-message" role="status" hidden></div>
+                <div class="report-table-wrap activity-log-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>Details</th></tr>
+                        </thead>
+                        <tbody id="activityLogBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
         </main>
     </div>
 
@@ -970,10 +1186,10 @@
         });
     </script>
     <script src="auth-utils.js?v=20260808-1"></script>
-    <script src="dashboard.js?v=20261109-03"></script>
+    <script src="dashboard.js?v=20261116-02"></script>
     
     <!-- USER FORM -->
-    <div id="userModal" class="user-modal-overlay" style="display: none !important;">
+    <div id="userModal" class="user-modal-overlay" style="display: none;">
         <div class="user-modal-panel">
             <div class="user-modal-header">
                 <div>
@@ -981,8 +1197,14 @@
                     <p class="user-modal-header-hint">Create a user profile and assign their access role.</p>
                 </div>
             </div>
-            <form id="userForm">
+            <form id="userForm" novalidate>
+                <div class="user-modal-tabs" role="tablist" aria-label="User details">
+                    <button type="button" class="user-modal-tab" id="userTabProfile" role="tab" aria-selected="true" aria-controls="userTabPanelProfile" data-user-tab="profile">Profile</button>
+                    <button type="button" class="user-modal-tab" id="userTabDocuments" role="tab" aria-selected="false" aria-controls="userTabPanelDocuments" data-user-tab="documents-tax" tabindex="-1">Documents &amp; Tax</button>
+                    <button type="button" class="user-modal-tab" id="userTabSecurity" role="tab" aria-selected="false" aria-controls="userTabPanelSecurity" data-user-tab="security" tabindex="-1">Security</button>
+                </div>
                 <div class="user-modal-body">
+                    <div id="userTabPanelProfile" class="user-modal-tab-panel" role="tabpanel" aria-labelledby="userTabProfile" data-user-tab-panel="profile">
                     <div class="user-modal-section">
                         <p class="user-modal-section-title">Personal Information</p>
                         <p class="user-modal-section-hint">Enter the user’s contact details and account information.</p>
@@ -1031,29 +1253,6 @@
                             </div>
                         </div>
 
-                        <p class="user-modal-subsection-title">Location &amp; Tax Information</p>
-                        <div class="user-modal-grid">
-                            <div class="user-modal-field">
-                                <label for="uRegion">Region</label>
-                                <select id="uRegion">
-                                    <option value="">Select a region</option>
-                                    <option value="Albay">Albay</option>
-                                    <option value="Sorsogon">Sorsogon</option>
-                                    <option value="Camarines Sur">Camarines Sur</option>
-                                </select>
-                            </div>
-                            <div class="user-modal-field">
-                                <label for="uAddress">Address</label>
-                                <input type="text" id="uAddress" autocomplete="street-address">
-                            </div>
-                        </div>
-
-                        <div class="user-modal-grid tin-grid">
-                            <div class="user-modal-field">
-                                <label for="uTin">TIN</label>
-                                <input type="text" id="uTin" placeholder="0000-0000-0000" inputmode="numeric">
-                            </div>
-                        </div>
                     </div>
 
                     <div class="user-form-profile-settings">
@@ -1085,7 +1284,34 @@
                             </div>
                         </div>
                     </div>
+                    </div>
 
+                    <div id="userTabPanelDocuments" class="user-modal-tab-panel" role="tabpanel" aria-labelledby="userTabDocuments" data-user-tab-panel="documents-tax" hidden>
+                        <div class="user-modal-section">
+                            <p class="user-modal-section-title">Location &amp; Tax Information</p>
+                            <div class="user-modal-grid">
+                                <div class="user-modal-field">
+                                    <label for="uRegion">Region</label>
+                                    <select id="uRegion">
+                                        <option value="">Select a region</option>
+                                        <option value="Albay">Albay</option>
+                                        <option value="Sorsogon">Sorsogon</option>
+                                        <option value="Camarines Sur">Camarines Sur</option>
+                                    </select>
+                                </div>
+                                <div class="user-modal-field">
+                                    <label for="uAddress">Address</label>
+                                    <input type="text" id="uAddress" autocomplete="street-address">
+                                </div>
+                            </div>
+
+                            <div class="user-modal-grid tin-grid">
+                                <div class="user-modal-field">
+                                    <label for="uTin">TIN</label>
+                                    <input type="text" id="uTin" placeholder="0000-0000-0000" inputmode="numeric">
+                                </div>
+                            </div>
+                        </div>
                     <div class="user-modal-section">
                         <p class="user-modal-section-title">Supporting Documents</p>
                         <div class="doc-upload-box">
@@ -1098,7 +1324,9 @@
                             <ul class="doc-upload-list" id="uDocumentList"></ul>
                         </div>
                     </div>
+                    </div>
 
+                    <div id="userTabPanelSecurity" class="user-modal-tab-panel" role="tabpanel" aria-labelledby="userTabSecurity" data-user-tab-panel="security" hidden>
                     <div class="user-modal-section">
                         <p class="user-modal-section-title">Login Security</p>
                         <p class="user-modal-section-hint">Set a secure password for the user’s account.</p>
@@ -1115,6 +1343,7 @@
                                 <label for="uPasswordConfirm">Confirm Password <span class="required-mark">*</span></label>
                                 <input type="password" id="uPasswordConfirm" autocomplete="new-password">
                             </div>
+                        </div>
                         </div>
                     </div>
 

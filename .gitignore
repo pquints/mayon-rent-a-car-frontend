@@ -5,7 +5,9 @@ backend/bookings.json
 backend/quotes.json
 backend/users.json
 backend/vehicles.json
+backend/vehicle-approval-requests.json
 backend/server.pid
+backend/activity-log.jsonl
 
 # Dependencies
 backend/node_modules/

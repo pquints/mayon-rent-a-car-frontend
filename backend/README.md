@@ -38,6 +38,23 @@ To run the included smoke test (it will create or use an existing booking ref):
 BOOKING_REF=MRAC-97Z8N npm run smoke
 ```
 
+## Admin activity and reports
+
+- `GET /api/activity-log` returns the most recent admin activity events. It supports `entityType=booking|user|rate|vehicle`, an exact `entityId` lookup, and a `limit` up to 500.
+- `GET /api/reports/operations` returns booking, location, service, cancellation, and vehicle-type demand summaries. Optional `from` and `to` dates filter by pickup date; omitting both includes all bookings.
+- Activity events are appended to `activity-log.jsonl`. Only field names and operational summaries are recorded; passwords and edited field values are not stored.
+- Vehicle-type demand is a proxy, not actual per-vehicle utilization, until a specific vehicle can be assigned to each booking.
+- Quoted bookings with past pickup dates are auto-cancelled on backend startup and hourly; those system status changes are also recorded.
+
+## Fleet vehicle approvals
+
+- Admins and affiliates can open the Fleet menu. Affiliates submit vehicles from **Vehicles**; admins manage the fleet there.
+- `POST /api/vehicle-approval-requests` accepts vehicle details from an authenticated affiliate. The affiliate identity is taken from the account, not the request body.
+- `GET /api/vehicle-approval-requests` returns all requests to admins and only the signed-in affiliate's requests to affiliates.
+- `PATCH /api/vehicle-approval-requests/:id` lets admins approve or reject a pending request. Approval adds the vehicle to the fleet as **Available**; rejected requests remain visible with the optional review note.
+- `GET /api/vehicles` returns the full fleet to admins and only that affiliate's approved vehicles to affiliates. Vehicle edits and deletes remain admin-only.
+- Approval requests are stored in the ignored runtime file `vehicle-approval-requests.json`; no ownership or request data is added to existing vehicles until approval.
+
 ## Notes
 
 - Keep `.env` out of version control.

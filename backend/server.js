@@ -11,8 +11,13 @@ const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
 const { Resend } = require('resend');
 const { sendBookingNotification } = require('./notifications');
+const { autoCancelPastQuotedBookings } = require('./booking-cleanup');
+const { appendActivityEvent, getRecentActivity } = require('./activity-log');
+const { buildOperationalReport, isValidReportDate } = require('./operational-reports');
+const { normalizeVehicleSubmission, createApprovedVehicle } = require('./vehicle-approvals');
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
+const QUOTED_BOOKING_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 app.use(cors());
 app.use(express.json());
@@ -132,6 +137,7 @@ app.use('/api', (req, res, next) => {
 const FILE_PATH = path.join(__dirname, 'bookings.json');
 const USERS_FILE_PATH = path.join(__dirname, 'users.json');
 const VEHICLES_FILE_PATH = path.join(__dirname, 'vehicles.json');
+const VEHICLE_APPROVAL_REQUESTS_FILE_PATH = path.join(__dirname, 'vehicle-approval-requests.json');
 const QUOTES_FILE_PATH = path.join(__dirname, 'quotes.json');
 const RATES_FILE_PATH = path.join(__dirname, 'rates.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -218,6 +224,58 @@ const saveBookings = (bookings) => {
     fs.writeFileSync(FILE_PATH, JSON.stringify(bookings, null, 2), 'utf8');
 };
 
+function recordActivity(req, event) {
+    const user = req?.user;
+    const actorOverride = event.actor;
+    const actor = actorOverride || user?.fullname || user?.email || 'Website';
+    const actorRole = actorOverride === 'System'
+        ? 'system'
+        : actorOverride === 'Website'
+            ? 'website'
+            : user?.role || 'website';
+
+    try {
+        appendActivityEvent({
+            ...event,
+            actor,
+            actorId: user?.id || null,
+            actorRole
+        });
+    } catch (error) {
+        console.error('[ACTIVITY] Failed to write activity event:', error);
+    }
+}
+
+function cleanupPastQuotedBookings() {
+    try {
+        const previousBookings = getBookings();
+        const { bookings, cancelledCount } = autoCancelPastQuotedBookings(previousBookings);
+        if (cancelledCount === 0) return;
+
+        saveBookings(bookings);
+        console.info(`[BOOKINGS] Automatically cancelled ${cancelledCount} quoted booking(s) with past pickup dates.`);
+        const previousByRef = new Map(previousBookings.map(booking => [booking.ref, booking]));
+        bookings.filter(booking => booking.auto_cancelled_at).forEach(booking => {
+            const previousBooking = previousByRef.get(booking.ref);
+            if (String(previousBooking?.status || '').trim().toLowerCase() !== 'quoted') return;
+            recordActivity(null, {
+                actor: 'System',
+                action: 'status_changed',
+                entityType: 'booking',
+                entityId: booking.ref,
+                summary: 'Booking auto-cancelled after pickup date passed',
+                details: {
+                    fromStatus: previousBooking.status,
+                    toStatus: booking.status,
+                    pickupDate: booking.pickup_date
+                }
+            });
+        });
+    } catch (error) {
+        console.error('[BOOKINGS] Failed to auto-cancel quoted bookings with past pickup dates:', error);
+    }
+}
+
 const getBookingField = (input, snakeCaseKey, camelCaseKey) => {
     return input[snakeCaseKey] ?? input[camelCaseKey] ?? '';
 };
@@ -278,6 +336,18 @@ const getVehicles = () => {
 
 const saveVehicles = (vehicles) => {
     fs.writeFileSync(VEHICLES_FILE_PATH, JSON.stringify(vehicles, null, 2), 'utf8');
+};
+
+const getVehicleApprovalRequests = () => {
+    if (!fs.existsSync(VEHICLE_APPROVAL_REQUESTS_FILE_PATH)) {
+        fs.writeFileSync(VEHICLE_APPROVAL_REQUESTS_FILE_PATH, JSON.stringify([], null, 2), 'utf8');
+        return [];
+    }
+    return JSON.parse(fs.readFileSync(VEHICLE_APPROVAL_REQUESTS_FILE_PATH, 'utf8'));
+};
+
+const saveVehicleApprovalRequests = (requests) => {
+    fs.writeFileSync(VEHICLE_APPROVAL_REQUESTS_FILE_PATH, JSON.stringify(requests, null, 2), 'utf8');
 };
 
 // ========================================================
@@ -368,10 +438,29 @@ const verifyToken = (req, res, next) => {
     }
 };
 
+const optionalVerifyToken = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return next();
+
+    try {
+        req.user = jwt.verify(token, JWT_SECRET);
+        next();
+    } catch (error) {
+        res.status(401).json({ success: false, error: 'Invalid token' });
+    }
+};
+
 // Middleware to check if user is admin
 const verifyAdmin = (req, res, next) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ success: false, error: "Admin access required" });
+    }
+    next();
+};
+
+const verifyAffiliate = (req, res, next) => {
+    if (req.user.role !== 'affiliate') {
+        return res.status(403).json({ success: false, error: 'Affiliate access required' });
     }
     next();
 };
@@ -396,6 +485,51 @@ app.get('/api/status-counts', (req, res) => {
     res.json(counts);
 });
 
+app.get('/api/activity-log', verifyToken, verifyAdmin, (req, res) => {
+    const entityType = req.query.entityType === undefined ? undefined : String(req.query.entityType);
+    const entityId = req.query.entityId === undefined ? '' : String(req.query.entityId).trim();
+    const limit = req.query.limit === undefined ? 200 : Number(req.query.limit);
+    const allowedEntityTypes = new Set(['booking', 'user', 'rate', 'vehicle']);
+
+    if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
+        return res.status(400).json({ success: false, error: 'Limit must be an integer between 1 and 500.' });
+    }
+    if (entityType && !allowedEntityTypes.has(entityType)) {
+        return res.status(400).json({ success: false, error: 'Invalid activity entity type.' });
+    }
+    if (entityId.length > 100) {
+        return res.status(400).json({ success: false, error: 'Record ID is too long.' });
+    }
+
+    try {
+        const events = getRecentActivity({ limit, entityType, entityId });
+        res.json({ success: true, events });
+    } catch (error) {
+        console.error('[ACTIVITY] Failed to read activity log:', error);
+        res.status(500).json({ success: false, error: 'Unable to load activity history.' });
+    }
+});
+
+app.get('/api/reports/operations', verifyToken, verifyAdmin, (req, res) => {
+    const from = req.query.from === undefined ? '' : String(req.query.from);
+    const to = req.query.to === undefined ? '' : String(req.query.to);
+
+    if ((from && !isValidReportDate(from)) || (to && !isValidReportDate(to))) {
+        return res.status(400).json({ success: false, error: 'Report dates must be valid calendar dates in YYYY-MM-DD format.' });
+    }
+    if (from && to && from > to) {
+        return res.status(400).json({ success: false, error: 'Start date must not be after end date.' });
+    }
+
+    try {
+        const report = buildOperationalReport(getBookings(), getVehicles(), { from, to });
+        res.json({ success: true, report });
+    } catch (error) {
+        console.error('[REPORTS] Failed to build operations report:', error);
+        res.status(500).json({ success: false, error: 'Unable to build operational report.' });
+    }
+});
+
 app.get('/api/bookings', (req, res) => {
     const { status } = req.query;
     const bookings = getBookings();
@@ -414,7 +548,7 @@ app.get('/api/bookings', (req, res) => {
 });
 
 // SUBMISSION ENDPOINT (DITO SINALO AT ITINUGMA ANG MGA PANGALAN)
-app.post('/api/bookings', bookingLimiter, async (req, res) => {
+app.post('/api/bookings', bookingLimiter, optionalVerifyToken, async (req, res) => {
     try {
         const clientInput = req.body;
 
@@ -470,6 +604,20 @@ app.post('/api/bookings', bookingLimiter, async (req, res) => {
 
         bookings.push(newBookingRecord);
         saveBookings(bookings);
+        recordActivity(req, {
+            action: 'created',
+            entityType: 'booking',
+            entityId: newBookingRecord.ref,
+            summary: 'Booking created',
+            details: {
+                status: newBookingRecord.status,
+                pickupDate: newBookingRecord.pickup_date,
+                rentalType: newBookingRecord.rentalType,
+                serviceOption: newBookingRecord.serviceOption,
+                area: newBookingRecord.area,
+                vehicleType: newBookingRecord.vehicleType
+            }
+        });
 
         try {
             await sendBookingNotification(newBookingRecord);
@@ -484,7 +632,7 @@ app.post('/api/bookings', bookingLimiter, async (req, res) => {
     }
 });
 
-app.put('/api/bookings/:ref', (req, res) => {
+app.put('/api/bookings/:ref', verifyToken, verifyAdmin, (req, res) => {
     try {
         const { ref } = req.params;
         const updatedFields = req.body;
@@ -492,37 +640,63 @@ app.put('/api/bookings/:ref', (req, res) => {
         const index = bookings.findIndex(b => b.ref === ref);
         if (index === -1) return res.status(404).json({ success: false, error: "Not found" });
         
+        const previousBooking = bookings[index];
         bookings[index] = {
-            ...bookings[index],
-            name: updatedFields.name || bookings[index].name,
-            status: updatedFields.status || bookings[index].status,
-            contact_no: updatedFields.contact_no || bookings[index].contact_no,
-            email: updatedFields.email || bookings[index].email,
-            rentalType: updatedFields.rentalType || bookings[index].rentalType,
-            vehicleType: updatedFields.vehicleType || bookings[index].vehicleType,
-            area: updatedFields.area || bookings[index].area,
-            serviceOption: updatedFields.serviceOption || bookings[index].serviceOption,
-            passengers: updatedFields.passengers || bookings[index].passengers,
-            pickup_date: updatedFields.pickup_date || bookings[index].pickup_date,
-            pickup_time: updatedFields.pickup_time || bookings[index].pickup_time,
-            pickup_address: updatedFields.pickup_address || bookings[index].pickup_address,
-            pickup_location_address: updatedFields.pickup_location_address || bookings[index].pickup_location_address,
-            pickup_flight_number: updatedFields.pickup_flight_number || bookings[index].pickup_flight_number,
-            return_date: updatedFields.return_date || bookings[index].return_date,
-            return_time: updatedFields.return_time || bookings[index].return_time,
-            return_address: updatedFields.return_address || bookings[index].return_address,
-            return_location_address: updatedFields.return_location_address || bookings[index].return_location_address,
-            return_flight_number: updatedFields.return_flight_number || bookings[index].return_flight_number,
-            itinerary: updatedFields.itinerary || bookings[index].itinerary
+            ...previousBooking,
+            name: updatedFields.name || previousBooking.name,
+            status: updatedFields.status || previousBooking.status,
+            contact_no: updatedFields.contact_no || previousBooking.contact_no,
+            email: updatedFields.email || previousBooking.email,
+            rentalType: updatedFields.rentalType || previousBooking.rentalType,
+            vehicleType: updatedFields.vehicleType || previousBooking.vehicleType,
+            area: updatedFields.area || previousBooking.area,
+            serviceOption: updatedFields.serviceOption || previousBooking.serviceOption,
+            passengers: updatedFields.passengers || previousBooking.passengers,
+            pickup_date: updatedFields.pickup_date || previousBooking.pickup_date,
+            pickup_time: updatedFields.pickup_time || previousBooking.pickup_time,
+            pickup_address: updatedFields.pickup_address || previousBooking.pickup_address,
+            pickup_location_address: updatedFields.pickup_location_address || previousBooking.pickup_location_address,
+            pickup_flight_number: updatedFields.pickup_flight_number || previousBooking.pickup_flight_number,
+            return_date: updatedFields.return_date || previousBooking.return_date,
+            return_time: updatedFields.return_time || previousBooking.return_time,
+            return_address: updatedFields.return_address || previousBooking.return_address,
+            return_location_address: updatedFields.return_location_address || previousBooking.return_location_address,
+            return_flight_number: updatedFields.return_flight_number || previousBooking.return_flight_number,
+            itinerary: updatedFields.itinerary || previousBooking.itinerary
         };
         saveBookings(bookings);
+        const trackedFields = [
+            'name', 'status', 'contact_no', 'email', 'rentalType', 'vehicleType', 'area',
+            'serviceOption', 'passengers', 'pickup_date', 'pickup_time', 'pickup_address',
+            'pickup_location_address', 'pickup_flight_number', 'return_date', 'return_time',
+            'return_address', 'return_location_address', 'return_flight_number', 'itinerary'
+        ];
+        const changedFields = trackedFields.filter(field => previousBooking[field] !== bookings[index][field]);
+        if (changedFields.length) {
+            const statusChanged = previousBooking.status !== bookings[index].status;
+            recordActivity(req, {
+                action: statusChanged ? 'status_changed' : 'updated',
+                entityType: 'booking',
+                entityId: ref,
+                summary: statusChanged
+                    ? `Booking status changed from ${previousBooking.status} to ${bookings[index].status}`
+                    : 'Booking details updated',
+                details: {
+                    changedFields,
+                    ...(statusChanged ? {
+                        fromStatus: previousBooking.status,
+                        toStatus: bookings[index].status
+                    } : {})
+                }
+            });
+        }
         res.json({ success: true, booking: bookings[index] });
     } catch (error) {
         res.status(500).json({ success: false, error: "Internal Server Error" });
     }
 });
 
-app.delete('/api/bookings/:ref', (req, res) => {
+app.delete('/api/bookings/:ref', verifyToken, verifyAdmin, (req, res) => {
     try {
         const { ref } = req.params;
         const bookings = getBookings();
@@ -534,6 +708,13 @@ app.delete('/api/bookings/:ref', (req, res) => {
         
         const deletedBooking = bookings.splice(index, 1);
         saveBookings(bookings);
+        recordActivity(req, {
+            action: 'deleted',
+            entityType: 'booking',
+            entityId: ref,
+            summary: 'Booking deleted',
+            details: { status: deletedBooking[0].status }
+        });
         
         res.json({ success: true, message: `Booking ${ref} deleted successfully`, deleted: deletedBooking[0] });
     } catch (error) {
@@ -931,6 +1112,13 @@ app.post('/api/users', verifyToken, verifyAdmin, handleUserUploads, async (req, 
 
         users.push(newUser);
         saveUsers(users);
+        recordActivity(req, {
+            action: 'created',
+            entityType: 'user',
+            entityId: newUser.id,
+            summary: 'User account created',
+            details: { role: newUser.role }
+        });
 
         res.json({ 
             success: true, 
@@ -955,6 +1143,23 @@ app.put('/api/users/:id', verifyToken, verifyAdmin, handleUserUploads, async (re
         if (userIndex === -1) {
             return res.status(404).json({ success: false, error: "User not found" });
         }
+        const previousUser = users[userIndex];
+        const previousAuditState = {
+            fullname: previousUser.fullname,
+            firstName: previousUser.firstName,
+            lastName: previousUser.lastName,
+            email: previousUser.email,
+            mobile: previousUser.mobile,
+            role: previousUser.role,
+            eligibleForCorporateBookings: previousUser.eligibleForCorporateBookings,
+            region: previousUser.region,
+            address: previousUser.address,
+            tin: previousUser.tin,
+            active: previousUser.active,
+            photo: previousUser.photo,
+            documents: JSON.stringify(previousUser.documents || []),
+            password: previousUser.password
+        };
 
         if (fullname) users[userIndex].fullname = String(fullname).trim();
         if (typeof req.body.firstName !== 'undefined') users[userIndex].firstName = String(req.body.firstName).trim();
@@ -1000,6 +1205,29 @@ app.put('/api/users/:id', verifyToken, verifyAdmin, handleUserUploads, async (re
         }
 
         saveUsers(users);
+        const currentUser = users[userIndex];
+        const changedFields = [
+            'fullname', 'firstName', 'lastName', 'email', 'mobile', 'role',
+            'eligibleForCorporateBookings', 'region', 'address', 'tin', 'active', 'photo', 'documents', 'password'
+        ].filter(field => {
+            const previousValue = previousAuditState[field];
+            const currentValue = field === 'documents'
+                ? JSON.stringify(currentUser.documents || [])
+                : currentUser[field];
+            return previousValue !== currentValue;
+        });
+        if (changedFields.length) {
+            recordActivity(req, {
+                action: 'updated',
+                entityType: 'user',
+                entityId: id,
+                summary: 'User account updated',
+                details: {
+                    changedFields: changedFields.filter(field => field !== 'password'),
+                    passwordChanged: changedFields.includes('password')
+                }
+            });
+        }
 
         res.json({ 
             success: true, 
@@ -1054,6 +1282,13 @@ app.delete('/api/users/:id/documents/:filename', verifyToken, verifyAdmin, (req,
         docs.splice(docIndex, 1);
         users[userIndex].documents = docs;
         saveUsers(users);
+        recordActivity(req, {
+            action: 'updated',
+            entityType: 'user',
+            entityId: id,
+            summary: 'User supporting document removed',
+            details: { changedFields: ['documents'] }
+        });
 
         res.json({ success: true, message: "Document removed successfully" });
     } catch (error) {
@@ -1081,6 +1316,13 @@ app.delete('/api/users/:id', verifyToken, verifyAdmin, (req, res) => {
 
         const deletedUser = users.splice(userIndex, 1);
         saveUsers(users);
+        recordActivity(req, {
+            action: 'deleted',
+            entityType: 'user',
+            entityId: id,
+            summary: 'User account deleted',
+            details: { role: deletedUser[0].role }
+        });
 
         res.json({ success: true, message: "User deleted successfully", user: deletedUser[0] });
     } catch (error) {
@@ -1110,7 +1352,19 @@ app.put('/api/rates', verifyToken, verifyAdmin, (req, res) => {
         if (!rates || typeof rates !== 'object') {
             return res.status(400).json({ success: false, error: 'Invalid rates data' });
         }
+        const previousRates = getRates();
+        const changedCategories = [...new Set([...Object.keys(previousRates), ...Object.keys(rates)])]
+            .filter(category => JSON.stringify(previousRates[category]) !== JSON.stringify(rates[category]));
         saveRates(rates);
+        if (changedCategories.length) {
+            recordActivity(req, {
+                action: 'updated',
+                entityType: 'rate',
+                entityId: 'rate-catalog',
+                summary: 'Rates updated',
+                details: { changedCategories }
+            });
+        }
         res.json({ success: true, rates });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Internal Server Error' });
@@ -1121,13 +1375,146 @@ app.put('/api/rates', verifyToken, verifyAdmin, (req, res) => {
 // VEHICLE MANAGEMENT ENDPOINTS
 // ========================================================
 
-// GET ALL VEHICLES (Admin only)
-app.get('/api/vehicles', verifyToken, verifyAdmin, (req, res) => {
+// Admins see the whole fleet; affiliates see only vehicles approved for their account.
+app.get('/api/vehicles', verifyToken, (req, res) => {
     try {
-        const vehicles = getVehicles();
+        if (!['admin', 'affiliate'].includes(req.user.role)) {
+            return res.status(403).json({ success: false, error: 'Vehicle access required' });
+        }
+        const allVehicles = getVehicles();
+        const vehicles = req.user.role === 'admin'
+            ? allVehicles
+            : allVehicles.filter(vehicle => vehicle.affiliateId === req.user.id);
         res.json({ success: true, vehicles });
     } catch (error) {
+        console.error('[VEHICLES] Failed to load vehicles:', error);
         res.status(500).json({ success: false, error: "Internal Server Error" });
+    }
+});
+
+app.get('/api/vehicle-approval-requests', verifyToken, (req, res) => {
+    try {
+        if (!['admin', 'affiliate'].includes(req.user.role)) {
+            return res.status(403).json({ success: false, error: 'Vehicle approval access required' });
+        }
+        const requests = getVehicleApprovalRequests();
+        const visibleRequests = req.user.role === 'admin'
+            ? requests
+            : requests.filter(request => request.affiliateId === req.user.id);
+        res.json({ success: true, requests: visibleRequests });
+    } catch (error) {
+        console.error('[VEHICLE APPROVAL] Failed to load requests:', error);
+        res.status(500).json({ success: false, error: 'Unable to load vehicle approval requests.' });
+    }
+});
+
+app.post('/api/vehicle-approval-requests', verifyToken, verifyAffiliate, (req, res) => {
+    try {
+        const affiliate = getUsers().find(user =>
+            user.id === req.user.id && user.role === 'affiliate' && user.active !== false
+        );
+        if (!affiliate) {
+            return res.status(403).json({ success: false, error: 'An active affiliate account is required.' });
+        }
+
+        let vehicleDetails;
+        try {
+            vehicleDetails = normalizeVehicleSubmission(req.body);
+        } catch (error) {
+            return res.status(400).json({ success: false, error: error.message });
+        }
+
+        const requests = getVehicleApprovalRequests();
+        const vehicles = getVehicles();
+        const normalizedPlate = vehicleDetails.plate.toUpperCase();
+        const plateInUse = vehicles.some(vehicle => String(vehicle.plate || '').trim().toUpperCase() === normalizedPlate);
+        const platePending = requests.some(request =>
+            request.status === 'Pending' &&
+            String(request.plate || '').trim().toUpperCase() === normalizedPlate
+        );
+        if (plateInUse || platePending) {
+            return res.status(409).json({ success: false, error: 'A vehicle with this plate number already exists or is awaiting approval.' });
+        }
+
+        const request = {
+            id: `VAPR-${crypto.randomUUID()}`,
+            ...vehicleDetails,
+            affiliateId: affiliate.id,
+            affiliateName: affiliate.fullname,
+            status: 'Pending',
+            submittedAt: new Date().toISOString(),
+            reviewedAt: null,
+            reviewedBy: null,
+            reviewNote: '',
+            vehicleId: null
+        };
+        requests.push(request);
+        saveVehicleApprovalRequests(requests);
+        recordActivity(req, {
+            action: 'submitted',
+            entityType: 'vehicle',
+            entityId: request.id,
+            summary: 'Affiliate submitted a vehicle for approval',
+            details: { type: request.type, status: request.status }
+        });
+
+        res.status(201).json({ success: true, message: 'Vehicle submitted for approval.', request });
+    } catch (error) {
+        console.error('[VEHICLE APPROVAL] Failed to submit request:', error);
+        res.status(500).json({ success: false, error: 'Unable to submit vehicle for approval.' });
+    }
+});
+
+app.patch('/api/vehicle-approval-requests/:id', verifyToken, verifyAdmin, (req, res) => {
+    try {
+        const { decision, reviewNote = '' } = req.body;
+        if (!['Approved', 'Rejected'].includes(decision)) {
+            return res.status(400).json({ success: false, error: 'Decision must be Approved or Rejected.' });
+        }
+        if (typeof reviewNote !== 'string' || reviewNote.length > 500) {
+            return res.status(400).json({ success: false, error: 'Review note must be 500 characters or fewer.' });
+        }
+
+        const requests = getVehicleApprovalRequests();
+        const request = requests.find(item => item.id === req.params.id);
+        if (!request) {
+            return res.status(404).json({ success: false, error: 'Vehicle approval request not found.' });
+        }
+        if (request.status !== 'Pending') {
+            return res.status(409).json({ success: false, error: 'This request has already been reviewed.' });
+        }
+
+        let approvedVehicle = null;
+        if (decision === 'Approved') {
+            const vehicles = getVehicles();
+            const normalizedPlate = String(request.plate || '').trim().toUpperCase();
+            if (vehicles.some(vehicle => String(vehicle.plate || '').trim().toUpperCase() === normalizedPlate)) {
+                return res.status(409).json({ success: false, error: 'A fleet vehicle already uses this plate number.' });
+            }
+            approvedVehicle = createApprovedVehicle(request, `VEH-${crypto.randomUUID()}`);
+            vehicles.push(approvedVehicle);
+            saveVehicles(vehicles);
+        }
+
+        request.status = decision;
+        request.reviewedAt = new Date().toISOString();
+        request.reviewedBy = req.user.fullname || req.user.email;
+        request.reviewNote = reviewNote.trim();
+        request.vehicleId = approvedVehicle?.id || null;
+        saveVehicleApprovalRequests(requests);
+
+        recordActivity(req, {
+            action: decision.toLowerCase(),
+            entityType: 'vehicle',
+            entityId: approvedVehicle?.id || request.id,
+            summary: `Affiliate vehicle ${decision.toLowerCase()}`,
+            details: { requestId: request.id, affiliateId: request.affiliateId }
+        });
+
+        res.json({ success: true, request, vehicle: approvedVehicle });
+    } catch (error) {
+        console.error('[VEHICLE APPROVAL] Failed to review request:', error);
+        res.status(500).json({ success: false, error: 'Unable to review vehicle approval request.' });
     }
 });
 
@@ -1143,7 +1530,7 @@ app.post('/api/vehicles', verifyToken, verifyAdmin, (req, res) => {
         const vehicles = getVehicles();
         
         // Check if plate already exists
-        if (vehicles.find(v => v.plate === plate)) {
+        if (vehicles.find(v => String(v.plate || '').trim().toUpperCase() === String(plate).trim().toUpperCase())) {
             return res.status(400).json({ success: false, error: "Vehicle with this plate already exists" });
         }
 
@@ -1167,6 +1554,13 @@ app.post('/api/vehicles', verifyToken, verifyAdmin, (req, res) => {
 
         vehicles.push(newVehicle);
         saveVehicles(vehicles);
+        recordActivity(req, {
+            action: 'created',
+            entityType: 'vehicle',
+            entityId: newVehicle.id,
+            summary: 'Vehicle added to fleet',
+            details: { type: newVehicle.type, status: newVehicle.status }
+        });
 
         res.json({ 
             success: true, 
@@ -1191,6 +1585,7 @@ app.put('/api/vehicles/:id', verifyToken, verifyAdmin, (req, res) => {
         if (vehicleIndex === -1) {
             return res.status(404).json({ success: false, error: "Vehicle not found" });
         }
+        const previousVehicle = { ...vehicles[vehicleIndex] };
 
         if (plate) vehicles[vehicleIndex].plate = plate;
         if (make) vehicles[vehicleIndex].make = make;
@@ -1206,6 +1601,19 @@ app.put('/api/vehicles/:id', verifyToken, verifyAdmin, (req, res) => {
         if (lastMaintenance) vehicles[vehicleIndex].lastMaintenance = lastMaintenance;
 
         saveVehicles(vehicles);
+        const changedFields = [
+            'plate', 'make', 'model', 'year', 'type', 'color', 'seats',
+            'transmission', 'fuelType', 'status', 'dailyRate', 'lastMaintenance'
+        ].filter(field => previousVehicle[field] !== vehicles[vehicleIndex][field]);
+        if (changedFields.length) {
+            recordActivity(req, {
+                action: 'updated',
+                entityType: 'vehicle',
+                entityId: id,
+                summary: 'Vehicle details updated',
+                details: { changedFields }
+            });
+        }
 
         res.json({ 
             success: true, 
@@ -1231,6 +1639,13 @@ app.delete('/api/vehicles/:id', verifyToken, verifyAdmin, (req, res) => {
 
         const deletedVehicle = vehicles.splice(vehicleIndex, 1);
         saveVehicles(vehicles);
+        recordActivity(req, {
+            action: 'deleted',
+            entityType: 'vehicle',
+            entityId: id,
+            summary: 'Vehicle removed from fleet',
+            details: { type: deletedVehicle[0].type }
+        });
 
         res.json({ success: true, message: "Vehicle deleted successfully", vehicle: deletedVehicle[0] });
     } catch (error) {
@@ -1708,4 +2123,6 @@ app.post('/api/contact', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server running on http://127.0.0.1:${PORT}`);
+    cleanupPastQuotedBookings();
+    setInterval(cleanupPastQuotedBookings, QUOTED_BOOKING_CLEANUP_INTERVAL_MS);
 });

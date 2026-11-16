@@ -345,9 +345,12 @@ function restoreAdminView() {
         if (roleFilter) roleFilter.value = ['admin', 'affiliate', 'driver'].includes(savedRole) ? savedRole : '';
         showView('userManagement');
         loadUsers();
-    } else if (savedView === 'vehicleManagement') {
+    } else if (savedView === 'vehicleManagement' && ['admin', 'affiliate'].includes(currentUser?.role)) {
         showView('vehicleManagement');
         loadVehicles();
+    } else if (savedView === 'vehicleApproval' && ['admin', 'affiliate'].includes(currentUser?.role)) {
+        showView('vehicleApproval');
+        loadVehicleApprovalRequests();
     } else {
         showView('dashboard');
     }
@@ -574,20 +577,27 @@ function updateUserDisplay() {
 
 function showUserManagementIfAdmin() {
     const usersNavItem = getNavItemByIcon('fa-users');
-    const vehiclesNavItem = getNavItemByIcon('fa-car');
-    if (currentUser && currentUser.role === 'admin') {
+    const fleetNavItem = document.getElementById('fleetNavItem');
+    const reportsNavItem = getNavItemByIcon('fa-chart-column');
+    const activityNavItem = getNavItemByIcon('fa-clock-rotate-left');
+    const isAdmin = currentUser?.role === 'admin';
+    const hasFleetAccess = isAdmin || currentUser?.role === 'affiliate';
+    if (isAdmin) {
         if (usersNavItem) usersNavItem.style.display = 'block';
-        if (vehiclesNavItem) vehiclesNavItem.style.display = 'block';
+        if (reportsNavItem) reportsNavItem.style.display = 'block';
+        if (activityNavItem) activityNavItem.style.display = 'block';
         setupUserManagementNavigation();
     } else {
         if (usersNavItem) usersNavItem.style.display = 'none';
-        if (vehiclesNavItem) vehiclesNavItem.style.display = 'none';
+        if (reportsNavItem) reportsNavItem.style.display = 'none';
+        if (activityNavItem) activityNavItem.style.display = 'none';
     }
+    if (fleetNavItem) fleetNavItem.hidden = !hasFleetAccess;
+    if (hasFleetAccess) setupFleetNavigation();
 }
 
 function setupUserManagementNavigation() {
     const dashboardNavItem = getNavItemByIcon('fa-calendar-check');
-    const vehiclesNavItem = getNavItemByIcon('fa-car');
     
     if (dashboardNavItem) {
         dashboardNavItem.onclick = (e) => {
@@ -595,13 +605,12 @@ function setupUserManagementNavigation() {
             showView('dashboard');
         };
     }
-    
-    if (vehiclesNavItem) {
-        vehiclesNavItem.onclick = (e) => {
-            e.preventDefault();
-            showView('vehicleManagement');
-            loadVehicles();
-        };
+}
+
+function setupFleetNavigation() {
+    const fleetNavItem = document.getElementById('fleetNavItem');
+    if (fleetNavItem) {
+        fleetNavItem.onclick = toggleFleetSubmenu;
     }
 }
 
@@ -1389,7 +1398,8 @@ async function deleteBooking(ref) {
     if (confirm(`Sigurado ka bang nais mong burahin ang booking na ${ref}?`)) {
         try {
             const response = await fetch(`${API_URL}/bookings/${ref}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: getAuthHeaders()
             });
 
             const result = await response.json();
@@ -1737,13 +1747,13 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
         if (refFlag === "NEW_BOOKING_FLAG") {
             response = await fetch(`${API_URL}/bookings`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(updatedData)
             });
         } else {
             response = await fetch(`${API_URL}/bookings/${refFlag}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(updatedData)
             });
         }
@@ -3003,18 +3013,24 @@ function showView(viewType) {
     const fullPageDetailsView = document.getElementById('fullPageDetailsView');
     const userManagementView = document.getElementById('userManagementView');
     const vehicleManagementView = document.getElementById('vehicleManagementView');
+    const vehicleApprovalView = document.getElementById('vehicleApprovalView');
     const accountSettingsView = document.getElementById('accountSettingsView');
     const vehicleEditView = document.getElementById('vehicleEditView');
 
     const ratesManagementView = document.getElementById('ratesManagementView');
+    const operationalReportsView = document.getElementById('operationalReportsView');
+    const activityLogView = document.getElementById('activityLogView');
 
     if (mainDashboardView) mainDashboardView.style.display = viewType === 'dashboard' ? 'block' : 'none';
     if (fullPageDetailsView) fullPageDetailsView.style.display = viewType === 'details' ? 'block' : 'none';
     if (userManagementView) userManagementView.style.display = viewType === 'userManagement' ? 'block' : 'none';
     if (vehicleManagementView) vehicleManagementView.style.display = viewType === 'vehicleManagement' ? 'block' : 'none';
+    if (vehicleApprovalView) vehicleApprovalView.style.display = viewType === 'vehicleApproval' ? 'block' : 'none';
     if (accountSettingsView) accountSettingsView.style.display = viewType === 'accountSettings' ? 'block' : 'none';
     if (vehicleEditView) vehicleEditView.style.display = viewType === 'vehicleEdit' ? 'block' : 'none';
     if (ratesManagementView) ratesManagementView.style.display = viewType === 'ratesManagement' ? 'block' : 'none';
+    if (operationalReportsView) operationalReportsView.style.display = viewType === 'operationalReports' ? 'block' : 'none';
+    if (activityLogView) activityLogView.style.display = viewType === 'activityLog' ? 'block' : 'none';
 
     if (window.matchMedia('(max-width: 767px)').matches) {
         document.getElementById('sidebar')?.classList.remove('active');
@@ -3031,7 +3047,7 @@ function showView(viewType) {
         activeNavItem = getNavItemByIcon('fa-calendar-check');
     } else if (viewType === 'userManagement') {
         activeNavItem = getNavItemByIcon('fa-users');
-    } else if (viewType === 'vehicleManagement' || viewType === 'vehicleEdit') {
+    } else if (viewType === 'vehicleManagement' || viewType === 'vehicleApproval' || viewType === 'vehicleEdit') {
         activeNavItem = getNavItemByIcon('fa-car');
     } else if (viewType === 'accountSettings') {
         activeNavItem = getNavItemByIcon('fa-sliders');
@@ -3039,11 +3055,146 @@ function showView(viewType) {
     } else if (viewType === 'ratesManagement') {
         activeNavItem = getNavItemByIcon('fa-tags');
         syncRatesTabControls();
+    } else if (viewType === 'operationalReports') {
+        activeNavItem = getNavItemByIcon('fa-chart-column');
+    } else if (viewType === 'activityLog') {
+        activeNavItem = getNavItemByIcon('fa-clock-rotate-left');
     }
 
     if (activeNavItem) {
         activeNavItem.classList.add('active');
         activeNavItem.setAttribute('aria-current', 'page');
+    }
+    document.querySelectorAll('#fleetSubmenu .nav-submenu-item').forEach(item => {
+        const isCurrent = item.dataset.fleetView === viewType ||
+            (viewType === 'vehicleEdit' && item.dataset.fleetView === 'vehicleManagement');
+        item.classList.toggle('active', isCurrent);
+        if (isCurrent) item.setAttribute('aria-current', 'page');
+        else item.removeAttribute('aria-current');
+    });
+}
+
+function openOperationalReports() {
+    showView('operationalReports');
+    loadOperationalReports();
+}
+
+function openActivityLog() {
+    showView('activityLog');
+    loadActivityLog();
+}
+
+function renderReportTable(bodyId, rows, emptyMessage) {
+    const tbody = document.getElementById(bodyId);
+    if (!tbody) return;
+    tbody.innerHTML = rows.length
+        ? rows.map(row => `<tr><td>${escapeUserMarkup(row.label)}</td><td>${Number(row.count).toLocaleString('en-PH')}</td></tr>`).join('')
+        : `<tr><td colspan="2" class="users-empty-state">${emptyMessage}</td></tr>`;
+}
+
+function renderOperationalReport(report) {
+    const summary = report.summary;
+    const summaryCards = [
+        ['Bookings', summary.totalBookings],
+        ['Cancellations', summary.cancelledBookings],
+        ['Cancellation rate', `${summary.cancellationRate}%`],
+        ['Available vehicles (current)', summary.activeFleetVehicles]
+    ];
+    document.getElementById('reportsSummary').innerHTML = summaryCards.map(([label, value]) => `
+        <div class="report-summary-card">
+            <span>${label}</span>
+            <strong>${Number.isFinite(value) ? value.toLocaleString('en-PH') : value}</strong>
+        </div>`).join('');
+
+    renderReportTable('reportServicesBody', report.bookingsByService, 'No bookings for this date range.');
+    renderReportTable('reportLocationsBody', report.bookingsByLocation, 'No bookings for this date range.');
+    renderReportTable('reportVehicleTypesBody', report.vehicleTypeDemand, 'No active bookings for this date range.');
+    renderReportTable('reportCancellationsBody', report.cancellationsByStatus, 'No cancellations for this date range.');
+}
+
+async function loadOperationalReports() {
+    if (!ensureAuth()) return;
+
+    const errorMessage = document.getElementById('reportsError');
+    errorMessage.hidden = true;
+    const query = new URLSearchParams();
+    const from = document.getElementById('reportFromDate').value;
+    const to = document.getElementById('reportToDate').value;
+    if (from) query.set('from', from);
+    if (to) query.set('to', to);
+
+    try {
+        const { response, data } = await requestJson(`/reports/operations?${query}`, {
+            headers: getAuthHeaders()
+        });
+        if (!response.ok) throw new Error(data.error || 'Failed to load operational reports.');
+        renderOperationalReport(data.report);
+    } catch (error) {
+        console.error('Error loading operational reports:', error);
+        errorMessage.textContent = error.message || 'Unable to load operational reports.';
+        errorMessage.hidden = false;
+    }
+}
+
+function formatActivityDetails(details = {}) {
+    if (!details || typeof details !== 'object') details = {};
+    const parts = [];
+    if (Array.isArray(details.changedFields) && details.changedFields.length) {
+        parts.push(`Fields: ${details.changedFields.join(', ')}`);
+    }
+    if (Array.isArray(details.changedCategories) && details.changedCategories.length) {
+        parts.push(`Rate groups: ${details.changedCategories.join(', ')}`);
+    }
+    if (details.fromStatus || details.toStatus) {
+        parts.push(`Status: ${details.fromStatus || '—'} → ${details.toStatus || '—'}`);
+    }
+    if (details.pickupDate) parts.push(`Pickup: ${details.pickupDate}`);
+    if (details.role) parts.push(`Role: ${details.role}`);
+    if (details.passwordChanged) parts.push('Password changed');
+    return parts.join(' · ') || '—';
+}
+
+function renderActivityLog(events) {
+    const tbody = document.getElementById('activityLogBody');
+    if (!tbody) return;
+    tbody.innerHTML = events.length ? events.map(event => {
+        const timestamp = new Date(event.timestamp);
+        const when = Number.isNaN(timestamp.getTime())
+            ? '—'
+            : timestamp.toLocaleString('en-PH', { timeZone: 'Asia/Manila' });
+        const action = String(event.action || '').replace(/_/g, ' ');
+        return `
+            <tr>
+                <td>${escapeUserMarkup(when)}</td>
+                <td>${escapeUserMarkup(event.actor || 'Unknown')}</td>
+                <td>${escapeUserMarkup(action)}</td>
+                <td>${escapeUserMarkup(`${event.entityType || ''} ${event.entityId || ''}`.trim())}</td>
+                <td>${escapeUserMarkup([event.summary, formatActivityDetails(event.details)].filter(Boolean).join(' · '))}</td>
+            </tr>`;
+    }).join('') : '<tr><td colspan="5" class="users-empty-state">No activity recorded yet.</td></tr>';
+}
+
+async function loadActivityLog() {
+    if (!ensureAuth()) return;
+
+    const message = document.getElementById('activityLogMessage');
+    message.hidden = true;
+    const query = new URLSearchParams({ limit: '200' });
+    const entityType = document.getElementById('activityEntityFilter').value;
+    const entityId = document.getElementById('activityRecordFilter').value.trim();
+    if (entityType) query.set('entityType', entityType);
+    if (entityId) query.set('entityId', entityId);
+
+    try {
+        const { response, data } = await requestJson(`/activity-log?${query}`, {
+            headers: getAuthHeaders()
+        });
+        if (!response.ok) throw new Error(data.error || 'Failed to load activity history.');
+        renderActivityLog(data.events);
+    } catch (error) {
+        console.error('Error loading activity log:', error);
+        message.textContent = error.message || 'Unable to load activity history.';
+        message.hidden = false;
     }
 }
 
@@ -3247,9 +3398,23 @@ let _existingUserDocuments = [];
 let _userPhotoPreviewUrl = null;
 let _removeExistingUserPhoto = false;
 
+function showUserFormTab(tabName, focusTab = false) {
+    document.querySelectorAll('.user-modal-tab').forEach(tab => {
+        const isActive = tab.dataset.userTab === tabName;
+        tab.setAttribute('aria-selected', String(isActive));
+        tab.tabIndex = isActive ? 0 : -1;
+        if (isActive && focusTab) tab.focus();
+    });
+
+    document.querySelectorAll('.user-modal-tab-panel').forEach(panel => {
+        panel.hidden = panel.dataset.userTabPanel !== tabName;
+    });
+}
+
 function openAddUserModal() {
     document.getElementById('modalTitle').textContent = 'Add User';
     document.querySelector('.user-modal-header-hint').textContent = 'Create a user profile and assign their access role.';
+    showUserFormTab('profile');
     document.getElementById('userForm').reset();
     document.getElementById('userForm').dataset.userId = '';
     const passwordInput = document.getElementById('uPassword');
@@ -3375,6 +3540,7 @@ async function editUser(userId) {
         const user = data.user;
         document.getElementById('modalTitle').textContent = 'Edit User';
         document.querySelector('.user-modal-header-hint').textContent = 'Update this user’s profile and account access.';
+        showUserFormTab('profile');
         document.getElementById('userForm').reset();
         document.getElementById('userForm').dataset.userId = user.id;
         document.querySelector('#userForm .user-modal-footer .btn-primary').textContent = 'Save Changes';
@@ -3459,6 +3625,26 @@ document.addEventListener('DOMContentLoaded', function() {
         userForm.addEventListener('submit', handleSaveUser);
     }
 
+    const userTabs = Array.from(document.querySelectorAll('.user-modal-tab'));
+    userTabs.forEach(tab => tab.addEventListener('click', () => showUserFormTab(tab.dataset.userTab)));
+    document.querySelector('.user-modal-tabs')?.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const activeIndex = userTabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true');
+        const nextIndex = event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+                ? userTabs.length - 1
+                : (activeIndex + (event.key === 'ArrowRight' ? 1 : -1) + userTabs.length) % userTabs.length;
+        showUserFormTab(userTabs[nextIndex].dataset.userTab, true);
+    });
+    document.getElementById('applyReportsFilters')?.addEventListener('click', loadOperationalReports);
+    document.getElementById('refreshActivityLog')?.addEventListener('click', loadActivityLog);
+    document.getElementById('activityEntityFilter')?.addEventListener('change', loadActivityLog);
+    document.getElementById('activityRecordFilter')?.addEventListener('keydown', event => {
+        if (event.key === 'Enter') loadActivityLog();
+    });
+
     document.getElementById('usersSearch')?.addEventListener('input', applyUserFilters);
     ['usersRoleFilter', 'usersStatusFilter'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', applyUserFilters);
@@ -3475,6 +3661,20 @@ async function handleSaveUser(e) {
     e.preventDefault();
     if (!ensureAuth()) return;
 
+    const userForm = document.getElementById('userForm');
+    const errorDiv = document.getElementById('userFormError');
+    errorDiv.style.display = 'none';
+    if (!userForm.checkValidity()) {
+        const invalidField = userForm.querySelector(':invalid');
+        const invalidPanel = invalidField?.closest('[data-user-tab-panel]');
+        if (invalidField) {
+            if (invalidPanel) showUserFormTab(invalidPanel.dataset.userTabPanel);
+            invalidField.focus();
+            invalidField.reportValidity();
+        }
+        return;
+    }
+
     const firstName = document.getElementById('uFirstName').value.trim();
     const lastName = document.getElementById('uLastName').value.trim();
     const email = document.getElementById('uEmail').value.trim();
@@ -3483,10 +3683,7 @@ async function handleSaveUser(e) {
     const passwordConfirm = document.getElementById('uPasswordConfirm').value;
     const role = document.getElementById('uRole').value;
     const active = document.getElementById('uActive').checked;
-    const errorDiv = document.getElementById('userFormError');
-    const userId = document.getElementById('userForm').dataset.userId;
-
-    errorDiv.style.display = 'none';
+    const userId = userForm.dataset.userId;
 
     if (!userId && !password) {
         errorDiv.textContent = 'Password is required for new users.';
@@ -3656,8 +3853,27 @@ document.addEventListener('DOMContentLoaded', function() {
 // VEHICLE MANAGEMENT FUNCTIONS
 // ========================================================
 
+let _vehicles = [];
+let _vehicleApprovalRequests = [];
+let _vehiclePage = 1;
+const VEHICLES_PER_PAGE = 10;
+
 async function loadVehicles() {
     if (!ensureAuth()) return;
+
+    const isAffiliate = currentUser?.role === 'affiliate';
+    const pageTitle = document.getElementById('vehiclePageTitle');
+    const pageSubtitle = document.getElementById('vehiclePageSubtitle');
+    const addButton = document.getElementById('addVehicleButton');
+    if (pageTitle) pageTitle.textContent = isAffiliate ? 'My Vehicles' : 'Vehicles';
+    if (pageSubtitle) {
+        pageSubtitle.textContent = isAffiliate
+            ? 'View approved vehicles and submit another vehicle for review.'
+            : 'Manage vehicles, status, and affiliate ownership.';
+    }
+    if (addButton) addButton.innerHTML = isAffiliate
+        ? '<i class="fa-solid fa-plus"></i> Submit Vehicle'
+        : '<i class="fa-solid fa-plus"></i> Add Vehicle';
 
     try {
         const { response, data } = await requestJson('/vehicles', {
@@ -3665,38 +3881,125 @@ async function loadVehicles() {
         });
 
         if (!response.ok) throw new Error(data.error || 'Failed to load vehicles');
-        renderVehiclesTable(data.vehicles);
+        _vehicles = Array.isArray(data.vehicles) ? data.vehicles : [];
+        _vehiclePage = 1;
+        renderVehiclesTable();
     } catch (error) {
         console.error("Error loading vehicles:", error);
-        alert('Failed to load vehicles');
+        alert(error.message || 'Failed to load vehicles');
     }
 }
 
-function renderVehiclesTable(vehicles) {
+function renderVehiclesTable() {
     const tbody = document.getElementById('vehiclesTableBody');
     if (!tbody) return;
-    
-    tbody.innerHTML = vehicles.map(vehicle => `
-        <tr style="border-bottom: 1px solid #E2E8F0;">
-            <td style="padding: 12px; color: #0F172A; font-weight: 600;">${vehicle.plate}</td>
-            <td style="padding: 12px; color: #0F172A;">${vehicle.make} ${vehicle.model}</td>
-            <td style="padding: 12px; color: #0F172A;">${vehicle.type}</td>
-            <td style="padding: 12px; color: #0F172A;">${vehicle.year}</td>
-            <td style="padding: 12px; color: #0F172A;">${vehicle.seats}</td>
-            <td style="padding: 12px;">
-                <span style="display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; background: ${vehicle.status === 'Available' ? '#dcfce7' : vehicle.status === 'Maintenance' ? '#fef2f2' : '#fef3c7'}; color: ${vehicle.status === 'Available' ? '#166534' : vehicle.status === 'Maintenance' ? '#991b1b' : '#92400e'};">
-                    ${vehicle.status}
-                </span>
-            </td>
-            <td style="padding: 12px; text-align: center;">
-                <button type="button" onclick="window.editVehicle('${vehicle.id}'); return false;" title="Edit" style="background: none; border: none; color: #06B6D4; cursor: pointer; font-size: 1.1rem; margin: 0 5px;"><i class="fa-solid fa-pencil"></i></button>
-                <button type="button" onclick="window.deleteVehicle('${vehicle.id}', '${vehicle.plate}'); return false;" title="Delete" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; margin: 0 5px;"><i class="fa-solid fa-trash"></i></button>
-            </td>
-        </tr>
-    `).join('');
+
+    const isAdmin = currentUser?.role === 'admin';
+    const search = document.getElementById('vehiclesSearch')?.value.trim().toLowerCase() || '';
+    const typeFilter = document.getElementById('vehiclesTypeFilter')?.value || '';
+    const statusFilter = document.getElementById('vehiclesStatusFilter')?.value || '';
+    const activeCount = _vehicles.filter(vehicle => ['Available', 'Rented'].includes(vehicle.status)).length;
+    const inactiveCount = _vehicles.filter(vehicle => vehicle.status === 'Maintenance').length;
+    const activeCountElement = document.getElementById('vehiclesActiveCount');
+    const inactiveCountElement = document.getElementById('vehiclesInactiveCount');
+    if (activeCountElement) activeCountElement.textContent = String(activeCount);
+    if (inactiveCountElement) inactiveCountElement.textContent = String(inactiveCount);
+
+    const filteredVehicles = _vehicles.filter(vehicle => {
+        const searchable = [
+            vehicle.plate, vehicle.make, vehicle.model, vehicle.type, vehicle.affiliateName
+        ].join(' ').toLowerCase();
+        return (!search || searchable.includes(search)) &&
+            (!typeFilter || vehicle.type === typeFilter) &&
+            (!statusFilter || vehicle.status === statusFilter);
+    });
+    const pageCount = Math.max(1, Math.ceil(filteredVehicles.length / VEHICLES_PER_PAGE));
+    _vehiclePage = Math.min(_vehiclePage, pageCount);
+    const pageVehicles = filteredVehicles.slice(
+        (_vehiclePage - 1) * VEHICLES_PER_PAGE,
+        _vehiclePage * VEHICLES_PER_PAGE
+    );
+    const emptyMessage = filteredVehicles.length
+        ? 'No vehicles match these filters.'
+        : (search || typeFilter || statusFilter ? 'No vehicles match these filters.' : 'No approved vehicles yet.');
+    const statusClass = status => ({
+        Available: 'is-available',
+        Rented: 'is-rented',
+        Maintenance: 'is-maintenance'
+    }[status] || '');
+
+    tbody.innerHTML = pageVehicles.length ? pageVehicles.map(vehicle => {
+        const details = [
+            vehicle.plate,
+            `${vehicle.make || ''} ${vehicle.model || ''}`.trim(),
+            vehicle.year,
+            `${vehicle.seats || '—'} seats`,
+            vehicle.transmission,
+            vehicle.fuelType
+        ].filter(Boolean).join(' · ');
+        return `
+            <tr>
+                <td data-label="Affiliate Name">${escapeUserMarkup(vehicle.affiliateName || 'Company fleet')}</td>
+                <td data-label="Details"><strong>${escapeUserMarkup(vehicle.make)} ${escapeUserMarkup(vehicle.model)}</strong><small>${escapeUserMarkup(details)}</small></td>
+                <td data-label="Status"><span class="vehicle-status-badge ${statusClass(vehicle.status)}">${escapeUserMarkup(vehicle.status || 'Unknown')}</span></td>
+                <td data-label="Vehicle Type">${escapeUserMarkup(vehicle.type || '—')}</td>
+                <td data-label="Daily Rate">${formatMoney(vehicle.dailyRate || 0)}</td>
+                <td data-label="Actions" class="vehicle-row-actions">
+                    ${isAdmin ? `
+                        <button type="button" data-vehicle-action="edit" data-vehicle-id="${escapeUserMarkup(vehicle.id)}" title="Edit vehicle" aria-label="Edit ${escapeUserMarkup(vehicle.plate)}"><i class="fa-solid fa-pencil"></i></button>
+                        <button type="button" data-vehicle-action="delete" data-vehicle-id="${escapeUserMarkup(vehicle.id)}" data-vehicle-plate="${escapeUserMarkup(vehicle.plate)}" title="Delete vehicle" aria-label="Delete ${escapeUserMarkup(vehicle.plate)}"><i class="fa-solid fa-trash"></i></button>
+                    ` : '<span class="vehicle-action-placeholder">—</span>'}
+                </td>
+            </tr>`;
+    }).join('') : `<tr><td class="vehicle-empty-state" colspan="6">${emptyMessage}</td></tr>`;
+
+    const pageInfo = document.getElementById('vehiclesPageInfo');
+    if (pageInfo) {
+        const firstItem = filteredVehicles.length ? ((_vehiclePage - 1) * VEHICLES_PER_PAGE) + 1 : 0;
+        const lastItem = Math.min(_vehiclePage * VEHICLES_PER_PAGE, filteredVehicles.length);
+        pageInfo.textContent = `Showing ${firstItem}-${lastItem} of ${filteredVehicles.length} vehicles`;
+    }
+
+    const pagination = document.getElementById('vehiclesPagination');
+    if (pagination) {
+        const buttons = [];
+        if (pageCount > 1) {
+            buttons.push(`<button type="button" data-vehicle-page="${_vehiclePage - 1}" ${_vehiclePage === 1 ? 'disabled' : ''} aria-label="Previous page"><i class="fa-solid fa-chevron-left"></i></button>`);
+            for (let page = 1; page <= pageCount; page += 1) {
+                buttons.push(`<button type="button" data-vehicle-page="${page}" class="${page === _vehiclePage ? 'is-current' : ''}" aria-current="${page === _vehiclePage ? 'page' : 'false'}">${page}</button>`);
+            }
+            buttons.push(`<button type="button" data-vehicle-page="${_vehiclePage + 1}" ${_vehiclePage === pageCount ? 'disabled' : ''} aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></button>`);
+        }
+        pagination.innerHTML = buttons.join('');
+    }
+
+    tbody.onclick = event => {
+        const button = event.target.closest('button[data-vehicle-action]');
+        if (!button) return;
+        if (button.dataset.vehicleAction === 'edit') editVehicle(button.dataset.vehicleId);
+        if (button.dataset.vehicleAction === 'delete') deleteVehicle(button.dataset.vehicleId, button.dataset.vehiclePlate);
+    };
+    if (pagination) {
+        pagination.onclick = event => {
+            const button = event.target.closest('button[data-vehicle-page]');
+            if (!button || button.disabled) return;
+            _vehiclePage = Number(button.dataset.vehiclePage);
+            renderVehiclesTable();
+        };
+    }
+}
+
+function clearVehicleFilters() {
+    ['vehiclesSearch', 'vehiclesTypeFilter', 'vehiclesStatusFilter'].forEach(id => {
+        const control = document.getElementById(id);
+        if (control) control.value = '';
+    });
+    _vehiclePage = 1;
+    renderVehiclesTable();
 }
 
 function openAddVehicleModal() {
+    if (!['admin', 'affiliate'].includes(currentUser?.role)) return;
     showView('vehicleEdit');
 
     const view = document.getElementById('vehicleEditView');
@@ -3705,7 +4008,8 @@ function openAddVehicleModal() {
     }
 
     const title = document.getElementById('vehicleModalTitle');
-    if (title) title.textContent = 'Add New Vehicle';
+    const isAffiliate = currentUser.role === 'affiliate';
+    if (title) title.textContent = isAffiliate ? 'Submit Vehicle for Approval' : 'Add New Vehicle';
 
     const editId = document.getElementById('vehicleEditId');
     if (editId) editId.value = '';
@@ -3713,8 +4017,14 @@ function openAddVehicleModal() {
     const form = document.getElementById('vehicleForm');
     if (form) {
         form.reset();
-        form.dataset.mode = 'create';
+        form.dataset.mode = isAffiliate ? 'request' : 'create';
     }
+    const statusField = document.getElementById('vehicleStatusField');
+    const statusInput = document.getElementById('vehicleStatus');
+    const saveButton = document.getElementById('vehicleSaveBtn');
+    if (statusField) statusField.hidden = isAffiliate;
+    if (statusInput) statusInput.required = !isAffiliate;
+    if (saveButton) saveButton.textContent = isAffiliate ? 'Submit for Approval' : 'Save Vehicle';
 }
 
 function closeVehicleModal() {
@@ -3729,6 +4039,14 @@ function closeVehicleModal() {
 
     const editId = document.getElementById('vehicleEditId');
     if (editId) editId.value = '';
+
+    const statusField = document.getElementById('vehicleStatusField');
+    const statusInput = document.getElementById('vehicleStatus');
+    const saveButton = document.getElementById('vehicleSaveBtn');
+    const isAffiliate = currentUser?.role === 'affiliate';
+    if (statusField) statusField.hidden = isAffiliate;
+    if (statusInput) statusInput.required = !isAffiliate;
+    if (saveButton) saveButton.textContent = isAffiliate ? 'Submit for Approval' : 'Save Vehicle';
 
     showView('vehicleManagement');
     loadVehicles();
@@ -3754,11 +4072,15 @@ async function handleSaveVehicle(e) {
     const seats = Number(document.getElementById('vehicleSeats').value);
     const transmission = document.getElementById('vehicleTransmission').value;
     const fuelType = document.getElementById('vehicleFuelType').value;
-    const status = document.getElementById('vehicleStatus').value;
+    const isAffiliate = currentUser?.role === 'affiliate';
+    if (isAffiliate && vehicleId) return;
+    const status = isAffiliate ? '' : document.getElementById('vehicleStatus').value;
     
     try {
-        const method = vehicleId ? 'PUT' : 'POST';
-        const path = vehicleId ? `/vehicles/${vehicleId}` : '/vehicles';
+        const method = isAffiliate ? 'POST' : vehicleId ? 'PUT' : 'POST';
+        const path = isAffiliate
+            ? '/vehicle-approval-requests'
+            : vehicleId ? `/vehicles/${vehicleId}` : '/vehicles';
         
         const { response, data } = await requestJson(path, {
             method,
@@ -3773,14 +4095,17 @@ async function handleSaveVehicle(e) {
             return;
         }
         
-        alert(vehicleId ? 'Vehicle updated successfully' : 'Vehicle added successfully');
-        // close modal or hide full-page view if present
-        if (typeof closeVehicleModal === 'function') {
-            try { closeVehicleModal(); } catch(e){}
+        alert(isAffiliate
+            ? 'Vehicle submitted for approval.'
+            : vehicleId ? 'Vehicle updated successfully' : 'Vehicle added successfully');
+        document.getElementById('vehicleForm')?.reset();
+        if (isAffiliate) {
+            showView('vehicleApproval');
+            loadVehicleApprovalRequests();
+        } else {
+            showView('vehicleManagement');
+            loadVehicles();
         }
-        const view = document.getElementById('vehicleEditView');
-        if (view) view.style.display = 'none';
-        loadVehicles();
     } catch (error) {
         console.error("Error saving vehicle:", error);
         alert('Network error. Please try again.');
@@ -3788,6 +4113,7 @@ async function handleSaveVehicle(e) {
 }
 
 async function editVehicle(vehicleId) {
+    if (currentUser?.role !== 'admin') return;
     try {
         const { response, data } = await requestJson('/vehicles', {
             headers: getAuthHeaders()
@@ -3810,6 +4136,12 @@ async function editVehicle(vehicleId) {
 
         const title = document.getElementById('vehicleModalTitle');
         if (title) title.textContent = 'Edit Vehicle';
+        const statusField = document.getElementById('vehicleStatusField');
+        const statusInput = document.getElementById('vehicleStatus');
+        const saveButton = document.getElementById('vehicleSaveBtn');
+        if (statusField) statusField.hidden = false;
+        if (statusInput) statusInput.required = true;
+        if (saveButton) saveButton.textContent = 'Save Vehicle';
 
         const form = document.getElementById('vehicleForm');
         if (form) {
@@ -3835,6 +4167,7 @@ async function editVehicle(vehicleId) {
 }
 
 async function deleteVehicle(vehicleId, plate) {
+    if (currentUser?.role !== 'admin') return;
     if (!confirm(`Are you sure you want to delete vehicle "${plate}"?`)) return;
     if (!ensureAuth()) return;
     
@@ -3854,31 +4187,157 @@ async function deleteVehicle(vehicleId, plate) {
     }
 }
 
+function toggleFleetSubmenu(event) {
+    toggleSidebarSubmenu(event, 'fleetSubmenu');
+}
+
+function openFleetTab(viewType) {
+    if (!['admin', 'affiliate'].includes(currentUser?.role)) return;
+    showView(viewType);
+    const submenu = document.getElementById('fleetSubmenu');
+    const fleetButton = document.getElementById('fleetNavItem');
+    if (submenu) {
+        submenu.classList.remove('is-open');
+        submenu.classList.add('hidden');
+        submenu.style.display = 'none';
+    }
+    if (fleetButton) {
+        fleetButton.setAttribute('aria-expanded', 'false');
+        fleetButton.querySelector('.nav-item-chevron')?.classList.remove('is-open');
+    }
+    if (viewType === 'vehicleManagement') loadVehicles();
+    if (viewType === 'vehicleApproval') loadVehicleApprovalRequests();
+}
+
+async function loadVehicleApprovalRequests() {
+    if (!ensureAuth()) return;
+    try {
+        const { response, data } = await requestJson('/vehicle-approval-requests', {
+            headers: getAuthHeaders()
+        });
+        if (!response.ok) throw new Error(data.error || 'Failed to load vehicle approval requests');
+        _vehicleApprovalRequests = Array.isArray(data.requests) ? data.requests : [];
+        renderVehicleApprovalRequests();
+    } catch (error) {
+        console.error('Error loading vehicle approval requests:', error);
+        alert(error.message || 'Failed to load vehicle approval requests');
+    }
+}
+
+function renderVehicleApprovalRequests() {
+    const tbody = document.getElementById('vehicleApprovalTableBody');
+    if (!tbody) return;
+
+    const counts = {
+        Pending: _vehicleApprovalRequests.filter(request => request.status === 'Pending').length,
+        Approved: _vehicleApprovalRequests.filter(request => request.status === 'Approved').length,
+        Rejected: _vehicleApprovalRequests.filter(request => request.status === 'Rejected').length
+    };
+    Object.entries(counts).forEach(([status, count]) => {
+        const countElement = document.getElementById(`vehicleRequests${status}Count`);
+        if (countElement) countElement.textContent = String(count);
+    });
+
+    const search = document.getElementById('vehicleApprovalSearch')?.value.trim().toLowerCase() || '';
+    const statusFilter = document.getElementById('vehicleApprovalStatusFilter')?.value || '';
+    const isAdmin = currentUser?.role === 'admin';
+    const subtitle = document.getElementById('vehicleApprovalSubtitle');
+    if (subtitle) {
+        subtitle.textContent = isAdmin
+            ? 'Review affiliate vehicle submissions before adding them to the fleet.'
+            : 'Track the review status of your submitted vehicles.';
+    }
+    const filteredRequests = _vehicleApprovalRequests.filter(request => {
+        const searchable = [
+            request.affiliateName, request.plate, request.make, request.model, request.type
+        ].join(' ').toLowerCase();
+        return (!search || searchable.includes(search)) &&
+            (!statusFilter || request.status === statusFilter);
+    });
+    const statusClass = status => ({
+        Pending: 'is-pending',
+        Approved: 'is-available',
+        Rejected: 'is-maintenance'
+    }[status] || '');
+    const formatDate = value => {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString();
+    };
+
+    tbody.innerHTML = filteredRequests.length ? filteredRequests.map(request => `
+        <tr>
+            <td data-label="Affiliate Name">${escapeUserMarkup(request.affiliateName || 'Affiliate')}</td>
+            <td data-label="Vehicle"><strong>${escapeUserMarkup(request.make)} ${escapeUserMarkup(request.model)}</strong><small>${escapeUserMarkup(request.plate)} · ${escapeUserMarkup(request.year)}</small></td>
+            <td data-label="Vehicle Type">${escapeUserMarkup(request.type || '—')}</td>
+            <td data-label="Status"><span class="vehicle-status-badge ${statusClass(request.status)}">${escapeUserMarkup(request.status || 'Unknown')}</span></td>
+            <td data-label="Submitted">${escapeUserMarkup(formatDate(request.submittedAt))}</td>
+            <td data-label="Review Note">${escapeUserMarkup(request.reviewNote || '—')}</td>
+            <td data-label="Actions" class="vehicle-row-actions">
+                ${isAdmin && request.status === 'Pending' ? `
+                    <button type="button" data-request-action="Approved" data-request-id="${escapeUserMarkup(request.id)}" class="vehicle-approve-action">Approve</button>
+                    <button type="button" data-request-action="Rejected" data-request-id="${escapeUserMarkup(request.id)}" class="vehicle-reject-action">Reject</button>
+                ` : '<span class="vehicle-action-placeholder">—</span>'}
+            </td>
+        </tr>
+    `).join('') : `<tr><td class="vehicle-empty-state" colspan="7">${search || statusFilter ? 'No requests match these filters.' : 'No vehicle approval requests yet.'}</td></tr>`;
+
+    tbody.onclick = event => {
+        const button = event.target.closest('button[data-request-action]');
+        if (button) reviewVehicleRequest(button.dataset.requestId, button.dataset.requestAction);
+    };
+}
+
+async function reviewVehicleRequest(requestId, decision) {
+    if (currentUser?.role !== 'admin') return;
+    let reviewNote = '';
+    if (decision === 'Approved') {
+        if (!confirm('Approve this vehicle and add it to the fleet?')) return;
+    } else {
+        reviewNote = prompt('Optional reason for rejection:');
+        if (reviewNote === null) return;
+    }
+
+    try {
+        const { response, data } = await requestJson(`/vehicle-approval-requests/${encodeURIComponent(requestId)}`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ decision, reviewNote })
+        });
+        if (!response.ok) throw new Error(data.error || 'Failed to review vehicle request');
+        alert(decision === 'Approved' ? 'Vehicle approved and added to the fleet.' : 'Vehicle request rejected.');
+        await loadVehicleApprovalRequests();
+    } catch (error) {
+        console.error('Error reviewing vehicle approval request:', error);
+        alert(error.message || 'Failed to review vehicle request');
+    }
+}
+
+function clearVehicleApprovalFilters() {
+    ['vehicleApprovalSearch', 'vehicleApprovalStatusFilter'].forEach(id => {
+        const control = document.getElementById(id);
+        if (control) control.value = '';
+    });
+    renderVehicleApprovalRequests();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const vehicleForm = document.getElementById('vehicleForm');
     if (vehicleForm) {
         vehicleForm.addEventListener('submit', handleSaveVehicle);
     }
 
-    // hook full-page vehicle view buttons
-    const vehicleCancelBtn = document.getElementById('vehicleCancelBtn');
-    if (vehicleCancelBtn) vehicleCancelBtn.addEventListener('click', function() {
-        showView('vehicleManagement');
-        loadVehicles();
+    document.getElementById('vehiclesSearch')?.addEventListener('input', () => {
+        _vehiclePage = 1;
+        renderVehiclesTable();
     });
-
-    const vehicleSaveBtn = document.getElementById('vehicleSaveBtn');
-    if (vehicleSaveBtn) {
-        vehicleSaveBtn.addEventListener('click', () => {
-            const form = document.getElementById('vehicleForm');
-            if (!form) return;
-            if (typeof form.requestSubmit === 'function') {
-                form.requestSubmit();
-            } else {
-                form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-            }
+    ['vehiclesTypeFilter', 'vehiclesStatusFilter'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', () => {
+            _vehiclePage = 1;
+            renderVehiclesTable();
         });
-    }
+    });
+    document.getElementById('vehicleApprovalSearch')?.addEventListener('input', renderVehicleApprovalRequests);
+    document.getElementById('vehicleApprovalStatusFilter')?.addEventListener('change', renderVehicleApprovalRequests);
 });
 // ========================================================
 // RATES MANAGEMENT
@@ -4176,7 +4635,7 @@ async function openRatesTab(tab) {
     });
 
     const submenu = document.getElementById('ratesSubmenu');
-    const button = document.querySelector('.nav-item--dropdown');
+    const button = document.getElementById('ratesNavItem');
     if (submenu) {
         submenu.classList.remove('is-open');
         submenu.classList.add('hidden');
