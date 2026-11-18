@@ -417,6 +417,7 @@ async function handleLogin(e) {
     const emailField = document.getElementById('loginEmail');
     const passwordField = document.getElementById('loginPassword');
     const submitButton = document.querySelector('#loginForm .login-submit');
+    const submitIcon = submitButton.querySelector('i');
 
     if (!email || !password) {
         const message = 'Email and password required';
@@ -430,6 +431,8 @@ async function handleLogin(e) {
     submitButton.disabled = true;
     submitButton.setAttribute('aria-busy', 'true');
     submitButton.querySelector('span').textContent = 'Signing in...';
+    submitIcon.classList.remove('fa-arrow-right');
+    submitIcon.classList.add('fa-spinner', 'fa-spin');
     try {
         const { response, data, parseError } = await requestWithFallback('/users/login', {
             method: 'POST',
@@ -495,6 +498,8 @@ async function handleLogin(e) {
         submitButton.disabled = false;
         submitButton.removeAttribute('aria-busy');
         submitButton.querySelector('span').textContent = 'Sign in';
+        submitIcon.classList.remove('fa-spinner', 'fa-spin');
+        submitIcon.classList.add('fa-arrow-right');
     }
 }
 
