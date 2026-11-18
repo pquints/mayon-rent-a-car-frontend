@@ -1,6 +1,6 @@
 {
   "cleanUrls": true,
-  "rewrites": [
+  "redirects": [
     {
       "source": "/",
       "has": [
@@ -9,8 +9,11 @@
           "value": "app.mayonrentacar.com.ph"
         }
       ],
-      "destination": "/Public/dashboard.html"
-    },
+      "destination": "/Public/dashboard",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
     {
       "source": "/",
       "destination": "/Public"
