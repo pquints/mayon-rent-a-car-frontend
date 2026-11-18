@@ -3,6 +3,16 @@
   "rewrites": [
     {
       "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.mayonrentacar.com.ph"
+        }
+      ],
+      "destination": "/Public/dashboard.html"
+    },
+    {
+      "source": "/",
       "destination": "/Public"
     },
     {
