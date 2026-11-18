@@ -77,14 +77,6 @@ body {
     object-fit: contain;
 }
 
-.login-brand span {
-    color: #a5f3fc;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-align: center;
-}
-
 .login-heading h1 {
     color: #f8fafc;
     font-size: 1.55rem;
