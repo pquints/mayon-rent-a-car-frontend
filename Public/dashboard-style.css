@@ -438,22 +438,6 @@ body {
     opacity: 0.75;
 }
 
-.login-security-note {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 7px;
-    margin-top: 22px;
-    padding-top: 17px;
-    border-top: 1px solid rgba(148, 163, 184, 0.14);
-    color: #778396;
-    font-size: 0.75rem;
-}
-
-.login-security-note i {
-    color: #22b8cf;
-}
-
 @media (max-width: 479px) {
     .login-view {
         padding: 18px 14px;
