@@ -1,16 +1,15 @@
 {
   "cleanUrls": true,
-  "redirects": [
+  "routes": [
     {
-      "source": "/",
+      "src": "^/$",
       "has": [
         {
           "type": "host",
           "value": "app.mayonrentacar.com.ph"
         }
       ],
-      "destination": "/Public/dashboard",
-      "permanent": false
+      "dest": "/Public/dashboard"
     }
   ],
   "rewrites": [
