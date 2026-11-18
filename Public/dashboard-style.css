@@ -78,10 +78,11 @@ body {
 }
 
 .login-brand span {
-    color: #67e8f9;
-    font-size: 0.66rem;
+    color: #a5f3fc;
+    font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.16em;
+    text-align: center;
 }
 
 .login-heading h1 {
@@ -194,6 +195,38 @@ body {
 .login-box .login-input-wrap input::placeholder {
     color: #667386;
     opacity: 1;
+}
+
+.login-box .login-input-wrap input:autofill,
+.login-box .login-input-wrap input:-webkit-autofill,
+.login-box .login-input-wrap input:-webkit-autofill:hover,
+.login-box .login-input-wrap input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f8fafc;
+    caret-color: #f8fafc;
+    -webkit-box-shadow: 0 0 0 1000px #10151d inset;
+    box-shadow: 0 0 0 1000px #10151d inset;
+}
+
+.login-remember-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin: -3px 0 16px;
+    color: #aeb9c8;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.login-remember-row input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: #22d3ee;
+    cursor: pointer;
+}
+
+.login-remember-row:focus-within {
+    color: #e2e8f0;
 }
 
 .login-box #recoveryCode {

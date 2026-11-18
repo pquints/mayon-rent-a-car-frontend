@@ -98,7 +98,22 @@ function showLoginView() {
     const togglePassword = document.getElementById('togglePassword');
     const passwordField = document.getElementById('loginPassword');
     const emailField = document.getElementById('loginEmail');
+    const rememberEmailCheckbox = document.getElementById('rememberLoginEmail');
     const errorDiv = document.getElementById('loginError');
+    const rememberedEmail = localStorage.getItem('rememberedLoginEmail');
+    if (rememberEmailCheckbox) {
+        rememberEmailCheckbox.checked = Boolean(rememberedEmail);
+        if (rememberedEmail && emailField) emailField.value = rememberedEmail;
+        if (!rememberEmailCheckbox.dataset.interactionBound) {
+            rememberEmailCheckbox.addEventListener('change', () => {
+                if (!rememberEmailCheckbox.checked) {
+                    localStorage.removeItem('rememberedLoginEmail');
+                }
+            });
+            rememberEmailCheckbox.dataset.interactionBound = 'true';
+        }
+    }
+
     if (togglePassword && passwordField && !togglePassword.dataset.interactionBound) {
         togglePassword.addEventListener('click', () => {
             const isPassword = passwordField.type === 'password';
@@ -444,6 +459,11 @@ async function handleLogin(e) {
 
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('currentUser', JSON.stringify(data.user));
+        if (document.getElementById('rememberLoginEmail')?.checked) {
+            localStorage.setItem('rememberedLoginEmail', email);
+        } else {
+            localStorage.removeItem('rememberedLoginEmail');
+        }
         currentUser = data.user;
         authToken = data.token;
 
