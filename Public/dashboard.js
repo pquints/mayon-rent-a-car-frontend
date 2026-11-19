@@ -1805,7 +1805,7 @@ function populateBookingLocationSelect(selectId, options, selectedValue) {
     select.replaceChildren();
     const placeholder = document.createElement('option');
     placeholder.value = '';
-    placeholder.textContent = '-- Select Location --';
+    placeholder.textContent = 'Select location';
     select.appendChild(placeholder);
 
     const optionValues = new Set();
@@ -3627,7 +3627,9 @@ function loadAccountSettings() {
     document.getElementById('accFirstName').value = first;
     document.getElementById('accLastName').value = last;
     document.getElementById('accEmail').value = (currentUser && currentUser.email) ? currentUser.email : '';
-    document.getElementById('accMobile').value = (currentUser && currentUser.mobile) ? currentUser.mobile : '';
+    document.getElementById('accMobile').value = (currentUser && currentUser.mobile)
+        ? String(currentUser.mobile).replace(/^(?:\+63|63|0)\s*/, '')
+        : '';
     document.getElementById('accPassword').value = '';
     document.getElementById('accPasswordConfirm').value = '';
     document.getElementById('accFormError').style.display = 'none';
@@ -3641,7 +3643,8 @@ async function saveAccountSettings() {
     const first = document.getElementById('accFirstName').value.trim();
     const last = document.getElementById('accLastName').value.trim();
     const email = document.getElementById('accEmail').value.trim();
-    const mobile = document.getElementById('accMobile').value.trim();
+    const mobileInput = document.getElementById('accMobile').value.trim();
+    const mobile = mobileInput ? `+63${mobileInput.replace(/^(?:\+63|63|0)\s*/, '')}` : '';
     const pwd = document.getElementById('accPassword').value;
     const pwdConfirm = document.getElementById('accPasswordConfirm').value;
     const errDiv = document.getElementById('accFormError');
@@ -3843,7 +3846,7 @@ function openAddUserModal() {
     document.querySelectorAll('#uPassword, #uPasswordConfirm').forEach(input => {
         input.labels[0]?.querySelector('.required-mark')?.classList.remove('is-hidden');
     });
-    document.querySelector('#userForm .user-modal-footer .btn-primary').textContent = 'Create';
+    document.getElementById('userFormSubmitButton').textContent = 'Create';
     document.getElementById('uActive').checked = true;
     document.getElementById('userFormError').style.display = 'none';
     resetUserPhotoPreview();
@@ -3962,7 +3965,7 @@ async function editUser(userId) {
         showUserFormTab('profile');
         document.getElementById('userForm').reset();
         document.getElementById('userForm').dataset.userId = user.id;
-        document.querySelector('#userForm .user-modal-footer .btn-primary').textContent = 'Save Changes';
+        document.getElementById('userFormSubmitButton').textContent = 'Save Changes';
 
         document.getElementById('uEmail').value = user.email || '';
 
