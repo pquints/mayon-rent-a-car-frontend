@@ -27,6 +27,7 @@ const ADMIN_VIEW_FALLBACKS = {
 const ADMIN_PATH_VIEWS = Object.fromEntries(
     Object.entries(ADMIN_VIEW_PATHS).map(([view, path]) => [path, view])
 );
+const SESSION_RESTORE_NOTICE_KEY = 'adminSessionRestoreNoticeShown';
 
 function formatMoneyNumber(value) {
     const numericValue = Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -157,6 +158,7 @@ async function verifySavedSession() {
 
     currentUser = data.user;
     sessionReady = true;
+    sessionStorage.removeItem(SESSION_RESTORE_NOTICE_KEY);
     try {
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
     } catch (error) {
@@ -189,7 +191,10 @@ function restoreCachedAdminSession(cachedUser) {
     initializeDashboard();
     restoreAdminView();
     updateUserDisplay();
-    showNotificationToast('Restored the saved dashboard. Live session verification is temporarily unavailable.', 'warning');
+    if (sessionStorage.getItem(SESSION_RESTORE_NOTICE_KEY) !== 'true') {
+        sessionStorage.setItem(SESSION_RESTORE_NOTICE_KEY, 'true');
+        showNotificationToast('Restored the saved dashboard. Live session verification is temporarily unavailable.', 'warning');
+    }
     return true;
 }
 
@@ -648,6 +653,7 @@ async function handleLogin(e) {
         currentUser = data.user;
         authToken = data.token;
         sessionReady = true;
+        sessionStorage.removeItem(SESSION_RESTORE_NOTICE_KEY);
 
         if (currentUser.role !== 'admin') {
             window.location.replace(dashboardPath);
