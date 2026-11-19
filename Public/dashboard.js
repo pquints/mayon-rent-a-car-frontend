@@ -42,9 +42,10 @@ document.addEventListener("DOMContentLoaded", async function() {
                 localStorage.removeItem('currentUser');
                 authToken = null;
                 currentUser = null;
+            } else {
+                console.warn('Account session verification failed; showing the login form.', data.error || response.status);
             }
             showLoginView();
-            showLoginError(data.error || 'Unable to verify your account. Please try again.');
             return;
         }
 
@@ -68,7 +69,6 @@ document.addEventListener("DOMContentLoaded", async function() {
     } catch (error) {
         console.error("Account verification failed:", error);
         showLoginView();
-        showLoginError('Unable to verify your account. Please try again.');
     }
 });
 
