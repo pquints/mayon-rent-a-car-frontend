@@ -4,7 +4,7 @@
 const DEBUG = localStorage.getItem('DEBUG') === 'true';
 let currentUser = null;
 let authToken = null;
-let sessionVerified = false;
+let sessionReady = false;
 let recoveryEmailInMemory = null;
 let passwordResetTokenInMemory = null;
 let recoveryCodeExpiresAt = null;
@@ -89,7 +89,7 @@ async function verifySavedSession() {
     const rawUser = localStorage.getItem('currentUser');
 
     if (!token || !rawUser) {
-        sessionVerified = false;
+        sessionReady = false;
         authToken = null;
         currentUser = null;
         showLoginView();
@@ -105,7 +105,7 @@ async function verifySavedSession() {
     } catch (error) {
         localStorage.removeItem('authToken');
         localStorage.removeItem('currentUser');
-        sessionVerified = false;
+        sessionReady = false;
         authToken = null;
         currentUser = null;
         showLoginView();
@@ -114,7 +114,7 @@ async function verifySavedSession() {
 
     authToken = token;
     currentUser = cachedUser;
-    sessionVerified = false;
+    sessionReady = false;
     showSessionCheckView();
 
     let verification;
@@ -143,18 +143,20 @@ async function verifySavedSession() {
         }
 
         console.warn('Saved account session could not be verified.', parseError || data.error || response.status);
+        if (restoreCachedAdminSession(cachedUser)) return;
         showSessionCheckError();
         return;
     }
 
     if (!data.user || typeof data.user.role !== 'string') {
         console.error('Account session verification returned an invalid user.');
+        if (restoreCachedAdminSession(cachedUser)) return;
         showSessionCheckError();
         return;
     }
 
     currentUser = data.user;
-    sessionVerified = true;
+    sessionReady = true;
     try {
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
     } catch (error) {
@@ -178,10 +180,23 @@ async function verifySavedSession() {
     updateUserDisplay();
 }
 
+function restoreCachedAdminSession(cachedUser) {
+    if (cachedUser.role !== 'admin') return false;
+
+    currentUser = cachedUser;
+    sessionReady = true;
+    showDashboardView();
+    initializeDashboard();
+    restoreAdminView();
+    updateUserDisplay();
+    showNotificationToast('Restored the saved dashboard. Live session verification is temporarily unavailable.', 'warning');
+    return true;
+}
+
 document.addEventListener('DOMContentLoaded', verifySavedSession);
 
 window.addEventListener('popstate', () => {
-    if (!supportsAdminCleanRoutes() || !sessionVerified || !currentUser) return;
+    if (!supportsAdminCleanRoutes() || !sessionReady || !currentUser) return;
     activateAdminView(getAdminViewFromPath() || 'dashboard', true);
 });
 
@@ -202,7 +217,7 @@ function getNavItemByIcon(iconClass) {
 }
 
 function showLoginView() {
-    sessionVerified = false;
+    sessionReady = false;
     syncLoginRoute();
     document.getElementById('loginView').style.display = 'flex';
     document.getElementById('dashboardContainer').style.display = 'none';
@@ -632,7 +647,7 @@ async function handleLogin(e) {
         }
         currentUser = data.user;
         authToken = data.token;
-        sessionVerified = true;
+        sessionReady = true;
 
         if (currentUser.role !== 'admin') {
             window.location.replace(dashboardPath);
@@ -795,7 +810,7 @@ function logout() {
         localStorage.removeItem('adminActiveView');
         currentUser = null;
         authToken = null;
-        sessionVerified = false;
+        sessionReady = false;
         showLoginView();
     }
 }
