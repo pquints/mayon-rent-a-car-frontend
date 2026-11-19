@@ -1,5 +1,17 @@
 {
   "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/Public/dashboard",
+      "destination": "https://app.mayonrentacar.com.ph",
+      "permanent": true
+    },
+    {
+      "source": "/Public/dashboard.html",
+      "destination": "https://app.mayonrentacar.com.ph",
+      "permanent": true
+    }
+  ],
   "routes": [
     {
       "src": "^/$",
