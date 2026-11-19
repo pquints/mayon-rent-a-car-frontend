@@ -2,6 +2,28 @@
   "cleanUrls": true,
   "redirects": [
     {
+      "source": "/dashboard",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.mayonrentacar.com.ph"
+        }
+      ],
+      "destination": "https://app.mayonrentacar.com.ph",
+      "permanent": true
+    },
+    {
+      "source": "/dashboard.html",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.mayonrentacar.com.ph"
+        }
+      ],
+      "destination": "https://app.mayonrentacar.com.ph",
+      "permanent": true
+    },
+    {
       "source": "/Public/dashboard",
       "destination": "https://app.mayonrentacar.com.ph",
       "permanent": true
