@@ -70,6 +70,20 @@ function syncLoginRoute() {
     window.history.replaceState({}, '', '/login');
 }
 
+function removeCredentialsFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('password')) return;
+
+    params.delete('email');
+    params.delete('password');
+    params.delete('rememberEmail');
+    const query = params.toString();
+    const path = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+    window.history.replaceState(window.history.state, '', path);
+}
+
+removeCredentialsFromUrl();
+
 async function verifySavedSession() {
     const token = localStorage.getItem('authToken');
     const rawUser = localStorage.getItem('currentUser');
@@ -172,6 +186,8 @@ window.addEventListener('popstate', () => {
 });
 
 document.getElementById('sessionRetryButton')?.addEventListener('click', verifySavedSession);
+document.getElementById('sessionSignInButton')?.addEventListener('click', showLoginView);
+document.getElementById('loginForm')?.addEventListener('submit', handleLogin);
 
 function showLoginError(message) {
     const errorDiv = document.getElementById('loginError');
@@ -286,6 +302,8 @@ function showSessionCheckView() {
     document.getElementById('loginView').style.display = 'flex';
     document.getElementById('dashboardContainer').style.display = 'none';
     showLoginPanel();
+    const loginPanel = document.getElementById('loginPanel');
+    if (loginPanel) loginPanel.hidden = true;
     const sessionCheckView = document.getElementById('sessionCheckView');
     if (sessionCheckView) sessionCheckView.hidden = false;
     const message = document.getElementById('sessionCheckMessage');
@@ -294,6 +312,8 @@ function showSessionCheckView() {
     if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
     const retryButton = document.getElementById('sessionRetryButton');
     if (retryButton) retryButton.hidden = true;
+    const signInButton = document.getElementById('sessionSignInButton');
+    if (signInButton) signInButton.hidden = true;
 }
 
 function showSessionCheckError() {
@@ -303,6 +323,8 @@ function showSessionCheckError() {
     if (icon) icon.className = 'fa-solid fa-circle-exclamation';
     const retryButton = document.getElementById('sessionRetryButton');
     if (retryButton) retryButton.hidden = false;
+    const signInButton = document.getElementById('sessionSignInButton');
+    if (signInButton) signInButton.hidden = false;
 }
 
 function showLoginPanel(panelId = 'loginPanel') {
