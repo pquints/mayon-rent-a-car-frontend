@@ -113,10 +113,22 @@ async function verifySavedSession() {
         return;
     }
 
+    const tokenPayload = decodeJwtPayload(token);
+    if (!tokenPayload || (tokenPayload.exp && tokenPayload.exp * 1000 <= Date.now())) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('currentUser');
+        sessionReady = false;
+        authToken = null;
+        currentUser = null;
+        showLoginView();
+        return;
+    }
+
     authToken = token;
     currentUser = cachedUser;
     sessionReady = false;
-    showSessionCheckView();
+    const cachedDashboardRestored = restoreCachedAdminSession(cachedUser);
+    if (!cachedDashboardRestored) showSessionCheckView();
 
     let verification;
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -132,6 +144,8 @@ async function verifySavedSession() {
         }
     }
 
+    if (localStorage.getItem('authToken') !== token) return;
+
     const { response, data, parseError } = verification;
     if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
@@ -144,14 +158,20 @@ async function verifySavedSession() {
         }
 
         console.warn('Saved account session could not be verified.', parseError || data.error || response.status);
-        if (restoreCachedAdminSession(cachedUser)) return;
+        if (cachedDashboardRestored) {
+            showSessionRestoreNoticeOnce();
+            return;
+        }
         showSessionCheckError();
         return;
     }
 
     if (!data.user || typeof data.user.role !== 'string') {
         console.error('Account session verification returned an invalid user.');
-        if (restoreCachedAdminSession(cachedUser)) return;
+        if (cachedDashboardRestored) {
+            showSessionRestoreNoticeOnce();
+            return;
+        }
         showSessionCheckError();
         return;
     }
@@ -176,9 +196,11 @@ async function verifySavedSession() {
         return;
     }
 
-    showDashboardView();
-    initializeDashboard();
-    restoreAdminView();
+    if (!cachedDashboardRestored) {
+        showDashboardView();
+        initializeDashboard();
+        restoreAdminView();
+    }
     updateUserDisplay();
 }
 
@@ -191,11 +213,13 @@ function restoreCachedAdminSession(cachedUser) {
     initializeDashboard();
     restoreAdminView();
     updateUserDisplay();
-    if (sessionStorage.getItem(SESSION_RESTORE_NOTICE_KEY) !== 'true') {
-        sessionStorage.setItem(SESSION_RESTORE_NOTICE_KEY, 'true');
-        showNotificationToast('Restored the saved dashboard. Live session verification is temporarily unavailable.', 'warning');
-    }
     return true;
+}
+
+function showSessionRestoreNoticeOnce() {
+    if (sessionStorage.getItem(SESSION_RESTORE_NOTICE_KEY) === 'true') return;
+    sessionStorage.setItem(SESSION_RESTORE_NOTICE_KEY, 'true');
+    showNotificationToast('Restored the saved dashboard. Live session verification is temporarily unavailable.', 'warning');
 }
 
 document.addEventListener('DOMContentLoaded', verifySavedSession);
