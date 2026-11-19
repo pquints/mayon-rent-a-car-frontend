@@ -28,6 +28,10 @@ body {
 }
 
 /* LOGIN VIEW STYLES */
+html.session-bootstrap #loginView {
+    display: none;
+}
+
 .login-view {
     display: flex;
     justify-content: center;

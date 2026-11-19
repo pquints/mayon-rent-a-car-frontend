@@ -246,6 +246,7 @@ function getNavItemByIcon(iconClass) {
 }
 
 function showLoginView() {
+    document.documentElement.classList.remove('session-bootstrap');
     sessionReady = false;
     syncLoginRoute();
     document.getElementById('loginView').style.display = 'flex';
@@ -343,6 +344,7 @@ function showLoginView() {
 }
 
 function showSessionCheckView() {
+    document.documentElement.classList.remove('session-bootstrap');
     document.getElementById('loginView').style.display = 'flex';
     document.getElementById('dashboardContainer').style.display = 'none';
     showLoginPanel();
@@ -574,6 +576,7 @@ async function handleResetPassword(event) {
 }
 
 function showDashboardView() {
+    document.documentElement.classList.remove('session-bootstrap');
     document.getElementById('loginView').style.display = 'none';
     document.getElementById('dashboardContainer').style.display = 'flex';
 }
