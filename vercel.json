@@ -36,6 +36,16 @@
   ],
   "routes": [
     {
+      "src": "^/(login|bookings|users|fleet|fleet-approvals|settings|rates|reports|activity-log)/?$",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.mayonrentacar.com.ph"
+        }
+      ],
+      "dest": "/Public/dashboard"
+    },
+    {
       "src": "^/$",
       "has": [
         {

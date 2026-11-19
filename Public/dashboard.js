@@ -4,11 +4,29 @@
 const DEBUG = localStorage.getItem('DEBUG') === 'true';
 let currentUser = null;
 let authToken = null;
+let sessionVerified = false;
 let recoveryEmailInMemory = null;
 let passwordResetTokenInMemory = null;
 let recoveryCodeExpiresAt = null;
 let recoveryCodeTimer = null;
 const API_BASE_CANDIDATES = resolveApiBaseCandidates();
+const ADMIN_VIEW_PATHS = {
+    dashboard: '/bookings',
+    userManagement: '/users',
+    vehicleManagement: '/fleet',
+    vehicleApproval: '/fleet-approvals',
+    accountSettings: '/settings',
+    ratesManagement: '/rates',
+    operationalReports: '/reports',
+    activityLog: '/activity-log'
+};
+const ADMIN_VIEW_FALLBACKS = {
+    details: 'dashboard',
+    vehicleEdit: 'vehicleManagement'
+};
+const ADMIN_PATH_VIEWS = Object.fromEntries(
+    Object.entries(ADMIN_VIEW_PATHS).map(([view, path]) => [path, view])
+);
 
 function formatMoneyNumber(value) {
     const numericValue = Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -19,58 +37,141 @@ function formatMoney(value) {
     return `₱${formatMoneyNumber(value)}`;
 }
 
-// Verify the server-side account role before showing any dashboard data.
-document.addEventListener("DOMContentLoaded", async function() {
+function supportsAdminCleanRoutes() {
+    return window.location.hostname === 'app.mayonrentacar.com.ph';
+}
+
+function getAdminViewFromPath(pathname = window.location.pathname) {
+    const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+    return ADMIN_PATH_VIEWS[normalizedPath] || null;
+}
+
+function getAdminPathForView(viewType) {
+    const view = ADMIN_VIEW_PATHS[viewType] ? viewType : ADMIN_VIEW_FALLBACKS[viewType];
+    return ADMIN_VIEW_PATHS[view] || ADMIN_VIEW_PATHS.dashboard;
+}
+
+function syncAdminRoute(viewType, replace = false) {
+    if (!supportsAdminCleanRoutes()) return;
+
+    const path = getAdminPathForView(viewType);
+    if (window.location.pathname === path) return;
+
+    const state = { view: viewType };
+    if (replace) {
+        window.history.replaceState(state, '', path);
+    } else {
+        window.history.pushState(state, '', path);
+    }
+}
+
+function syncLoginRoute() {
+    if (!supportsAdminCleanRoutes() || window.location.pathname === '/login') return;
+    window.history.replaceState({}, '', '/login');
+}
+
+async function verifySavedSession() {
     const token = localStorage.getItem('authToken');
-    const user = localStorage.getItem('currentUser');
-    
-    if (!token || !user) {
+    const rawUser = localStorage.getItem('currentUser');
+
+    if (!token || !rawUser) {
+        sessionVerified = false;
+        authToken = null;
+        currentUser = null;
         showLoginView();
         return;
     }
-    
+
+    let cachedUser;
     try {
-        JSON.parse(user);
-        authToken = token;
-        const { response, data } = await requestWithFallback('/users/me', {
+        cachedUser = JSON.parse(rawUser);
+        if (!cachedUser || typeof cachedUser !== 'object' || Array.isArray(cachedUser)) {
+            throw new Error('Stored user data is invalid.');
+        }
+    } catch (error) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('currentUser');
+        sessionVerified = false;
+        authToken = null;
+        currentUser = null;
+        showLoginView();
+        return;
+    }
+
+    authToken = token;
+    currentUser = cachedUser;
+    sessionVerified = false;
+    showSessionCheckView();
+
+    let verification;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+        verification = await requestWithFallback('/users/me', {
             headers: getAuthHeaders()
         });
 
-        if (!response.ok) {
-            if (response.status === 401 || response.status === 403) {
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('currentUser');
-                authToken = null;
-                currentUser = null;
-            } else {
-                console.warn('Account session verification failed; showing the login form.', data.error || response.status);
-            }
-            showLoginView();
-            return;
+        if (verification.response.ok || [401, 403].includes(verification.response.status)) {
+            break;
         }
-
-        currentUser = data.user;
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        if (currentUser.role !== 'admin') {
-            const dashboardPath = getDashboardPath(currentUser.role);
-            if (dashboardPath) {
-                window.location.replace(dashboardPath);
-                return;
-            }
-            showLoginView();
-            showLoginError('This account role cannot access dashboards.');
-            return;
+        if (attempt === 0) {
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
-
-        showDashboardView();
-        initializeDashboard();
-        restoreAdminView();
-        updateUserDisplay();
-    } catch (error) {
-        console.error("Account verification failed:", error);
-        showLoginView();
     }
+
+    const { response, data, parseError } = verification;
+    if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            authToken = null;
+            currentUser = null;
+            showLoginView();
+            return;
+        }
+
+        console.warn('Saved account session could not be verified.', parseError || data.error || response.status);
+        showSessionCheckError();
+        return;
+    }
+
+    if (!data.user || typeof data.user.role !== 'string') {
+        console.error('Account session verification returned an invalid user.');
+        showSessionCheckError();
+        return;
+    }
+
+    currentUser = data.user;
+    sessionVerified = true;
+    try {
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    } catch (error) {
+        console.warn('Unable to refresh the locally stored account profile.', error);
+    }
+
+    if (currentUser.role !== 'admin') {
+        const dashboardPath = getDashboardPath(currentUser.role);
+        if (dashboardPath) {
+            window.location.replace(dashboardPath);
+            return;
+        }
+        showLoginView();
+        showLoginError('This account role cannot access dashboards.');
+        return;
+    }
+
+    showDashboardView();
+    initializeDashboard();
+    restoreAdminView();
+    updateUserDisplay();
+}
+
+document.addEventListener('DOMContentLoaded', verifySavedSession);
+
+window.addEventListener('popstate', () => {
+    if (!supportsAdminCleanRoutes() || !sessionVerified || !currentUser) return;
+    activateAdminView(getAdminViewFromPath() || 'dashboard', true);
 });
+
+document.getElementById('sessionRetryButton')?.addEventListener('click', verifySavedSession);
 
 function showLoginError(message) {
     const errorDiv = document.getElementById('loginError');
@@ -85,8 +186,12 @@ function getNavItemByIcon(iconClass) {
 }
 
 function showLoginView() {
+    sessionVerified = false;
+    syncLoginRoute();
     document.getElementById('loginView').style.display = 'flex';
     document.getElementById('dashboardContainer').style.display = 'none';
+    const sessionCheckView = document.getElementById('sessionCheckView');
+    if (sessionCheckView) sessionCheckView.hidden = true;
     showLoginPanel();
     
     const loginForm = document.getElementById('loginForm');
@@ -175,6 +280,29 @@ function showLoginView() {
         });
         forgotButton.dataset.recoveryBound = 'true';
     }
+}
+
+function showSessionCheckView() {
+    document.getElementById('loginView').style.display = 'flex';
+    document.getElementById('dashboardContainer').style.display = 'none';
+    showLoginPanel();
+    const sessionCheckView = document.getElementById('sessionCheckView');
+    if (sessionCheckView) sessionCheckView.hidden = false;
+    const message = document.getElementById('sessionCheckMessage');
+    if (message) message.textContent = 'Checking your saved session...';
+    const icon = document.getElementById('sessionCheckIcon');
+    if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
+    const retryButton = document.getElementById('sessionRetryButton');
+    if (retryButton) retryButton.hidden = true;
+}
+
+function showSessionCheckError() {
+    const message = document.getElementById('sessionCheckMessage');
+    if (message) message.textContent = 'We could not verify your session right now. Your saved sign-in is still on this device. Please try again.';
+    const icon = document.getElementById('sessionCheckIcon');
+    if (icon) icon.className = 'fa-solid fa-circle-exclamation';
+    const retryButton = document.getElementById('sessionRetryButton');
+    if (retryButton) retryButton.hidden = false;
 }
 
 function showLoginPanel(panelId = 'loginPanel') {
@@ -385,26 +513,39 @@ function showDashboardView() {
 }
 
 function restoreAdminView() {
-    const savedView = localStorage.getItem('adminActiveView');
-    if (!savedView || savedView === 'dashboard') {
-        showView('dashboard');
-        return;
+    let viewType = getAdminViewFromPath() || localStorage.getItem('adminActiveView') || 'dashboard';
+    if (!ADMIN_VIEW_PATHS[viewType]) {
+        viewType = ADMIN_VIEW_FALLBACKS[viewType] || 'dashboard';
     }
+    activateAdminView(viewType, true);
+}
 
-    if (savedView === 'userManagement') {
+function activateAdminView(viewType, replaceRoute = false) {
+    if (viewType === 'userManagement') {
         const savedRole = localStorage.getItem('adminActiveUserRole') || localStorage.getItem('adminActiveTeamRole');
         const roleFilter = document.getElementById('usersRoleFilter');
         if (roleFilter) roleFilter.value = ['admin', 'affiliate', 'customer', 'driver'].includes(savedRole) ? savedRole : '';
-        showView('userManagement');
+        showView('userManagement', { replaceRoute });
         loadUsers();
-    } else if (savedView === 'vehicleManagement' && ['admin', 'affiliate'].includes(currentUser?.role)) {
-        showView('vehicleManagement');
+    } else if (viewType === 'vehicleManagement' && ['admin', 'affiliate'].includes(currentUser?.role)) {
+        showView('vehicleManagement', { replaceRoute });
         loadVehicles();
-    } else if (savedView === 'vehicleApproval' && ['admin', 'affiliate'].includes(currentUser?.role)) {
-        showView('vehicleApproval');
+    } else if (viewType === 'vehicleApproval' && ['admin', 'affiliate'].includes(currentUser?.role)) {
+        showView('vehicleApproval', { replaceRoute });
         loadVehicleApprovalRequests();
+    } else if (viewType === 'ratesManagement') {
+        showView('ratesManagement', { replaceRoute });
+        loadRates();
+    } else if (viewType === 'operationalReports' && currentUser?.role === 'admin') {
+        showView('operationalReports', { replaceRoute });
+        loadOperationalReports();
+    } else if (viewType === 'activityLog' && currentUser?.role === 'admin') {
+        showView('activityLog', { replaceRoute });
+        loadActivityLog();
+    } else if (viewType === 'accountSettings') {
+        showView('accountSettings', { replaceRoute });
     } else {
-        showView('dashboard');
+        showView('dashboard', { replaceRoute });
     }
 }
 
@@ -469,6 +610,7 @@ async function handleLogin(e) {
         }
         currentUser = data.user;
         authToken = data.token;
+        sessionVerified = true;
 
         if (currentUser.role !== 'admin') {
             window.location.replace(dashboardPath);
@@ -631,6 +773,7 @@ function logout() {
         localStorage.removeItem('adminActiveView');
         currentUser = null;
         authToken = null;
+        sessionVerified = false;
         showLoginView();
     }
 }
@@ -3211,8 +3354,9 @@ function toggleReturnScheduleVisibility(rentalType) {
 // USER MANAGEMENT FUNCTIONS
 // ========================================================
 
-function showView(viewType) {
+function showView(viewType, { replaceRoute = false } = {}) {
     localStorage.setItem('adminActiveView', viewType);
+    syncAdminRoute(viewType, replaceRoute);
 
     const mainDashboardView = document.getElementById('mainDashboardView');
     const fullPageDetailsView = document.getElementById('fullPageDetailsView');

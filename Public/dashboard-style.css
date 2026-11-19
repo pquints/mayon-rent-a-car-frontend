@@ -94,6 +94,29 @@ body {
     font-weight: 500;
 }
 
+#sessionCheckView[hidden],
+#sessionCheckView [hidden] {
+    display: none;
+}
+
+.session-check-view {
+    text-align: center;
+}
+
+.session-check-indicator {
+    margin: 4px 0 16px;
+    color: #67e8f9;
+    font-size: 1.5rem;
+}
+
+.session-check-view .login-heading p {
+    line-height: 1.5;
+}
+
+.session-check-view .fa-circle-exclamation {
+    color: #fbbf24;
+}
+
 .login-box .form-group {
     margin-bottom: 18px;
 }

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mayon Rent a Car - Login Portal</title>
-    <link rel="stylesheet" href="dashboard-style.css?v=20261119-01">
+    <link rel="stylesheet" href="dashboard-style.css?v=20261120-01">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/svg+xml" href="images/Mayon.svg?v=20260713">
     <link rel="shortcut icon" href="images/Mayon.svg?v=20260713">
@@ -19,6 +19,19 @@
                 <div class="login-brand">
                     <img src="images.2/Mayon.svg" alt="Mayon Rent a Car">
                 </div>
+                <section id="sessionCheckView" class="login-panel session-check-view" hidden aria-live="polite">
+                    <div class="session-check-indicator">
+                        <i id="sessionCheckIcon" class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                    </div>
+                    <div class="login-heading">
+                        <h1>Checking your session</h1>
+                        <p id="sessionCheckMessage">Checking your saved session...</p>
+                    </div>
+                    <button type="button" id="sessionRetryButton" class="btn-primary login-submit" hidden>
+                        <span>Try again</span>
+                        <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                    </button>
+                </section>
                 <section id="loginPanel" class="login-panel">
                     <div class="login-heading">
                         <h1>Welcome back</h1>
@@ -1194,7 +1207,7 @@
         });
     </script>
     <script src="auth-utils.js?v=20261118-02"></script>
-    <script src="dashboard.js?v=20261119-01"></script>
+    <script src="dashboard.js?v=20261120-01"></script>
     
     <!-- USER FORM -->
     <div id="userModal" class="user-modal-overlay" style="display: none;">
