@@ -36,7 +36,77 @@
   ],
   "routes": [
     {
-      "src": "^/(login|bookings|users|fleet|fleet-approvals|settings|rates|reports|activity-log)/?$",
+      "src": "^/affiliate/(account-dashboard\\.css|account-dashboard\\.js|auth-utils\\.js)$",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.mayonrentacar.com.ph"
+        }
+      ],
+      "dest": "/Public/$1"
+    },
+    {
+      "src": "^/affiliate/images/(.*)$",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.mayonrentacar.com.ph"
+        }
+      ],
+      "dest": "/Public/images/$1"
+    },
+    {
+      "src": "^/customer/(account-dashboard\\.css|account-dashboard\\.js|auth-utils\\.js)$",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.mayonrentacar.com.ph"
+        }
+      ],
+      "dest": "/Public/$1"
+    },
+    {
+      "src": "^/customer/images/(.*)$",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.mayonrentacar.com.ph"
+        }
+      ],
+      "dest": "/Public/images/$1"
+    },
+    {
+      "src": "^/affiliate(/.*)?$",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.mayonrentacar.com.ph"
+        }
+      ],
+      "dest": "/Public/affiliate-dashboard"
+    },
+    {
+      "src": "^/customer(/.*)?$",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.mayonrentacar.com.ph"
+        }
+      ],
+      "dest": "/Public/customer-dashboard"
+    },
+    {
+      "src": "^/admin(/.*)?$",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.mayonrentacar.com.ph"
+        }
+      ],
+      "dest": "/Public/dashboard"
+    },
+    {
+      "src": "^/(login|bookings|manage-bookings|users|fleet|fleet-approvals|settings|rates|reports|activity-log|finance)/?$",
       "has": [
         {
           "type": "host",
