@@ -4365,7 +4365,6 @@ function renderVehiclesTable() {
                 <td data-label="Details"><strong>${escapeUserMarkup(vehicle.make)} ${escapeUserMarkup(vehicle.model)}</strong><small>${escapeUserMarkup(details)}</small></td>
                 <td data-label="Status"><span class="vehicle-status-badge ${statusClass(vehicle.status)}">${escapeUserMarkup(vehicle.status || 'Unknown')}</span></td>
                 <td data-label="Vehicle Type">${escapeUserMarkup(vehicle.type || '—')}</td>
-                <td data-label="Daily Rate">${formatMoney(vehicle.dailyRate || 0)}</td>
                 <td data-label="Actions" class="vehicle-row-actions">
                     ${isAdmin ? `
                         <button type="button" class="btn-action btn-edit" data-vehicle-action="edit" data-vehicle-id="${escapeUserMarkup(vehicle.id)}" title="Edit vehicle" aria-label="Edit ${escapeUserMarkup(vehicle.plate)}"><i class="fa-solid fa-pencil" aria-hidden="true"></i></button>
@@ -4373,7 +4372,7 @@ function renderVehiclesTable() {
                     ` : '<span class="vehicle-action-placeholder">—</span>'}
                 </td>
             </tr>`;
-    }).join('') : `<tr><td class="vehicle-empty-state" colspan="6">${emptyMessage}</td></tr>`;
+    }).join('') : `<tr><td class="vehicle-empty-state" colspan="5">${emptyMessage}</td></tr>`;
 
     const pageInfo = document.getElementById('vehiclesPageInfo');
     if (pageInfo) {
@@ -4488,7 +4487,6 @@ async function handleSaveVehicle(e) {
     const make = document.getElementById('vehicleMake').value.trim();
     const model = document.getElementById('vehicleModel').value.trim();
     const year = Number(document.getElementById('vehicleYear').value);
-    const dailyRate = Number(document.getElementById('vehicleDailyRate').value);
     const type = document.getElementById('vehicleType').value;
     const color = document.getElementById('vehicleColor').value.trim();
     const seats = Number(document.getElementById('vehicleSeats').value);
@@ -4508,7 +4506,7 @@ async function handleSaveVehicle(e) {
             method,
             headers: getAuthHeaders(),
             body: JSON.stringify({
-                plate, make, model, year, dailyRate, type, color, seats, transmission, fuelType, status
+                plate, make, model, year, type, color, seats, transmission, fuelType, status
             })
         });
         
@@ -4575,7 +4573,6 @@ async function editVehicle(vehicleId) {
         document.getElementById('vehicleMake').value = vehicle.make;
         document.getElementById('vehicleModel').value = vehicle.model;
         document.getElementById('vehicleYear').value = vehicle.year;
-        document.getElementById('vehicleDailyRate').value = vehicle.dailyRate || '';
         document.getElementById('vehicleType').value = vehicle.type;
         document.getElementById('vehicleColor').value = vehicle.color;
         document.getElementById('vehicleSeats').value = vehicle.seats;

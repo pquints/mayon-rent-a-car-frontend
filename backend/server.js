@@ -1660,7 +1660,7 @@ app.patch('/api/vehicle-approval-requests/:id', verifyToken, verifyAdmin, (req, 
 // CREATE NEW VEHICLE (Admin only)
 app.post('/api/vehicles', verifyToken, verifyAdmin, (req, res) => {
     try {
-        const { plate, make, model, year, type, color, seats, transmission, fuelType, status, dailyRate } = req.body;
+        const { plate, make, model, year, type, color, seats, transmission, fuelType, status } = req.body;
 
         if (!plate || !make || !model || !year || !type || !color || !seats || !transmission || !fuelType || !status) {
             return res.status(400).json({ success: false, error: "All fields are required" });
@@ -1686,7 +1686,6 @@ app.post('/api/vehicles', verifyToken, verifyAdmin, (req, res) => {
             transmission,
             fuelType,
             status,
-            dailyRate: parseFloat(dailyRate),
             created_at: new Date().toISOString(),
             lastMaintenance: new Date().toISOString()
         };

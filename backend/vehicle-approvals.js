@@ -14,7 +14,6 @@ function normalizeVehicleSubmission(input) {
     const year = Number(input?.year);
     const seats = Number(input?.seats);
     const rateInput = String(input?.dailyRate ?? '').trim();
-    const dailyRate = Number(rateInput);
     const currentYear = new Date().getFullYear();
 
     if (!Number.isInteger(year) || year < 1900 || year > currentYear + 1) {
@@ -23,11 +22,16 @@ function normalizeVehicleSubmission(input) {
     if (!Number.isInteger(seats) || seats < 1 || seats > 100) {
         throw new Error('Seats must be an integer between 1 and 100.');
     }
-    if (!rateInput || !Number.isFinite(dailyRate) || dailyRate < 0) {
+    if (rateInput && (!Number.isFinite(Number(rateInput)) || Number(rateInput) < 0)) {
         throw new Error('Daily rate must be a non-negative number.');
     }
 
-    return { ...vehicle, year, seats, dailyRate };
+    return {
+        ...vehicle,
+        year,
+        seats,
+        ...(rateInput ? { dailyRate: Number(rateInput) } : {})
+    };
 }
 
 function createApprovedVehicle(request, id, now = new Date().toISOString()) {
@@ -48,7 +52,7 @@ function createApprovedVehicle(request, id, now = new Date().toISOString()) {
         transmission,
         fuelType,
         status: 'Available',
-        dailyRate,
+        ...(dailyRate === undefined ? {} : { dailyRate }),
         affiliateId,
         affiliateName,
         approvalRequestId: request.id,
