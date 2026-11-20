@@ -17,21 +17,23 @@ const CUSTOMER_BOOKING_FIELDS = [
     'return_location_address',
     'return_flight_number',
     'itinerary',
+    'vehicleId',
+    'requestedVehicleId',
     'status',
-    'created_at'
+    'created_at',
+    'cancellationRequestedAt',
+    'paymentProofs'
 ];
 
 function getCustomerBookings(bookings, user) {
     const userId = String(user?.id || '').trim();
-    const email = String(user?.email || '').trim().toLowerCase();
-    if (!userId && !email) return [];
+    if (!userId) return [];
 
     return bookings
         .filter(booking => {
             if (!booking || typeof booking !== 'object') return false;
             const linkedCustomerId = String(booking.customerId || '').trim();
-            if (linkedCustomerId) return linkedCustomerId === userId;
-            return email && String(booking.email || '').trim().toLowerCase() === email;
+            return linkedCustomerId === userId;
         })
         .map(booking => Object.fromEntries(
             CUSTOMER_BOOKING_FIELDS.map(field => [field, booking[field] ?? null])

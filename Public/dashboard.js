@@ -12,6 +12,7 @@ let recoveryCodeTimer = null;
 const API_BASE_CANDIDATES = resolveApiBaseCandidates();
 const ADMIN_VIEW_PATHS = {
     dashboard: '/bookings',
+    financeManagement: '/finance',
     userManagement: '/users',
     vehicleManagement: '/fleet',
     vehicleApproval: '/fleet-approvals',
@@ -24,9 +25,13 @@ const ADMIN_VIEW_FALLBACKS = {
     details: 'dashboard',
     vehicleEdit: 'vehicleManagement'
 };
-const ADMIN_PATH_VIEWS = Object.fromEntries(
-    Object.entries(ADMIN_VIEW_PATHS).map(([view, path]) => [path, view])
-);
+const ADMIN_PATH_VIEWS = {
+    ...Object.fromEntries(Object.entries(ADMIN_VIEW_PATHS).map(([view, path]) => [path, view])),
+    '/admin': 'dashboard',
+    '/admin/manage-bookings': 'dashboard',
+    '/manage-bookings': 'dashboard',
+    '/admin/fleet-approvals': 'vehicleApproval'
+};
 const SESSION_RESTORE_NOTICE_KEY = 'adminSessionRestoreNoticeShown';
 
 function formatMoneyNumber(value) {
@@ -590,7 +595,10 @@ function restoreAdminView() {
 }
 
 function activateAdminView(viewType, replaceRoute = false) {
-    if (viewType === 'userManagement') {
+    if (viewType === 'financeManagement' && currentUser?.role === 'admin') {
+        showView('financeManagement', { replaceRoute });
+        loadAffiliatePayoutRequests();
+    } else if (viewType === 'userManagement') {
         const savedRole = localStorage.getItem('adminActiveUserRole') || localStorage.getItem('adminActiveTeamRole');
         const roleFilter = document.getElementById('usersRoleFilter');
         if (roleFilter) roleFilter.value = ['admin', 'affiliate', 'customer', 'driver'].includes(savedRole) ? savedRole : '';
@@ -1886,6 +1894,39 @@ function populateBookingLocationOptions(options, pickupValue, returnValue) {
     setBookingLocationValue('return', returnValue);
 }
 
+async function populateBookingAssignedVehicleOptions(selectedVehicleId, requestedVehicleId) {
+    const select = document.getElementById('fpAssignedVehicle');
+    if (!select) return;
+    select.disabled = true;
+    select.replaceChildren(new Option('Not assigned', ''));
+    const { response, data } = await requestJson('/vehicles', { headers: getAuthHeaders() });
+    if (!response.ok || !Array.isArray(data.vehicles)) {
+        throw new Error(data.error || 'Unable to load the fleet for booking assignment.');
+    }
+
+    const availableVehicles = data.vehicles.filter(vehicle =>
+        String(vehicle.status || '').toLowerCase() === 'available' ||
+        vehicle.id === selectedVehicleId
+    );
+    select.replaceChildren(new Option('Not assigned', ''));
+    if (requestedVehicleId && !selectedVehicleId) {
+        const requestedVehicle = data.vehicles.find(vehicle => vehicle.id === requestedVehicleId);
+        const description = requestedVehicle
+            ? `${requestedVehicle.make || ''} ${requestedVehicle.model || ''} (${requestedVehicle.plate || 'requested'})`
+            : 'Customer vehicle request';
+        select.options[0].textContent = `Not assigned — customer requested ${description}`;
+    }
+    availableVehicles.forEach(vehicle => {
+        const option = new Option(
+            `${vehicle.make || ''} ${vehicle.model || ''} · ${vehicle.plate || ''} · ${vehicle.status || 'Available'}`,
+            vehicle.id
+        );
+        select.add(option);
+    });
+    select.value = selectedVehicleId || '';
+    select.disabled = false;
+}
+
 async function openFullPageDetails(booking, sourceButton = null) {
     let locationOptions = { pickup: [], returns: [] };
     try {
@@ -1899,6 +1940,12 @@ async function openFullPageDetails(booking, sourceButton = null) {
         booking.pickup_address || '',
         booking.return_address && booking.return_address !== '—' ? booking.return_address : ''
     );
+    try {
+        await populateBookingAssignedVehicleOptions(booking.vehicleId || '', booking.requestedVehicleId || '');
+    } catch (error) {
+        console.error('Unable to load fleet options for booking assignment:', error);
+        showNotificationToast(error.message || 'Unable to load the fleet for booking assignment.', 'error');
+    }
 
     bookingDetailsReturnScrollY = window.scrollY;
     bookingDetailsReturnButton = sourceButton;
@@ -1908,6 +1955,13 @@ async function openFullPageDetails(booking, sourceButton = null) {
     document.getElementById("fpEditRef").value = booking.ref;
 
     document.getElementById("fpName").value = booking.name || "";
+    const cancellationNotice = document.getElementById('customerCancellationRequestNotice');
+    if (cancellationNotice) {
+        cancellationNotice.hidden = !booking.cancellationRequestedAt;
+        cancellationNotice.textContent = booking.cancellationRequestedAt
+            ? `Customer requested cancellation on ${new Date(booking.cancellationRequestedAt).toLocaleString()}.`
+            : '';
+    }
     const fpStatus = document.getElementById("fpStatus");
     const bookingStatus = booking.status || "Open";
     if (fpStatus) {
@@ -1989,6 +2043,21 @@ async function openFullPageDetails(booking, sourceButton = null) {
     document.getElementById("fpReturnFlightNumber").value = booking.return_flight_number && booking.return_flight_number !== "—" ? booking.return_flight_number : "";
 
     document.getElementById("fpDetails").value = booking.itinerary || "";
+    const proofSection = document.getElementById('bookingPaymentProofs');
+    const proofList = document.getElementById('bookingPaymentProofList');
+    if (proofSection && proofList) {
+        proofList.replaceChildren();
+        const proofs = Array.isArray(booking.paymentProofs) ? booking.paymentProofs : [];
+        proofSection.hidden = proofs.length === 0;
+        proofs.forEach(proof => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn-secondary';
+            button.textContent = proof.originalName || 'View payment proof';
+            button.addEventListener('click', () => openBookingPaymentProof(booking.ref, proof.filename));
+            proofList.appendChild(button);
+        });
+    }
 
     const drawer = document.getElementById("quickQuoteDrawer");
     if (drawer) {
@@ -2013,6 +2082,26 @@ async function openFullPageDetails(booking, sourceButton = null) {
 
     // Load saved quote if exists (after UI is displayed)
     setTimeout(() => loadSavedQuote(booking.ref), 100);
+}
+
+async function openBookingPaymentProof(ref, filename) {
+    try {
+        const response = await fetch(
+            `${API_URL}/bookings/${encodeURIComponent(ref)}/payment-proof/${encodeURIComponent(filename)}`,
+            { headers: getAuthHeaders() }
+        );
+        if (!response.ok) throw new Error('Unable to open the payment proof.');
+        const objectUrl = URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch (error) {
+        console.error('Unable to open customer payment proof:', error);
+        showNotificationToast(error.message || 'Unable to open payment proof.', 'error');
+    }
 }
 
 // ========================================================
@@ -2148,6 +2237,10 @@ document.getElementById("fpSaveBtn").addEventListener("click", async () => {
         return_flight_number: document.getElementById("fpReturnFlightNumber").value || "—",
         itinerary: document.getElementById("fpDetails").value
     };
+    const assignedVehicleSelect = document.getElementById('fpAssignedVehicle');
+    if (assignedVehicleSelect && !assignedVehicleSelect.disabled) {
+        updatedData.vehicleId = assignedVehicleSelect.value;
+    }
 
     try {
         let response;
@@ -3439,6 +3532,7 @@ function showView(viewType, { replaceRoute = false } = {}) {
     const vehicleApprovalView = document.getElementById('vehicleApprovalView');
     const accountSettingsView = document.getElementById('accountSettingsView');
     const vehicleEditView = document.getElementById('vehicleEditView');
+    const financeManagementView = document.getElementById('financeManagementView');
 
     const ratesManagementView = document.getElementById('ratesManagementView');
     const operationalReportsView = document.getElementById('operationalReportsView');
@@ -3451,6 +3545,7 @@ function showView(viewType, { replaceRoute = false } = {}) {
     if (vehicleApprovalView) vehicleApprovalView.style.display = viewType === 'vehicleApproval' ? 'block' : 'none';
     if (accountSettingsView) accountSettingsView.style.display = viewType === 'accountSettings' ? 'block' : 'none';
     if (vehicleEditView) vehicleEditView.style.display = viewType === 'vehicleEdit' ? 'block' : 'none';
+    if (financeManagementView) financeManagementView.style.display = viewType === 'financeManagement' ? 'block' : 'none';
     if (ratesManagementView) ratesManagementView.style.display = viewType === 'ratesManagement' ? 'block' : 'none';
     if (operationalReportsView) operationalReportsView.style.display = viewType === 'operationalReports' ? 'block' : 'none';
     if (activityLogView) activityLogView.style.display = viewType === 'activityLog' ? 'block' : 'none';
@@ -3468,6 +3563,8 @@ function showView(viewType, { replaceRoute = false } = {}) {
     let activeNavItem = null;
     if (viewType === 'dashboard') {
         activeNavItem = getNavItemByIcon('fa-calendar-check');
+    } else if (viewType === 'financeManagement') {
+        activeNavItem = getNavItemByIcon('fa-wallet');
     } else if (viewType === 'userManagement') {
         activeNavItem = getNavItemByIcon('fa-users');
     } else if (viewType === 'vehicleManagement' || viewType === 'vehicleApproval' || viewType === 'vehicleEdit') {
@@ -3496,6 +3593,109 @@ function showView(viewType, { replaceRoute = false } = {}) {
         else item.removeAttribute('aria-current');
     });
 }
+
+let _affiliatePayoutRequests = [];
+
+function openAffiliatePayouts() {
+    if (currentUser?.role !== 'admin') return;
+    showView('financeManagement');
+    loadAffiliatePayoutRequests();
+}
+
+function setAffiliatePayoutMessage(message, isError = false) {
+    const element = document.getElementById('affiliatePayoutManagementMessage');
+    if (!element) return;
+    element.textContent = message;
+    element.classList.toggle('is-error', isError);
+    element.classList.toggle('is-success', Boolean(message) && !isError);
+    element.hidden = !message;
+}
+
+async function loadAffiliatePayoutRequests() {
+    if (currentUser?.role !== 'admin' || !ensureAuth()) return;
+    setAffiliatePayoutMessage('');
+    try {
+        const { response, data } = await requestJson('/affiliate/payout-requests', {
+            headers: getAuthHeaders()
+        });
+        if (!response.ok || !Array.isArray(data.requests)) {
+            throw new Error(data.error || 'Unable to load affiliate payout requests.');
+        }
+        _affiliatePayoutRequests = data.requests;
+        renderAffiliatePayoutRequests();
+    } catch (error) {
+        console.error('Unable to load affiliate payout requests:', error);
+        setAffiliatePayoutMessage(error.message || 'Unable to load payout requests.', true);
+        const tbody = document.getElementById('affiliatePayoutManagementBody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7">Payout requests could not be loaded.</td></tr>';
+    }
+}
+
+function renderAffiliatePayoutRequests() {
+    const tbody = document.getElementById('affiliatePayoutManagementBody');
+    if (!tbody) return;
+    if (!_affiliatePayoutRequests.length) {
+        tbody.innerHTML = '<tr><td colspan="7">No affiliate payout requests yet.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = _affiliatePayoutRequests.map(request => {
+        const requestedDate = new Date(request.requestedAt);
+        const requestedAt = Number.isNaN(requestedDate.getTime()) ? '—' : requestedDate.toLocaleString();
+        const destination = [
+            request.payoutDestination?.bankName
+                ? `Bank: ${request.payoutDestination.bankName} · ${request.payoutDestination.accountName || ''} · ${request.payoutDestination.accountNumber || ''}`
+                : '',
+            request.payoutDestination?.gcashNumber ? `GCash: ${request.payoutDestination.gcashNumber}` : ''
+        ].filter(Boolean).join('<br>') || 'No payout details';
+        const actions = request.status === 'Pending'
+            ? `<button type="button" class="btn-primary" data-payout-action="Paid" data-payout-id="${escapeUserMarkup(request.id)}">Mark Paid</button>
+               <button type="button" class="btn-secondary" data-payout-action="Rejected" data-payout-id="${escapeUserMarkup(request.id)}">Reject</button>`
+            : '—';
+        return `
+            <tr>
+                <td data-label="Affiliate"><strong>${escapeUserMarkup(request.affiliateName)}</strong><small>${escapeUserMarkup(request.affiliateEmail)}</small></td>
+                <td data-label="Requested">${escapeUserMarkup(requestedAt)}</td>
+                <td data-label="Amount">${formatMoney(request.amount)}</td>
+                <td data-label="Payment Destination">${escapeUserMarkup(destination).replace(/&lt;br&gt;/g, '<br>')}</td>
+                <td data-label="Status">${escapeUserMarkup(request.status)}</td>
+                <td data-label="Review Note">${escapeUserMarkup(request.reviewNote || '—')}</td>
+                <td data-label="Actions">${actions}</td>
+            </tr>`;
+    }).join('');
+}
+
+async function reviewAffiliatePayoutRequest(requestId, status) {
+    if (currentUser?.role !== 'admin') return;
+    let reviewNote = '';
+    if (status === 'Paid' && !window.confirm('Confirm that this payout has been sent to the affiliate?')) return;
+    if (status === 'Rejected') {
+        reviewNote = window.prompt('Reason for rejecting this payout request:');
+        if (reviewNote === null) return;
+        if (!reviewNote.trim()) {
+            setAffiliatePayoutMessage('Add a reason before rejecting a payout request.', true);
+            return;
+        }
+    }
+    try {
+        const { response, data } = await requestJson(`/affiliate/payout-requests/${encodeURIComponent(requestId)}`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ status, reviewNote })
+        });
+        if (!response.ok) throw new Error(data.error || 'Unable to update the payout request.');
+        setAffiliatePayoutMessage(status === 'Paid' ? 'Payout marked as paid.' : 'Payout request rejected.');
+        await loadAffiliatePayoutRequests();
+    } catch (error) {
+        console.error('Unable to review affiliate payout request:', error);
+        setAffiliatePayoutMessage(error.message || 'Unable to update the payout request.', true);
+    }
+}
+
+document.getElementById('refreshAffiliatePayouts')?.addEventListener('click', loadAffiliatePayoutRequests);
+document.getElementById('affiliatePayoutManagementBody')?.addEventListener('click', event => {
+    const button = event.target.closest('button[data-payout-action]');
+    if (button) reviewAffiliatePayoutRequest(button.dataset.payoutId, button.dataset.payoutAction);
+});
 
 function openOperationalReports() {
     showView('operationalReports');
@@ -4704,6 +4904,11 @@ function renderVehicleApprovalRequests() {
             <td data-label="Vehicle Type">${escapeUserMarkup(request.type || '—')}</td>
             <td data-label="Status"><span class="vehicle-status-badge ${statusClass(request.status)}">${escapeUserMarkup(request.status || 'Unknown')}</span></td>
             <td data-label="Submitted">${escapeUserMarkup(formatDate(request.submittedAt))}</td>
+            <td data-label="Documents">
+                ${request.photo ? `<button type="button" class="btn-secondary" data-approval-file="photo" data-request-id="${escapeUserMarkup(request.id)}" data-filename="${escapeUserMarkup(request.photo)}">View photo</button>` : ''}
+                ${(request.documents || []).map((document, index) => `<button type="button" class="btn-secondary" data-approval-file="documents" data-request-id="${escapeUserMarkup(request.id)}" data-filename="${escapeUserMarkup(document.filename)}">Document ${index + 1}</button>`).join('')}
+                ${request.photo || (request.documents || []).length ? '' : '—'}
+            </td>
             <td data-label="Review Note">${escapeUserMarkup(request.reviewNote || '—')}</td>
             <td data-label="Actions" class="vehicle-row-actions">
                 ${isAdmin && request.status === 'Pending' ? `
@@ -4712,12 +4917,37 @@ function renderVehicleApprovalRequests() {
                 ` : '<span class="vehicle-action-placeholder">—</span>'}
             </td>
         </tr>
-    `).join('') : `<tr><td class="vehicle-empty-state" colspan="7">${search || statusFilter ? 'No requests match these filters.' : 'No vehicle approval requests yet.'}</td></tr>`;
+    `).join('') : `<tr><td class="vehicle-empty-state" colspan="8">${search || statusFilter ? 'No requests match these filters.' : 'No vehicle approval requests yet.'}</td></tr>`;
 
     tbody.onclick = event => {
+        const fileButton = event.target.closest('button[data-approval-file]');
+        if (fileButton) {
+            viewVehicleApprovalFile(fileButton.dataset.requestId, fileButton.dataset.approvalFile, fileButton.dataset.filename);
+            return;
+        }
         const button = event.target.closest('button[data-request-action]');
         if (button) reviewVehicleRequest(button.dataset.requestId, button.dataset.requestAction);
     };
+}
+
+async function viewVehicleApprovalFile(requestId, type, filename) {
+    try {
+        const response = await fetch(
+            `${API_URL}/vehicle-approval-requests/${encodeURIComponent(requestId)}/files/${type}/${encodeURIComponent(filename)}`,
+            { headers: getAuthHeaders() }
+        );
+        if (!response.ok) throw new Error('Unable to open the submitted vehicle file.');
+        const objectUrl = URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch (error) {
+        console.error('Unable to open vehicle approval file:', error);
+        showNotificationToast(error.message || 'Unable to open vehicle file.', 'error');
+    }
 }
 
 async function reviewVehicleRequest(requestId, decision) {

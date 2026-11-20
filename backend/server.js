@@ -16,6 +16,11 @@ const { appendActivityEvent, getRecentActivity } = require('./activity-log');
 const { buildOperationalReport, isValidReportDate } = require('./operational-reports');
 const { normalizeVehicleSubmission, createApprovedVehicle } = require('./vehicle-approvals');
 const { getCustomerBookings } = require('./customer-dashboard');
+const {
+    AFFILIATE_SHARE_PERCENT,
+    getAffiliateBookings,
+    getAffiliateEarnings
+} = require('./affiliate-dashboard');
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const QUOTED_BOOKING_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -141,6 +146,7 @@ const VEHICLES_FILE_PATH = path.join(__dirname, 'vehicles.json');
 const VEHICLE_APPROVAL_REQUESTS_FILE_PATH = path.join(__dirname, 'vehicle-approval-requests.json');
 const QUOTES_FILE_PATH = path.join(__dirname, 'quotes.json');
 const RATES_FILE_PATH = path.join(__dirname, 'rates.json');
+const AFFILIATE_PAYOUT_REQUESTS_FILE_PATH = path.join(__dirname, 'affiliate-payout-requests.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // ========================================================
@@ -349,6 +355,23 @@ const getVehicleApprovalRequests = () => {
 
 const saveVehicleApprovalRequests = (requests) => {
     fs.writeFileSync(VEHICLE_APPROVAL_REQUESTS_FILE_PATH, JSON.stringify(requests, null, 2), 'utf8');
+};
+
+const getAffiliatePayoutRequests = () => {
+    try {
+        if (!fs.existsSync(AFFILIATE_PAYOUT_REQUESTS_FILE_PATH)) {
+            fs.writeFileSync(AFFILIATE_PAYOUT_REQUESTS_FILE_PATH, JSON.stringify([], null, 2), 'utf8');
+            return [];
+        }
+        return JSON.parse(fs.readFileSync(AFFILIATE_PAYOUT_REQUESTS_FILE_PATH, 'utf8'));
+    } catch (error) {
+        console.error('[AFFILIATE PAYOUT] Failed to read payout requests:', error);
+        throw error;
+    }
+};
+
+const saveAffiliatePayoutRequests = (requests) => {
+    fs.writeFileSync(AFFILIATE_PAYOUT_REQUESTS_FILE_PATH, JSON.stringify(requests, null, 2), 'utf8');
 };
 
 // ========================================================
@@ -567,9 +590,25 @@ app.get('/api/bookings', verifyToken, verifyAdmin, (req, res) => {
     res.json(filtered);
 });
 
+app.get('/api/bookings/:ref/payment-proof/:filename', verifyToken, verifyAdmin, (req, res) => {
+    const filename = path.basename(req.params.filename);
+    const booking = getBookings().find(candidate =>
+        candidate.ref === req.params.ref &&
+        Array.isArray(candidate.paymentProofs) &&
+        candidate.paymentProofs.some(proof => proof.filename === filename)
+    );
+    if (!booking) return res.status(404).json({ success: false, error: 'Payment proof not found.' });
+    const filePath = path.join(USER_DOCUMENTS_DIR, filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, error: 'Payment proof not found.' });
+    res.sendFile(filePath);
+});
+
 // SUBMISSION ENDPOINT (DITO SINALO AT ITINUGMA ANG MGA PANGALAN)
 app.post('/api/bookings', bookingLimiter, optionalVerifyToken, async (req, res) => {
     try {
+        if (req.user && !['admin', 'customer'].includes(req.user.role)) {
+            return res.status(403).json({ success: false, error: 'This account cannot submit customer bookings.' });
+        }
         const clientInput = req.body;
 
         // ── reCAPTCHA v3 verification ─────────────────────────────────────
@@ -667,6 +706,23 @@ app.put('/api/bookings/:ref', verifyToken, verifyAdmin, (req, res) => {
         if (index === -1) return res.status(404).json({ success: false, error: "Not found" });
         
         const previousBooking = bookings[index];
+        let vehicleId = previousBooking.vehicleId || null;
+        if (Object.prototype.hasOwnProperty.call(updatedFields, 'vehicleId')) {
+            const requestedVehicleId = String(updatedFields.vehicleId || '').trim();
+            if (requestedVehicleId) {
+                const assignedVehicle = getVehicles().find(vehicle =>
+                    vehicle.id === requestedVehicleId &&
+                    (String(vehicle.status || '').toLowerCase() === 'available' ||
+                        vehicle.id === previousBooking.vehicleId)
+                );
+                if (!assignedVehicle) {
+                    return res.status(400).json({ success: false, error: 'Select an available approved vehicle.' });
+                }
+                vehicleId = assignedVehicle.id;
+            } else {
+                vehicleId = null;
+            }
+        }
         bookings[index] = {
             ...previousBooking,
             name: updatedFields.name || previousBooking.name,
@@ -688,14 +744,15 @@ app.put('/api/bookings/:ref', verifyToken, verifyAdmin, (req, res) => {
             return_address: updatedFields.return_address || previousBooking.return_address,
             return_location_address: updatedFields.return_location_address || previousBooking.return_location_address,
             return_flight_number: updatedFields.return_flight_number || previousBooking.return_flight_number,
-            itinerary: updatedFields.itinerary || previousBooking.itinerary
+            itinerary: updatedFields.itinerary || previousBooking.itinerary,
+            vehicleId
         };
         saveBookings(bookings);
         const trackedFields = [
             'name', 'status', 'contact_no', 'email', 'rentalType', 'vehicleType', 'area',
             'serviceOption', 'passengers', 'pickup_date', 'pickup_time', 'pickup_address',
             'pickup_location_address', 'pickup_flight_number', 'return_date', 'return_time',
-            'return_address', 'return_location_address', 'return_flight_number', 'itinerary'
+            'return_address', 'return_location_address', 'return_flight_number', 'itinerary', 'vehicleId'
         ];
         const changedFields = trackedFields.filter(field => previousBooking[field] !== bookings[index][field]);
         if (changedFields.length) {
@@ -834,7 +891,15 @@ app.get('/api/users/me', verifyToken, (req, res) => {
             email: user.email || '',
             mobile: user.mobile || '',
             role: user.role,
-            photo: user.photo || null
+            photo: user.photo || null,
+            businessName: user.businessName || '',
+            region: user.region || '',
+            address: user.address || '',
+            payoutBankName: user.payoutBankName || '',
+            payoutAccountName: user.payoutAccountName || '',
+            payoutAccountNumber: user.payoutAccountNumber || '',
+            payoutGcashNumber: user.payoutGcashNumber || '',
+            documents: Array.isArray(user.documents) ? user.documents : []
         }
     });
 });
@@ -852,11 +917,33 @@ app.put('/api/users/me', verifyToken, (req, res) => {
 
     const fullname = typeof req.body.fullname === 'string' ? req.body.fullname.trim() : '';
     const mobile = typeof req.body.mobile === 'string' ? req.body.mobile.trim() : '';
+    const editableFields = req.user.role === 'affiliate' ? [
+        'businessName',
+        'region',
+        'address',
+        'payoutBankName',
+        'payoutAccountName',
+        'payoutAccountNumber',
+        'payoutGcashNumber'
+    ] : [];
     if (!fullname || fullname.length > 120) {
         return res.status(400).json({ success: false, error: 'Name is required and must be 120 characters or fewer.' });
     }
     if (mobile.length > 40) {
         return res.status(400).json({ success: false, error: 'Mobile number must be 40 characters or fewer.' });
+    }
+    if (mobile && !/^\+639\d{9}$/.test(mobile)) {
+        return res.status(400).json({ success: false, error: 'Enter a valid Philippine mobile number with the +63 prefix.' });
+    }
+    for (const field of editableFields) {
+        const value = req.body[field];
+        if (typeof value !== 'undefined' && (typeof value !== 'string' || value.length > 160)) {
+            return res.status(400).json({ success: false, error: `${field} must be 160 characters or fewer.` });
+        }
+    }
+    if (req.user.role === 'affiliate' && req.body.payoutGcashNumber &&
+        !/^\+639\d{9}$/.test(String(req.body.payoutGcashNumber).trim())) {
+        return res.status(400).json({ success: false, error: 'Enter a valid GCash number with the +63 prefix.' });
     }
 
     const changedFields = [];
@@ -871,6 +958,15 @@ app.put('/api/users/me', verifyToken, (req, res) => {
         user.mobile = mobile;
         changedFields.push('mobile');
     }
+    editableFields.forEach(field => {
+        if (typeof req.body[field] !== 'undefined') {
+            const value = req.body[field].trim();
+            if ((user[field] || '') !== value) {
+                user[field] = value;
+                changedFields.push(field);
+            }
+        }
+    });
 
     if (changedFields.length) {
         saveUsers(users);
@@ -891,9 +987,116 @@ app.put('/api/users/me', verifyToken, (req, res) => {
             email: user.email || '',
             mobile: user.mobile || '',
             role: user.role,
-            photo: user.photo || null
+            photo: user.photo || null,
+            businessName: user.businessName || '',
+            region: user.region || '',
+            address: user.address || '',
+            payoutBankName: user.payoutBankName || '',
+            payoutAccountName: user.payoutAccountName || '',
+            payoutAccountNumber: user.payoutAccountNumber || '',
+            payoutGcashNumber: user.payoutGcashNumber || '',
+            documents: Array.isArray(user.documents) ? user.documents : []
         }
     });
+});
+
+app.post('/api/users/me/password', verifyToken, async (req, res) => {
+    if (!['affiliate', 'customer'].includes(req.user.role)) {
+        return res.status(403).json({ success: false, error: 'Password change is not available for this account.' });
+    }
+
+    const currentPassword = typeof req.body.currentPassword === 'string' ? req.body.currentPassword : '';
+    const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword : '';
+    if (newPassword.length < 8 || newPassword.length > 200) {
+        return res.status(400).json({ success: false, error: 'New password must be between 8 and 200 characters.' });
+    }
+
+    const users = getUsers();
+    const user = users.find(candidate =>
+        candidate.id === req.user.id &&
+        candidate.role === req.user.role &&
+        candidate.active !== false
+    );
+    if (!user || !(await verifyPassword(currentPassword, user.password, user, users))) {
+        return res.status(400).json({ success: false, error: 'Current password is incorrect.' });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    saveUsers(users);
+    res.json({ success: true, message: 'Password updated successfully.' });
+});
+
+app.post('/api/users/me/documents', verifyToken, (req, res, next) => {
+    if (!['affiliate', 'customer'].includes(req.user.role)) {
+        return res.status(403).json({ success: false, error: 'Document uploads are not available for this account.' });
+    }
+    userUpload.fields([
+        { name: 'documents', maxCount: 10 },
+        { name: 'license', maxCount: 1 },
+        { name: 'validId', maxCount: 1 }
+    ])(req, res, error => {
+        if (error) return res.status(400).json({ success: false, error: error.message || 'Document upload failed.' });
+        next();
+    });
+}, (req, res) => {
+    const users = getUsers();
+    const user = users.find(candidate =>
+        candidate.id === req.user.id &&
+        candidate.role === req.user.role &&
+        candidate.active !== false
+    );
+    if (!user) return res.status(401).json({ success: false, error: 'Account is unavailable.' });
+
+    const uploaded = Object.entries(req.files || {}).flatMap(([field, files]) => files.map(file => ({
+        filename: path.basename(file.path),
+        originalName: file.originalname,
+        documentType: field === 'license' ? 'Driver’s License' : field === 'validId' ? 'Valid ID' : 'Supporting Document'
+    })));
+    user.documents = [...(Array.isArray(user.documents) ? user.documents : []), ...uploaded];
+    saveUsers(users);
+    res.status(201).json({ success: true, documents: uploaded });
+});
+
+app.get('/api/users/me/documents/:filename', verifyToken, (req, res) => {
+    if (!['affiliate', 'customer'].includes(req.user.role)) {
+        return res.status(403).json({ success: false, error: 'Document access is not available for this account.' });
+    }
+    const filename = path.basename(req.params.filename);
+    const user = getUsers().find(candidate =>
+        candidate.id === req.user.id &&
+        candidate.role === req.user.role &&
+        candidate.active !== false
+    );
+    if (!user || !Array.isArray(user.documents) || !user.documents.some(document => document.filename === filename)) {
+        return res.status(404).json({ success: false, error: 'Document not found.' });
+    }
+    const filePath = path.join(USER_DOCUMENTS_DIR, filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, error: 'Document not found.' });
+    res.sendFile(filePath);
+});
+
+app.delete('/api/users/me/documents/:filename', verifyToken, (req, res) => {
+    if (!['affiliate', 'customer'].includes(req.user.role)) {
+        return res.status(403).json({ success: false, error: 'Document access is not available for this account.' });
+    }
+    const filename = path.basename(req.params.filename);
+    const users = getUsers();
+    const user = users.find(candidate =>
+        candidate.id === req.user.id &&
+        candidate.role === req.user.role &&
+        candidate.active !== false
+    );
+    if (!user) return res.status(401).json({ success: false, error: 'Account is unavailable.' });
+    const documents = Array.isArray(user.documents) ? user.documents : [];
+    const index = documents.findIndex(document => document.filename === filename);
+    if (index < 0) return res.status(404).json({ success: false, error: 'Document not found.' });
+
+    const filePath = path.join(USER_DOCUMENTS_DIR, filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    documents.splice(index, 1);
+    user.documents = documents;
+    saveUsers(users);
+    res.json({ success: true });
 });
 
 app.get('/api/customer/bookings', verifyToken, (req, res) => {
@@ -910,7 +1113,271 @@ app.get('/api/customer/bookings', verifyToken, (req, res) => {
         return res.status(401).json({ success: false, error: 'Customer account is unavailable.' });
     }
 
-    res.json({ success: true, bookings: getCustomerBookings(getBookings(), user) });
+    const quotesByRef = new Map(getQuotes().map(quote => [quote.bookingRef, quote]));
+    const vehiclesById = new Map(getVehicles().map(vehicle => [vehicle.id, vehicle]));
+    const bookings = getCustomerBookings(getBookings(), user).map(booking => {
+        const quote = quotesByRef.get(booking.ref);
+        const vehicle = vehiclesById.get(booking.vehicleId || booking.requestedVehicleId);
+        return {
+            ...booking,
+            quote: quote ? {
+                totalAmount: quote.totalAmount || null,
+                rentalType: quote.rentalType || null,
+                breakdownDetails: quote.quoteData?.breakdownDetails || {},
+                inclusionsList: quote.quoteData?.inclusionsList || [],
+                exclusionsList: quote.quoteData?.exclusionsList || []
+            } : null,
+            vehicle: vehicle ? {
+                make: vehicle.make || '',
+                model: vehicle.model || '',
+                year: vehicle.year || null,
+                type: vehicle.type || '',
+                plate: vehicle.plate || ''
+            } : null
+        };
+    });
+
+    res.json({ success: true, bookings });
+});
+
+app.get('/api/customer/vehicles', verifyToken, (req, res) => {
+    if (req.user.role !== 'customer') {
+        return res.status(403).json({ success: false, error: 'Customer vehicle access required.' });
+    }
+
+    const vehicles = getVehicles()
+        .filter(vehicle => String(vehicle.status || '').toLowerCase() === 'available')
+        .map(vehicle => ({
+            id: vehicle.id,
+            make: vehicle.make || '',
+            model: vehicle.model || '',
+            year: vehicle.year || null,
+            type: vehicle.type || '',
+            seats: vehicle.seats || null,
+            transmission: vehicle.transmission || '',
+            fuelType: vehicle.fuelType || '',
+            dailyRate: Number(vehicle.dailyRate) || 0,
+            photo: vehicle.photo || null
+        }));
+    res.json({ success: true, vehicles });
+});
+
+app.post('/api/customer/bookings', bookingLimiter, verifyToken, (req, res) => {
+    if (req.user.role !== 'customer') {
+        return res.status(403).json({ success: false, error: 'Customer booking access required.' });
+    }
+    const user = getUsers().find(candidate =>
+        candidate.id === req.user.id &&
+        candidate.role === 'customer' &&
+        candidate.active !== false
+    );
+    if (!user) return res.status(401).json({ success: false, error: 'Customer account is unavailable.' });
+
+    const {
+        vehicleId,
+        pickup_date: pickupDate,
+        pickup_time: pickupTime,
+        return_date: returnDate,
+        return_time: returnTime,
+        area,
+        rentalType = 'self-drive',
+        passengers,
+        itinerary = ''
+    } = req.body;
+    const vehicle = getVehicles().find(candidate =>
+        candidate.id === vehicleId &&
+        String(candidate.status || '').toLowerCase() === 'available'
+    );
+    if (!vehicle) return res.status(400).json({ success: false, error: 'Select an available approved vehicle.' });
+    if (!isValidReportDate(pickupDate) || pickupDate < new Date().toISOString().slice(0, 10)) {
+        return res.status(400).json({ success: false, error: 'Choose a valid future pickup date.' });
+    }
+    if (!pickupTime || !/^\d{2}:\d{2}$/.test(String(pickupTime)) || !String(area || '').trim()) {
+        return res.status(400).json({ success: false, error: 'Pickup time and area are required.' });
+    }
+    if (!['self-drive', 'with-driver'].includes(rentalType)) {
+        return res.status(400).json({ success: false, error: 'Choose a valid rental type.' });
+    }
+    if (rentalType === 'self-drive' &&
+        (!isValidReportDate(returnDate) || returnDate <= pickupDate || !/^\d{2}:\d{2}$/.test(String(returnTime || '')))) {
+        return res.status(400).json({ success: false, error: 'A valid return date and time after pickup are required.' });
+    }
+    if (String(itinerary).length > 2000) {
+        return res.status(400).json({ success: false, error: 'Trip details must be 2,000 characters or fewer.' });
+    }
+
+    const booking = {
+        ref: `MRAC-${crypto.randomBytes(3).toString('hex').toUpperCase()}`,
+        customerId: user.id,
+        name: user.fullname || '',
+        contact_no: user.mobile || '',
+        email: user.email || '',
+        area: String(area).trim(),
+        rentalType,
+        serviceOption: '—',
+        vehicleType: vehicle.type,
+        requestedVehicleId: vehicle.id,
+        passengers: String(passengers || '—'),
+        pickup_date: pickupDate,
+        pickup_time: pickupTime,
+        pickup_address: String(area).trim(),
+        pickup_location_address: '',
+        pickup_flight_number: '',
+        return_date: rentalType === 'self-drive' ? returnDate : '—',
+        return_time: rentalType === 'self-drive' ? returnTime : '—',
+        return_address: rentalType === 'self-drive' ? String(area).trim() : '—',
+        return_location_address: '',
+        return_flight_number: '',
+        itinerary: String(itinerary).trim() || '—',
+        status: 'Open',
+        created_at: new Date().toISOString()
+    };
+    const bookings = getBookings();
+    bookings.push(booking);
+    saveBookings(bookings);
+    recordActivity(req, {
+        action: 'created',
+        entityType: 'booking',
+        entityId: booking.ref,
+        summary: 'Customer submitted a booking request',
+        details: { pickupDate, vehicleId: vehicle.id }
+    });
+    res.status(201).json({ success: true, booking: { ref: booking.ref, status: booking.status } });
+});
+
+app.get('/api/customer/bookings/:ref', verifyToken, (req, res) => {
+    if (req.user.role !== 'customer') {
+        return res.status(403).json({ success: false, error: 'Customer booking access required.' });
+    }
+    const user = getUsers().find(candidate =>
+        candidate.id === req.user.id &&
+        candidate.role === 'customer' &&
+        candidate.active !== false
+    );
+    if (!user) return res.status(401).json({ success: false, error: 'Customer account is unavailable.' });
+
+    const booking = getCustomerBookings(getBookings(), user)
+        .find(candidate => candidate.ref === req.params.ref);
+    if (!booking) return res.status(404).json({ success: false, error: 'Booking not found.' });
+    const quote = getQuotes().find(candidate => candidate.bookingRef === booking.ref);
+    const vehicle = getVehicles().find(candidate => candidate.id === (booking.vehicleId || booking.requestedVehicleId));
+    res.json({
+        success: true,
+        booking: {
+            ...booking,
+            quote: quote ? {
+                totalAmount: quote.totalAmount || null,
+                rentalType: quote.rentalType || null,
+                breakdownDetails: quote.quoteData?.breakdownDetails || {},
+                inclusionsList: quote.quoteData?.inclusionsList || [],
+                exclusionsList: quote.quoteData?.exclusionsList || []
+            } : null,
+            vehicle: vehicle ? {
+                make: vehicle.make || '',
+                model: vehicle.model || '',
+                year: vehicle.year || null,
+                type: vehicle.type || '',
+                plate: vehicle.plate || ''
+            } : null
+        }
+    });
+});
+
+app.patch('/api/customer/bookings/:ref', verifyToken, (req, res) => {
+    if (req.user.role !== 'customer') {
+        return res.status(403).json({ success: false, error: 'Customer booking access required.' });
+    }
+    const user = getUsers().find(candidate =>
+        candidate.id === req.user.id &&
+        candidate.role === 'customer' &&
+        candidate.active !== false
+    );
+    if (!user) return res.status(401).json({ success: false, error: 'Customer account is unavailable.' });
+
+    const bookings = getBookings();
+    const booking = bookings.find(candidate =>
+        candidate.ref === req.params.ref && candidate.customerId === user.id
+    );
+    if (!booking) return res.status(404).json({ success: false, error: 'Booking not found.' });
+    const action = req.body.action;
+    if (action === 'approve-quote') {
+        if (String(booking.status).toLowerCase() !== 'quoted' ||
+            !getQuotes().some(quote => quote.bookingRef === booking.ref)) {
+            return res.status(409).json({ success: false, error: 'This booking has no quote ready for approval.' });
+        }
+        booking.status = 'Customer Approved';
+    } else if (action === 'request-cancellation') {
+        if (['completed', 'cancelled'].includes(String(booking.status).toLowerCase())) {
+            return res.status(409).json({ success: false, error: 'This booking can no longer be cancelled.' });
+        }
+        if (booking.cancellationRequestedAt) {
+            return res.status(409).json({ success: false, error: 'A cancellation request is already on file.' });
+        }
+        booking.cancellationRequestedAt = new Date().toISOString();
+    } else {
+        return res.status(400).json({ success: false, error: 'Choose a valid booking action.' });
+    }
+
+    saveBookings(bookings);
+    recordActivity(req, {
+        action: action === 'approve-quote' ? 'status_changed' : 'updated',
+        entityType: 'booking',
+        entityId: booking.ref,
+        summary: action === 'approve-quote' ? 'Customer approved the booking quote' : 'Customer requested booking cancellation',
+        details: { status: booking.status }
+    });
+    res.json({ success: true, booking: { ref: booking.ref, status: booking.status, cancellationRequestedAt: booking.cancellationRequestedAt || null } });
+});
+
+app.post('/api/customer/bookings/:ref/payment-proof', verifyToken, (req, res, next) => {
+    if (req.user.role !== 'customer') {
+        return res.status(403).json({ success: false, error: 'Customer booking access required.' });
+    }
+    const booking = getBookings().find(candidate =>
+        candidate.ref === req.params.ref && candidate.customerId === req.user.id
+    );
+    if (!booking) return res.status(404).json({ success: false, error: 'Booking not found.' });
+    if (!['customer approved', 'pending payment'].includes(String(booking.status).toLowerCase())) {
+        return res.status(409).json({ success: false, error: 'Payment proof can only be uploaded after quote approval.' });
+    }
+    userUpload.single('documents')(req, res, error => {
+        if (error) return res.status(400).json({ success: false, error: error.message || 'Payment proof upload failed.' });
+        next();
+    });
+}, (req, res) => {
+    if (!req.file) return res.status(400).json({ success: false, error: 'Choose a payment proof file to upload.' });
+    const bookings = getBookings();
+    const booking = bookings.find(candidate =>
+        candidate.ref === req.params.ref && candidate.customerId === req.user.id
+    );
+    if (!booking) return res.status(404).json({ success: false, error: 'Booking not found.' });
+    booking.paymentProofs = [
+        ...(Array.isArray(booking.paymentProofs) ? booking.paymentProofs : []),
+        {
+            filename: path.basename(req.file.path),
+            originalName: req.file.originalname,
+            uploadedAt: new Date().toISOString()
+        }
+    ];
+    saveBookings(bookings);
+    res.status(201).json({ success: true, uploadedAt: booking.paymentProofs.at(-1).uploadedAt });
+});
+
+app.get('/api/customer/bookings/:ref/payment-proof/:filename', verifyToken, (req, res) => {
+    if (req.user.role !== 'customer') {
+        return res.status(403).json({ success: false, error: 'Customer booking access required.' });
+    }
+    const filename = path.basename(req.params.filename);
+    const booking = getBookings().find(candidate =>
+        candidate.ref === req.params.ref &&
+        candidate.customerId === req.user.id &&
+        Array.isArray(candidate.paymentProofs) &&
+        candidate.paymentProofs.some(proof => proof.filename === filename)
+    );
+    if (!booking) return res.status(404).json({ success: false, error: 'Payment proof not found.' });
+    const filePath = path.join(USER_DOCUMENTS_DIR, filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, error: 'Payment proof not found.' });
+    res.sendFile(filePath);
 });
 
 const PASSWORD_RECOVERY_CODE_TTL_MS = 15 * 60 * 1000;
@@ -1547,7 +2014,30 @@ app.get('/api/vehicle-approval-requests', verifyToken, (req, res) => {
     }
 });
 
-app.post('/api/vehicle-approval-requests', verifyToken, verifyAffiliate, (req, res) => {
+app.get('/api/vehicle-approval-requests/:id/files/:type/:filename', verifyToken, (req, res) => {
+    const request = getVehicleApprovalRequests().find(item => item.id === req.params.id);
+    if (!request || (req.user.role !== 'admin' && request.affiliateId !== req.user.id)) {
+        return res.status(404).json({ success: false, error: 'Vehicle document not found.' });
+    }
+    if (!['photo', 'documents'].includes(req.params.type)) {
+        return res.status(400).json({ success: false, error: 'Invalid file type.' });
+    }
+    const filename = path.basename(req.params.filename);
+    const isOwnedFile = req.params.type === 'photo'
+        ? request.photo === filename
+        : Array.isArray(request.documents) && request.documents.some(document => document.filename === filename);
+    if (!isOwnedFile) return res.status(404).json({ success: false, error: 'Vehicle document not found.' });
+    const filePath = path.join(req.params.type === 'photo' ? USER_PHOTOS_DIR : USER_DOCUMENTS_DIR, filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, error: 'Vehicle document not found.' });
+    res.sendFile(filePath);
+});
+
+app.post('/api/vehicle-approval-requests', verifyToken, verifyAffiliate, handleUserUploads, (req, res) => {
+    const removeUploadedFiles = () => {
+        Object.values(req.files || {}).flat().forEach(file => {
+            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        });
+    };
     try {
         const affiliate = getUsers().find(user =>
             user.id === req.user.id && user.role === 'affiliate' && user.active !== false
@@ -1560,6 +2050,7 @@ app.post('/api/vehicle-approval-requests', verifyToken, verifyAffiliate, (req, r
         try {
             vehicleDetails = normalizeVehicleSubmission(req.body);
         } catch (error) {
+            removeUploadedFiles();
             return res.status(400).json({ success: false, error: error.message });
         }
 
@@ -1572,14 +2063,21 @@ app.post('/api/vehicle-approval-requests', verifyToken, verifyAffiliate, (req, r
             String(request.plate || '').trim().toUpperCase() === normalizedPlate
         );
         if (plateInUse || platePending) {
+            removeUploadedFiles();
             return res.status(409).json({ success: false, error: 'A vehicle with this plate number already exists or is awaiting approval.' });
         }
 
+        const photo = req.files?.photo?.[0];
         const request = {
             id: `VAPR-${crypto.randomUUID()}`,
             ...vehicleDetails,
             affiliateId: affiliate.id,
             affiliateName: affiliate.fullname,
+            photo: photo ? path.basename(photo.path) : null,
+            documents: (req.files?.documents || []).map(file => ({
+                filename: path.basename(file.path),
+                originalName: file.originalname
+            })),
             status: 'Pending',
             submittedAt: new Date().toISOString(),
             reviewedAt: null,
@@ -1599,6 +2097,7 @@ app.post('/api/vehicle-approval-requests', verifyToken, verifyAffiliate, (req, r
 
         res.status(201).json({ success: true, message: 'Vehicle submitted for approval.', request });
     } catch (error) {
+        removeUploadedFiles();
         console.error('[VEHICLE APPROVAL] Failed to submit request:', error);
         res.status(500).json({ success: false, error: 'Unable to submit vehicle for approval.' });
     }
@@ -1657,10 +2156,180 @@ app.patch('/api/vehicle-approval-requests/:id', verifyToken, verifyAdmin, (req, 
     }
 });
 
+app.get('/api/affiliate/dashboard', verifyToken, verifyAffiliate, (req, res) => {
+    try {
+        const vehicles = getVehicles().filter(vehicle => vehicle.affiliateId === req.user.id);
+        const requests = getVehicleApprovalRequests().filter(request => request.affiliateId === req.user.id);
+        const bookings = getAffiliateBookings(getBookings(), vehicles, getQuotes(), req.user.id);
+        const earnings = getAffiliateEarnings(bookings, getAffiliatePayoutRequests(), req.user.id);
+        res.json({
+            success: true,
+            sharePercent: AFFILIATE_SHARE_PERCENT,
+            summary: {
+                activeVehicles: vehicles.filter(vehicle => ['available', 'rented'].includes(String(vehicle.status).toLowerCase())).length,
+                pendingVehicleApprovals: requests.filter(request => request.status === 'Pending').length,
+                completedBookings: bookings.filter(booking => String(booking.status).toLowerCase() === 'completed').length,
+                totalEarnings: earnings.totalEarnings,
+                payoutBalance: earnings.payoutBalance
+            },
+            recentBookings: bookings.slice(-5).reverse(),
+            recentRequests: requests.slice(-5).reverse()
+        });
+    } catch (error) {
+        console.error('[AFFILIATE] Failed to load dashboard:', error);
+        res.status(500).json({ success: false, error: 'Unable to load affiliate dashboard.' });
+    }
+});
+
+app.get('/api/affiliate/bookings', verifyToken, verifyAffiliate, (req, res) => {
+    try {
+        const vehicles = getVehicles().filter(vehicle => vehicle.affiliateId === req.user.id);
+        const bookings = getAffiliateBookings(getBookings(), vehicles, getQuotes(), req.user.id);
+        res.json({ success: true, bookings });
+    } catch (error) {
+        console.error('[AFFILIATE] Failed to load affiliate bookings:', error);
+        res.status(500).json({ success: false, error: 'Unable to load affiliate bookings.' });
+    }
+});
+
+app.get('/api/affiliate/earnings', verifyToken, verifyAffiliate, (req, res) => {
+    try {
+        const vehicles = getVehicles().filter(vehicle => vehicle.affiliateId === req.user.id);
+        const bookings = getAffiliateBookings(getBookings(), vehicles, getQuotes(), req.user.id);
+        const earnings = getAffiliateEarnings(bookings, getAffiliatePayoutRequests(), req.user.id);
+        res.json({ success: true, earnings });
+    } catch (error) {
+        console.error('[AFFILIATE] Failed to load affiliate earnings:', error);
+        res.status(500).json({ success: false, error: 'Unable to load affiliate earnings.' });
+    }
+});
+
+app.post('/api/affiliate/payout-requests', verifyToken, verifyAffiliate, (req, res) => {
+    try {
+        const users = getUsers();
+        const affiliate = users.find(user =>
+            user.id === req.user.id && user.role === 'affiliate' && user.active !== false
+        );
+        if (!affiliate) return res.status(401).json({ success: false, error: 'Affiliate account is unavailable.' });
+        if (!(affiliate.payoutGcashNumber || (affiliate.payoutBankName && affiliate.payoutAccountNumber))) {
+            return res.status(400).json({ success: false, error: 'Add bank or GCash payout details in Account Settings first.' });
+        }
+
+        const vehicles = getVehicles().filter(vehicle => vehicle.affiliateId === affiliate.id);
+        const bookings = getAffiliateBookings(getBookings(), vehicles, getQuotes(), affiliate.id);
+        const payoutRequests = getAffiliatePayoutRequests();
+        const earnings = getAffiliateEarnings(bookings, payoutRequests, affiliate.id);
+        if (earnings.availableToRequest <= 0) {
+            return res.status(409).json({ success: false, error: 'There are no unrequested completed-trip earnings available.' });
+        }
+
+        const requestedBookingRefs = new Set(
+            payoutRequests
+                .filter(request => request.affiliateId === affiliate.id && request.status !== 'Rejected')
+                .flatMap(request => request.bookingRefs || [])
+        );
+        const bookingRefs = bookings
+            .filter(booking =>
+                String(booking.status).toLowerCase() === 'completed' &&
+                booking.affiliateShare > 0 &&
+                !requestedBookingRefs.has(booking.ref)
+            )
+            .map(booking => booking.ref);
+        const request = {
+            id: `PAY-${crypto.randomUUID()}`,
+            affiliateId: affiliate.id,
+            amount: earnings.availableToRequest,
+            sharePercent: AFFILIATE_SHARE_PERCENT,
+            bookingRefs,
+            status: 'Pending',
+            requestedAt: new Date().toISOString(),
+            paidAt: null,
+            reviewNote: ''
+        };
+        payoutRequests.push(request);
+        saveAffiliatePayoutRequests(payoutRequests);
+        res.status(201).json({
+            success: true,
+            request: {
+                id: request.id,
+                amount: request.amount,
+                status: request.status,
+                requestedAt: request.requestedAt
+            }
+        });
+    } catch (error) {
+        console.error('[AFFILIATE PAYOUT] Failed to create payout request:', error);
+        res.status(500).json({ success: false, error: 'Unable to create payout request.' });
+    }
+});
+
+app.get('/api/affiliate/payout-requests', verifyToken, verifyAdmin, (req, res) => {
+    try {
+        const usersById = new Map(getUsers().map(user => [user.id, user]));
+        const requests = getAffiliatePayoutRequests().map(request => {
+            const affiliate = usersById.get(request.affiliateId);
+            return {
+                id: request.id,
+                affiliateId: request.affiliateId,
+                affiliateName: affiliate?.fullname || 'Affiliate',
+                affiliateEmail: affiliate?.email || '',
+                amount: request.amount,
+                status: request.status,
+                requestedAt: request.requestedAt,
+                paidAt: request.paidAt || null,
+                reviewNote: request.reviewNote || '',
+                payoutDestination: {
+                    bankName: affiliate?.payoutBankName || '',
+                    accountName: affiliate?.payoutAccountName || '',
+                    accountNumber: affiliate?.payoutAccountNumber || '',
+                    gcashNumber: affiliate?.payoutGcashNumber || ''
+                }
+            };
+        });
+        res.json({ success: true, requests: requests.reverse() });
+    } catch (error) {
+        console.error('[AFFILIATE PAYOUT] Failed to load payout requests:', error);
+        res.status(500).json({ success: false, error: 'Unable to load affiliate payout requests.' });
+    }
+});
+
+app.patch('/api/affiliate/payout-requests/:id', verifyToken, verifyAdmin, (req, res) => {
+    const { status, reviewNote = '' } = req.body;
+    if (!['Paid', 'Rejected'].includes(status)) {
+        return res.status(400).json({ success: false, error: 'Payout status must be Paid or Rejected.' });
+    }
+    if (typeof reviewNote !== 'string' || reviewNote.length > 500) {
+        return res.status(400).json({ success: false, error: 'Review note must be 500 characters or fewer.' });
+    }
+    const payoutRequests = getAffiliatePayoutRequests();
+    const request = payoutRequests.find(item => item.id === req.params.id);
+    if (!request) return res.status(404).json({ success: false, error: 'Payout request not found.' });
+    if (request.status !== 'Pending') {
+        return res.status(409).json({ success: false, error: 'This payout request has already been reviewed.' });
+    }
+    request.status = status;
+    request.reviewNote = reviewNote.trim();
+    request.reviewedAt = new Date().toISOString();
+    request.reviewedBy = req.user.fullname || req.user.email;
+    request.paidAt = status === 'Paid' ? request.reviewedAt : null;
+    saveAffiliatePayoutRequests(payoutRequests);
+    res.json({
+        success: true,
+        request: {
+            id: request.id,
+            affiliateId: request.affiliateId,
+            amount: request.amount,
+            status: request.status,
+            paidAt: request.paidAt,
+            reviewNote: request.reviewNote
+        }
+    });
+});
+
 // CREATE NEW VEHICLE (Admin only)
 app.post('/api/vehicles', verifyToken, verifyAdmin, (req, res) => {
     try {
-        const { plate, make, model, year, type, color, seats, transmission, fuelType, status } = req.body;
+        const { plate, make, model, year, type, color, seats, transmission, fuelType, status, dailyRate } = req.body;
 
         if (!plate || !make || !model || !year || !type || !color || !seats || !transmission || !fuelType || !status) {
             return res.status(400).json({ success: false, error: "All fields are required" });
@@ -1686,6 +2355,7 @@ app.post('/api/vehicles', verifyToken, verifyAdmin, (req, res) => {
             transmission,
             fuelType,
             status,
+            dailyRate: parseFloat(dailyRate),
             created_at: new Date().toISOString(),
             lastMaintenance: new Date().toISOString()
         };

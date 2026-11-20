@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0f172a">
-    <title>My Bookings | Mayon Rent a Car</title>
-    <link rel="stylesheet" href="account-dashboard.css?v=20261118-01">
+    <title>Customer Portal | Mayon Rent a Car</title>
+    <link rel="stylesheet" href="account-dashboard.css?v=20261121-02">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/svg+xml" href="images/Mayon.svg">
 </head>
@@ -23,76 +23,120 @@
                 <span>Mayon Rent a Car</span>
             </a>
             <p class="portal-sidebar-label">Customer Portal</p>
-            <nav class="portal-nav" aria-label="Customer dashboard">
-                <a class="is-active" href="#bookings" data-view-target="bookings" aria-current="page">
-                    <i class="fa-solid fa-calendar-check" aria-hidden="true"></i><span>My Bookings</span>
-                </a>
-                <a href="#profile" data-view-target="profile">
-                    <i class="fa-solid fa-user" aria-hidden="true"></i><span>My Profile</span>
-                </a>
+            <nav class="portal-nav" aria-label="Customer portal">
+                <a href="/customer/dashboard" data-route="/customer/dashboard"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i><span>Dashboard</span></a>
+                <a href="/customer/bookings" data-route="/customer/bookings"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i><span>My Bookings</span></a>
+                <a href="/customer/book" data-route="/customer/book"><i class="fa-solid fa-car" aria-hidden="true"></i><span>Book a Vehicle</span></a>
+                <a href="/customer/profile" data-route="/customer/profile"><i class="fa-solid fa-user" aria-hidden="true"></i><span>My Profile</span></a>
             </nav>
             <div class="portal-sidebar-footer">
                 <div class="portal-user">
                     <span id="portalUserInitials" class="portal-user-avatar">C</span>
-                    <span class="portal-user-copy"><strong id="portalUserName">Customer</strong><small>Customer</small></span>
+                    <span class="portal-user-copy"><strong id="portalUserName">Customer</strong><small>Renter</small></span>
                 </div>
-                <button type="button" class="portal-logout" data-logout>
-                    <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i><span>Log out</span>
-                </button>
+                <button type="button" class="portal-logout" data-logout><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i><span>Log out</span></button>
             </div>
         </aside>
 
         <main class="portal-main">
             <div id="portalNotice" class="portal-notice" role="status" aria-live="polite" hidden></div>
 
-            <section id="bookingsView" class="portal-view" data-view="bookings">
+            <section class="portal-view" data-view="dashboard" hidden>
                 <header class="portal-page-header">
-                    <div>
-                        <p class="portal-eyebrow">Customer Portal</p>
-                        <h1>My Bookings</h1>
-                        <p>Review your booking status, pickup and return schedule, and trip details.</p>
-                    </div>
-                    <button id="refreshCustomerBookings" type="button" class="portal-button portal-button-secondary">
-                        <i class="fa-solid fa-rotate" aria-hidden="true"></i> Refresh
-                    </button>
+                    <div><p class="portal-eyebrow">Customer Portal</p><h1>Dashboard</h1><p>Your upcoming trips and recent booking activity.</p></div>
+                    <a class="portal-button portal-button-primary" href="/customer/book" data-route="/customer/book"><i class="fa-solid fa-plus" aria-hidden="true"></i> Book a Vehicle</a>
                 </header>
+                <section id="customerActiveBooking" class="portal-active-booking"></section>
                 <div id="customerSummary" class="portal-summary-grid" aria-live="polite"></div>
+                <section class="portal-card portal-section-card"><div class="portal-card-heading"><h2>Recent Trips</h2><a href="/customer/bookings" data-route="/customer/bookings">View all bookings</a></div><div id="customerRecentTrips" class="portal-booking-list"></div></section>
+            </section>
+
+            <section class="portal-view" data-view="bookings" hidden>
+                <header class="portal-page-header">
+                    <div><p class="portal-eyebrow">Trips</p><h1>My Bookings</h1><p>View your quotes, upcoming trips, and booking history.</p></div>
+                    <button id="refreshCustomerBookings" type="button" class="portal-button portal-button-secondary"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Refresh</button>
+                </header>
+                <div class="portal-tabs" role="tablist" aria-label="Booking status">
+                    <button type="button" class="is-active" role="tab" aria-selected="true" data-booking-filter="upcoming">Upcoming / Active</button>
+                    <button type="button" role="tab" aria-selected="false" data-booking-filter="quoted">Pending Quotes</button>
+                    <button type="button" role="tab" aria-selected="false" data-booking-filter="past">Past / Cancelled</button>
+                </div>
                 <div id="customerBookingsList" class="portal-booking-list" aria-live="polite"></div>
             </section>
 
-            <section id="profileView" class="portal-view" data-view="profile" hidden>
+            <section class="portal-view" data-view="booking-detail" hidden>
                 <header class="portal-page-header">
-                    <div>
-                        <p class="portal-eyebrow">Account</p>
-                        <h1>My Profile</h1>
-                        <p>Update your contact details. Your account email is used to match older bookings.</p>
-                    </div>
+                    <div><p class="portal-eyebrow">Booking Details</p><h1 id="customerBookingTitle">Booking</h1><p>Review your trip itinerary, quote, and booking status.</p></div>
+                    <a class="portal-button portal-button-secondary" href="/customer/bookings" data-route="/customer/bookings">Back to Bookings</a>
                 </header>
-                <form id="profileForm" class="portal-card portal-profile-form">
+                <div id="customerBookingDetails"></div>
+                <div class="portal-form-actions portal-booking-actions">
+                    <button id="approveCustomerQuote" type="button" class="portal-button portal-button-primary" hidden>Approve Quote</button>
+                    <button id="requestCustomerCancellation" type="button" class="portal-button portal-button-danger" hidden>Request Cancellation</button>
+                </div>
+                <form id="paymentProofForm" class="portal-card portal-profile-form portal-spaced-form" hidden>
+                    <h2>Upload Payment Proof</h2>
+                    <label class="portal-field"><span>Payment receipt or proof (JPG, PNG, WEBP, PDF)</span><input name="documents" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required></label>
+                    <div class="portal-form-actions"><button type="submit" class="portal-button portal-button-secondary">Upload Proof</button></div>
+                </form>
+            </section>
+
+            <section class="portal-view" data-view="book" hidden>
+                <header class="portal-page-header"><div><p class="portal-eyebrow">Browse Fleet</p><h1>Book a Vehicle</h1><p>Choose an available vehicle and send a request. Admin will confirm the final quote.</p></div></header>
+                <div id="availableVehicleCards" class="portal-vehicle-grid" aria-live="polite"></div>
+                <form id="customerBookingForm" class="portal-card portal-request-form portal-spaced-form">
+                    <h2>Your Trip</h2>
+                    <input type="hidden" name="vehicleId" id="selectedVehicleId">
+                    <div id="selectedVehicleMessage" class="portal-selection-hint">Select a vehicle above to continue.</div>
                     <div class="portal-form-grid">
-                        <label class="portal-field">
-                            <span>Full name</span>
-                            <input type="text" name="fullname" id="profileFullname" maxlength="120" autocomplete="name" required>
-                        </label>
-                        <label class="portal-field">
-                            <span>Email address</span>
-                            <input type="email" name="email" id="profileEmail" readonly aria-describedby="profileEmailHint">
-                            <small id="profileEmailHint">Contact support to change your account email.</small>
-                        </label>
-                        <label class="portal-field">
-                            <span>Mobile number</span>
-                            <input type="tel" name="mobile" id="profileMobile" maxlength="40" autocomplete="tel">
-                        </label>
+                        <label class="portal-field"><span>Pickup date <b class="required-mark">*</b></span><input name="pickup_date" type="date" required></label>
+                        <label class="portal-field"><span>Pickup time <b class="required-mark">*</b></span><input name="pickup_time" type="time" required></label>
+                        <label class="portal-field"><span>Return date <span id="returnRequiredMark" class="required-mark">*</span></span><input name="return_date" id="customerReturnDate" type="date" required></label>
+                        <label class="portal-field"><span>Return time <span id="returnTimeRequiredMark" class="required-mark">*</span></span><input name="return_time" id="customerReturnTime" type="time" required></label>
+                        <label class="portal-field"><span>Pickup / service area <b class="required-mark">*</b></span><select name="area" required><option value="">Select area</option><option>Albay</option><option>Sorsogon</option><option>Camarines Sur</option></select></label>
+                        <label class="portal-field"><span>Rental type <b class="required-mark">*</b></span><select name="rentalType" id="customerRentalType"><option value="self-drive">Self-Drive</option><option value="with-driver">With Driver</option></select></label>
+                        <label class="portal-field"><span>Passengers</span><input name="passengers" type="number" min="1" max="100"></label>
+                        <label class="portal-field portal-field-wide"><span>Itinerary / notes</span><textarea name="itinerary" rows="3" maxlength="2000"></textarea></label>
                     </div>
-                    <div class="portal-form-actions">
-                        <button type="submit" class="portal-button portal-button-primary">Save Profile</button>
+                    <p class="portal-muted-note">Displayed daily rates are estimates. Your final price and availability are confirmed by Admin.</p>
+                    <div class="portal-form-actions"><button type="submit" class="portal-button portal-button-primary">Submit Booking Request</button></div>
+                </form>
+            </section>
+
+            <section class="portal-view" data-view="profile" hidden>
+                <header class="portal-page-header"><div><p class="portal-eyebrow">Account</p><h1>My Profile &amp; Documents</h1><p>Keep your contact details and renter documents up to date.</p></div></header>
+                <form id="profileForm" class="portal-card portal-profile-form">
+                    <h2>Personal Information</h2>
+                    <div class="portal-form-grid">
+                        <label class="portal-field"><span>Full name <b class="required-mark">*</b></span><input type="text" name="fullname" id="profileFullname" maxlength="120" autocomplete="name" required></label>
+                        <label class="portal-field"><span>Email address</span><input type="email" name="email" id="profileEmail" readonly><small>Email changes require support.</small></label>
+                        <label class="portal-field"><span>Mobile number <b class="required-mark">*</b></span><span class="portal-phone-input"><span>🇵🇭 +63</span><input type="tel" name="mobile" id="profileMobile" maxlength="32" autocomplete="tel-national" placeholder="9XX XXX XXXX" required></span></label>
                     </div>
+                    <div class="portal-form-actions"><button type="submit" class="portal-button portal-button-primary">Save Profile</button></div>
+                </form>
+                <section class="portal-card portal-profile-form portal-spaced-form">
+                    <h2>Renter Documents</h2>
+                    <p class="portal-muted-note">Upload a Driver's License and Valid ID. Files are private to your account.</p>
+                    <form id="customerDocumentsForm" class="portal-document-upload">
+                        <label class="portal-field"><span>Driver's License</span><input name="license" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"></label>
+                        <label class="portal-field"><span>Valid ID</span><input name="validId" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"></label>
+                        <button type="submit" class="portal-button portal-button-secondary">Upload Documents</button>
+                    </form>
+                    <div id="customerDocumentsList" class="portal-document-list"></div>
+                </section>
+                <form id="passwordForm" class="portal-card portal-profile-form portal-spaced-form">
+                    <h2>Change Password</h2>
+                    <div class="portal-form-grid">
+                        <label class="portal-field"><span>Current password</span><input name="currentPassword" type="password" autocomplete="current-password" required></label>
+                        <label class="portal-field"><span>New password</span><input name="newPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+                        <label class="portal-field"><span>Confirm new password</span><input name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+                    </div>
+                    <div class="portal-form-actions"><button type="submit" class="portal-button portal-button-secondary">Update Password</button></div>
                 </form>
             </section>
         </main>
     </div>
-
-    <script src="auth-utils.js?v=20261118-02"></script>
-    <script src="account-dashboard.js?v=20261118-02"></script>
+    <script src="auth-utils.js?v=20261121-02"></script>
+    <script src="account-dashboard.js?v=20261121-02"></script>
 </body>
 </html>

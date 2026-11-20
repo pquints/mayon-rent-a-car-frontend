@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0f172a">
-    <title>Affiliate Dashboard | Mayon Rent a Car</title>
-    <link rel="stylesheet" href="account-dashboard.css?v=20261118-01">
+    <title>Affiliate Portal | Mayon Rent a Car</title>
+    <link rel="stylesheet" href="account-dashboard.css?v=20261121-02">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/svg+xml" href="images/Mayon.svg">
 </head>
@@ -23,156 +23,124 @@
                 <span>Mayon Rent a Car</span>
             </a>
             <p class="portal-sidebar-label">Affiliate Portal</p>
-            <nav class="portal-nav" aria-label="Affiliate dashboard">
-                <a class="is-active" href="#overview" data-view-target="overview" aria-current="page">
-                    <i class="fa-solid fa-gauge-high" aria-hidden="true"></i><span>Overview</span>
-                </a>
-                <a href="#vehicles" data-view-target="vehicles">
-                    <i class="fa-solid fa-car" aria-hidden="true"></i><span>My Vehicles</span>
-                </a>
-                <a href="#requests" data-view-target="requests">
-                    <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><span>Approval Requests</span>
-                </a>
-                <a href="#profile" data-view-target="profile">
-                    <i class="fa-solid fa-user" aria-hidden="true"></i><span>My Profile</span>
-                </a>
+            <nav class="portal-nav" aria-label="Affiliate portal">
+                <a href="/affiliate/dashboard" data-route="/affiliate/dashboard"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i><span>Dashboard</span></a>
+                <a href="/affiliate/vehicles" data-route="/affiliate/vehicles"><i class="fa-solid fa-car" aria-hidden="true"></i><span>My Vehicles</span></a>
+                <a href="/affiliate/bookings" data-route="/affiliate/bookings"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i><span>Bookings</span></a>
+                <a href="/affiliate/earnings" data-route="/affiliate/earnings"><i class="fa-solid fa-wallet" aria-hidden="true"></i><span>Earnings</span></a>
+                <a href="/affiliate/settings" data-route="/affiliate/settings"><i class="fa-solid fa-user-gear" aria-hidden="true"></i><span>Account Settings</span></a>
             </nav>
             <div class="portal-sidebar-footer">
                 <div class="portal-user">
                     <span id="portalUserInitials" class="portal-user-avatar">A</span>
-                    <span class="portal-user-copy"><strong id="portalUserName">Affiliate</strong><small>Affiliate</small></span>
+                    <span class="portal-user-copy"><strong id="portalUserName">Affiliate</strong><small>Vehicle partner</small></span>
                 </div>
-                <button type="button" class="portal-logout" data-logout>
-                    <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i><span>Log out</span>
-                </button>
+                <button type="button" class="portal-logout" data-logout><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i><span>Log out</span></button>
             </div>
         </aside>
 
         <main class="portal-main">
             <div id="portalNotice" class="portal-notice" role="status" aria-live="polite" hidden></div>
 
-            <section id="overviewView" class="portal-view" data-view="overview">
+            <section class="portal-view" data-view="dashboard" hidden>
                 <header class="portal-page-header">
-                    <div>
-                        <p class="portal-eyebrow">Affiliate Portal</p>
-                        <h1>Overview</h1>
-                        <p>Track your approved vehicles and the status of your submissions.</p>
-                    </div>
-                    <button type="button" class="portal-button portal-button-primary" data-view-target="vehicles">
-                        <i class="fa-solid fa-car" aria-hidden="true"></i> View My Vehicles
-                    </button>
+                    <div><p class="portal-eyebrow">Affiliate Portal</p><h1>Dashboard</h1><p>Track your vehicles, bookings, and earnings.</p></div>
+                    <a class="portal-button portal-button-primary" href="/affiliate/vehicles/new" data-route="/affiliate/vehicles/new"><i class="fa-solid fa-plus" aria-hidden="true"></i> Submit New Vehicle</a>
                 </header>
                 <div id="affiliateSummary" class="portal-summary-grid" aria-live="polite"></div>
-                <div class="portal-info-note">
-                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-                    <p>Referral bookings and commission payouts are not currently tracked in the system.</p>
-                </div>
-                <div class="portal-two-column">
-                    <section class="portal-card">
-                        <div class="portal-card-heading"><h2>Recent Vehicle Requests</h2><a href="#requests" data-view-target="requests">View all</a></div>
-                        <div id="affiliateRecentRequests" class="portal-compact-list"></div>
-                    </section>
-                    <section class="portal-card">
-                        <div class="portal-card-heading"><h2>Approved Vehicles</h2><a href="#vehicles" data-view-target="vehicles">View all</a></div>
-                        <div id="affiliateRecentVehicles" class="portal-compact-list"></div>
-                    </section>
-                </div>
+                <div class="portal-info-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><p>Earnings are calculated at 70% of the saved quote for completed trips assigned to your approved vehicles. Unassigned trips are not included.</p></div>
+                <section class="portal-card portal-section-card">
+                    <div class="portal-card-heading"><h2>Recent Booking Activity</h2><a href="/affiliate/bookings" data-route="/affiliate/bookings">View bookings</a></div>
+                    <div class="portal-table-wrap">
+                        <table class="portal-table"><thead><tr><th>Booking Ref</th><th>Dates</th><th>Pickup / Drop-off</th><th>Vehicle</th><th>Status</th><th>Your Share</th></tr></thead><tbody id="affiliateRecentBookingsBody"></tbody></table>
+                    </div>
+                </section>
+                <section class="portal-card portal-section-card">
+                    <div class="portal-card-heading"><h2>Recent Vehicle Reviews</h2><a href="/affiliate/vehicles" data-route="/affiliate/vehicles">View vehicles</a></div>
+                    <div id="affiliateRecentRequests" class="portal-compact-list"></div>
+                </section>
             </section>
 
-            <section id="vehiclesView" class="portal-view" data-view="vehicles" hidden>
+            <section class="portal-view" data-view="vehicles" hidden>
                 <header class="portal-page-header">
-                    <div>
-                        <p class="portal-eyebrow">Fleet</p>
-                        <h1>My Vehicles</h1>
-                        <p>Only vehicles approved for your affiliate account appear here.</p>
-                    </div>
-                    <button type="button" class="portal-button portal-button-primary" data-view-target="requests">
-                        <i class="fa-solid fa-plus" aria-hidden="true"></i> Submit a Vehicle
-                    </button>
+                    <div><p class="portal-eyebrow">Fleet</p><h1>My Vehicles</h1><p>Approved vehicles and review status for your submissions.</p></div>
+                    <a class="portal-button portal-button-primary" href="/affiliate/vehicles/new" data-route="/affiliate/vehicles/new"><i class="fa-solid fa-plus" aria-hidden="true"></i> Submit New Vehicle</a>
                 </header>
                 <div class="portal-table-wrap">
-                    <table class="portal-table">
-                        <thead><tr><th>Vehicle</th><th>Details</th><th>Status</th><th>Daily Rate</th></tr></thead>
-                        <tbody id="affiliateVehiclesBody"></tbody>
-                    </table>
+                    <table class="portal-table"><thead><tr><th>Vehicle</th><th>Plate</th><th>Details</th><th>Status</th><th>Daily Rate</th><th>Review Note</th></tr></thead><tbody id="affiliateVehiclesBody"></tbody></table>
                 </div>
             </section>
 
-            <section id="requestsView" class="portal-view" data-view="requests" hidden>
+            <section class="portal-view" data-view="vehicle-new" hidden>
                 <header class="portal-page-header">
-                    <div>
-                        <p class="portal-eyebrow">Fleet</p>
-                        <h1>Approval Requests</h1>
-                        <p>Submit vehicles for review and check the latest decision or review note.</p>
-                    </div>
+                    <div><p class="portal-eyebrow">Fleet</p><h1>Submit New Vehicle</h1><p>Vehicle details and documents are sent to the Admin Fleet Approvals queue.</p></div>
+                    <a class="portal-button portal-button-secondary" href="/affiliate/vehicles" data-route="/affiliate/vehicles">Cancel</a>
                 </header>
                 <form id="vehicleRequestForm" class="portal-card portal-request-form">
-                    <h2>Submit a Vehicle</h2>
                     <div class="portal-form-grid portal-vehicle-form-grid">
-                        <label class="portal-field"><span>Plate number</span><input name="plate" maxlength="100" required></label>
-                        <label class="portal-field"><span>Make</span><input name="make" maxlength="100" required></label>
-                        <label class="portal-field"><span>Model</span><input name="model" maxlength="100" required></label>
-                        <label class="portal-field"><span>Year</span><input name="year" type="number" min="1900" required></label>
-                        <label class="portal-field"><span>Vehicle type</span>
-                            <select name="type" required>
-                                <option value="">Select type</option><option>Sedan</option><option>SUV</option><option>MPV</option><option>Electric MPV</option><option>Van</option>
-                            </select>
-                        </label>
-                        <label class="portal-field"><span>Color</span><input name="color" maxlength="100" required></label>
-                        <label class="portal-field"><span>Seats</span><input name="seats" type="number" min="1" max="100" required></label>
-                        <label class="portal-field"><span>Transmission</span>
-                            <select name="transmission" required><option value="">Select transmission</option><option>Manual</option><option>Automatic</option></select>
-                        </label>
-                        <label class="portal-field"><span>Fuel type</span>
-                            <select name="fuelType" required><option value="">Select fuel type</option><option>Gasoline</option><option>Diesel</option><option>Electric</option><option>Hybrid</option></select>
-                        </label>
-                        <label class="portal-field"><span>Daily rate (₱)</span><input name="dailyRate" type="number" min="0" step="0.01" required></label>
+                        <label class="portal-field"><span>Plate number <b class="required-mark">*</b></span><input name="plate" maxlength="100" required></label>
+                        <label class="portal-field"><span>Make <b class="required-mark">*</b></span><input name="make" maxlength="100" required></label>
+                        <label class="portal-field"><span>Model <b class="required-mark">*</b></span><input name="model" maxlength="100" required></label>
+                        <label class="portal-field"><span>Year <b class="required-mark">*</b></span><input name="year" type="number" min="1900" required></label>
+                        <label class="portal-field"><span>Type <b class="required-mark">*</b></span><select name="type" required><option value="">Select type</option><option>Sedan</option><option>SUV</option><option>MPV</option><option>Electric MPV</option><option>Van</option></select></label>
+                        <label class="portal-field"><span>Seats <b class="required-mark">*</b></span><input name="seats" type="number" min="1" max="100" required></label>
+                        <label class="portal-field"><span>Transmission <b class="required-mark">*</b></span><select name="transmission" required><option value="">Select transmission</option><option>Manual</option><option>Automatic</option></select></label>
+                        <label class="portal-field"><span>Fuel type <b class="required-mark">*</b></span><select name="fuelType" required><option value="">Select fuel type</option><option>Gasoline</option><option>Diesel</option><option>Electric</option><option>Hybrid</option></select></label>
+                        <label class="portal-field"><span>Color <b class="required-mark">*</b></span><input name="color" maxlength="100" required></label>
+                        <label class="portal-field"><span>Proposed daily rate (₱) <b class="required-mark">*</b></span><input name="dailyRate" type="number" min="0" step="0.01" required></label>
+                        <label class="portal-field"><span>Vehicle photo</span><input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
+                        <label class="portal-field"><span>OR/CR and supporting documents</span><input name="documents" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple></label>
                     </div>
-                    <div class="portal-form-actions">
-                        <button type="submit" class="portal-button portal-button-primary">Submit for Approval</button>
-                    </div>
+                    <div class="portal-form-actions"><button type="submit" class="portal-button portal-button-primary">Submit for Approval</button></div>
                 </form>
-                <div class="portal-table-wrap portal-table-wrap-spaced">
-                    <table class="portal-table">
-                        <thead><tr><th>Vehicle</th><th>Submitted</th><th>Status</th><th>Review note</th></tr></thead>
-                        <tbody id="affiliateRequestsBody"></tbody>
-                    </table>
+            </section>
+
+            <section class="portal-view" data-view="bookings" hidden>
+                <header class="portal-page-header"><div><p class="portal-eyebrow">Operations</p><h1>Bookings</h1><p>Bookings assigned to your approved vehicles. Internal Admin financial details are not shown.</p></div></header>
+                <div class="portal-table-wrap">
+                    <table class="portal-table"><thead><tr><th>Booking Ref</th><th>Dates</th><th>Pickup / Drop-off Area</th><th>Vehicle</th><th>Status</th><th>Your Share</th></tr></thead><tbody id="affiliateBookingsBody"></tbody></table>
                 </div>
             </section>
 
-            <section id="profileView" class="portal-view" data-view="profile" hidden>
-                <header class="portal-page-header">
-                    <div>
-                        <p class="portal-eyebrow">Account</p>
-                        <h1>My Profile</h1>
-                        <p>Update your contact details for your affiliate account.</p>
-                    </div>
-                </header>
+            <section class="portal-view" data-view="earnings" hidden>
+                <header class="portal-page-header"><div><p class="portal-eyebrow">Finance</p><h1>Earnings &amp; Payouts</h1><p>Completed-trip earnings and payout request status.</p></div><button id="requestAffiliatePayout" type="button" class="portal-button portal-button-primary">Request Available Payout</button></header>
+                <div id="affiliateEarningsSummary" class="portal-summary-grid" aria-live="polite"></div>
+                <div class="portal-info-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><p>Affiliate share is 70% of the saved quote on completed bookings. Payout requests are submitted to Admin for review; a request is not a payment confirmation.</p></div>
+                <section class="portal-card portal-section-card"><div class="portal-card-heading"><h2>Completed Trip Earnings</h2></div><div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Booking Ref</th><th>Completed Trip</th><th>Vehicle</th><th>Your Share</th></tr></thead><tbody id="affiliateEarningsRows"></tbody></table></div></section>
+                <section class="portal-card portal-section-card"><div class="portal-card-heading"><h2>Payout Request History</h2></div><div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Requested</th><th>Amount</th><th>Status</th><th>Review Note</th></tr></thead><tbody id="affiliatePayoutsBody"></tbody></table></div></section>
+            </section>
+
+            <section class="portal-view" data-view="settings" hidden>
+                <header class="portal-page-header"><div><p class="portal-eyebrow">Account</p><h1>Account Settings</h1><p>Update your contact, business, payout details, and password.</p></div></header>
                 <form id="profileForm" class="portal-card portal-profile-form">
+                    <h2>Profile &amp; Payout Details</h2>
+                    <div class="portal-form-grid portal-settings-grid">
+                        <label class="portal-field"><span>Full name <b class="required-mark">*</b></span><input type="text" name="fullname" id="profileFullname" maxlength="120" autocomplete="name" required></label>
+                        <label class="portal-field"><span>Email address</span><input type="email" name="email" id="profileEmail" readonly><small>Email changes require support.</small></label>
+                        <label class="portal-field"><span>Business name</span><input type="text" name="businessName" id="profileBusinessName" maxlength="160"></label>
+                        <label class="portal-field"><span>Mobile number</span><span class="portal-phone-input"><span>🇵🇭 +63</span><input type="tel" name="mobile" id="profileMobile" maxlength="32" autocomplete="tel-national" placeholder="9XX XXX XXXX" required></span></label>
+                        <label class="portal-field"><span>Region</span><input type="text" name="region" id="profileRegion" maxlength="160"></label>
+                        <label class="portal-field"><span>Business address</span><input type="text" name="address" id="profileAddress" maxlength="160"></label>
+                        <label class="portal-field"><span>Bank</span><input type="text" name="payoutBankName" id="payoutBankName" maxlength="160"></label>
+                        <label class="portal-field"><span>Account name</span><input type="text" name="payoutAccountName" id="payoutAccountName" maxlength="160"></label>
+                        <label class="portal-field"><span>Account number</span><input type="text" name="payoutAccountNumber" id="payoutAccountNumber" maxlength="160" autocomplete="off"></label>
+                        <label class="portal-field"><span>GCash number</span><span class="portal-phone-input"><span>🇵🇭 +63</span><input type="tel" name="payoutGcashNumber" id="payoutGcashNumber" maxlength="32" placeholder="9XX XXX XXXX"></span></label>
+                    </div>
+                    <div class="portal-form-actions"><button type="submit" class="portal-button portal-button-primary">Save Settings</button></div>
+                </form>
+                <form id="passwordForm" class="portal-card portal-profile-form portal-spaced-form">
+                    <h2>Change Password</h2>
                     <div class="portal-form-grid">
-                        <label class="portal-field">
-                            <span>Full name</span>
-                            <input type="text" name="fullname" id="profileFullname" maxlength="120" autocomplete="name" required>
-                        </label>
-                        <label class="portal-field">
-                            <span>Email address</span>
-                            <input type="email" name="email" id="profileEmail" readonly aria-describedby="profileEmailHint">
-                            <small id="profileEmailHint">Contact support to change your account email.</small>
-                        </label>
-                        <label class="portal-field">
-                            <span>Mobile number</span>
-                            <input type="tel" name="mobile" id="profileMobile" maxlength="40" autocomplete="tel">
-                        </label>
+                        <label class="portal-field"><span>Current password</span><input name="currentPassword" type="password" autocomplete="current-password" required></label>
+                        <label class="portal-field"><span>New password</span><input name="newPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+                        <label class="portal-field"><span>Confirm new password</span><input name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required></label>
                     </div>
-                    <div class="portal-form-actions">
-                        <button type="submit" class="portal-button portal-button-primary">Save Profile</button>
-                    </div>
+                    <div class="portal-form-actions"><button type="submit" class="portal-button portal-button-secondary">Update Password</button></div>
                 </form>
             </section>
         </main>
     </div>
-
-    <script src="auth-utils.js?v=20261118-02"></script>
-    <script src="account-dashboard.js?v=20261118-02"></script>
+    <script src="auth-utils.js?v=20261121-02"></script>
+    <script src="account-dashboard.js?v=20261121-02"></script>
 </body>
 </html>

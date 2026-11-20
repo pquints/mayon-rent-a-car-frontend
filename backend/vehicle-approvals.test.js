@@ -33,21 +33,8 @@ test('normalizes submitted vehicle details and plate number', () => {
 test('rejects incomplete or invalid vehicle submissions', () => {
     assert.throws(() => normalizeVehicleSubmission({ ...validSubmission, make: ' ' }), /make is required/);
     assert.throws(() => normalizeVehicleSubmission({ ...validSubmission, seats: 0 }), /Seats must be an integer/);
+    assert.throws(() => normalizeVehicleSubmission({ ...validSubmission, dailyRate: '' }), /Daily rate must be/);
     assert.throws(() => normalizeVehicleSubmission({ ...validSubmission, dailyRate: -1 }), /Daily rate must be/);
-});
-
-test('allows vehicle submissions without a daily rate', () => {
-    const { dailyRate, ...submission } = validSubmission;
-
-    const request = {
-        ...normalizeVehicleSubmission(submission),
-        id: 'VAPR-2',
-        affiliateId: 'USR-1',
-        affiliateName: 'Alex Affiliate'
-    };
-    const vehicle = createApprovedVehicle(request, 'VEH-2', '2025-01-01T00:00:00.000Z');
-
-    assert.equal(Object.hasOwn(vehicle, 'dailyRate'), false);
 });
 
 test('creates approved fleet vehicles with affiliate ownership and available status', () => {
@@ -64,6 +51,8 @@ test('creates approved fleet vehicles with affiliate ownership and available sta
         status: 'Available',
         affiliateId: 'USR-1',
         affiliateName: 'Alex Affiliate',
+        photo: null,
+        documents: [],
         approvalRequestId: 'VAPR-1',
         created_at: '2025-01-01T00:00:00.000Z',
         lastMaintenance: '2025-01-01T00:00:00.000Z'

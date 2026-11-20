@@ -3,12 +3,20 @@ const isLocalDashboard = ['localhost', '127.0.0.1'].includes(window.location.hos
 const dashboardApiBases = isLocalDashboard
     ? ['http://127.0.0.1:3000/api', 'http://localhost:3000/api', '/api']
     : ['/api', 'https://api.mayonrentacar.com.ph/api'];
+const portalPrefix = requiredDashboardRole === 'customer' ? '/customer' : '/affiliate';
 let portalUser = null;
 let affiliateVehicles = [];
 let affiliateRequests = [];
+let affiliateBookings = [];
+let affiliateEarnings = null;
+let customerBookings = [];
+let customerVehicles = [];
+let currentCustomerBooking = null;
+let currentBookingFilter = 'upcoming';
+let selectedVehicleId = '';
 
 function getPortalLoginPath() {
-    return window.getDashboardPath?.('admin') || '/dashboard';
+    return window.getDashboardPath?.('admin') || '/admin';
 }
 
 function dashboardAuthHeaders() {
@@ -50,6 +58,26 @@ async function dashboardApiRequest(path, options = {}) {
     throw lastError || new Error('The dashboard service is unavailable.');
 }
 
+async function dashboardApiFileRequest(path, options = {}) {
+    let lastError = null;
+    for (const base of dashboardApiBases) {
+        try {
+            const response = await fetch(`${base}${path}`, {
+                ...options,
+                headers: { ...options.headers, ...dashboardAuthHeaders() }
+            });
+            if (response.status === 401) {
+                clearPortalAuthentication();
+                window.location.replace(getPortalLoginPath());
+            }
+            if (response.status !== 404) return response;
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    throw lastError || new Error('The document service is unavailable.');
+}
+
 function showPortalNotice(message, type = 'info') {
     const notice = document.getElementById('portalNotice');
     if (!notice) return;
@@ -86,8 +114,8 @@ function clearPortalAuthentication() {
 }
 
 function formatMoney(value) {
-    const amount = Number(value);
-    return `₱${Number.isFinite(amount) ? amount.toLocaleString('en-PH', { maximumFractionDigits: 2 }) : '0'}`;
+    const amount = Number(String(value ?? '').replace(/[^\d.-]/g, ''));
+    return `₱${Number.isFinite(amount) ? amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}`;
 }
 
 function formatDate(value) {
@@ -109,10 +137,10 @@ function formatDateTime(value) {
 function getStatusClass(status) {
     const normalized = String(status || '').trim().toLowerCase();
     if (normalized.includes('cancel') || normalized === 'rejected') return 'is-cancelled';
-    if (['approved', 'customer approved', 'confirmed', 'completed', 'ongoing', 'deposited', 'available'].includes(normalized)) return 'is-confirmed';
+    if (['approved', 'customer approved', 'confirmed', 'completed', 'ongoing', 'deposited', 'available', 'approved / active'].includes(normalized)) return 'is-confirmed';
     if (normalized === 'quoted') return 'is-quoted';
-    if (normalized === 'pending' || normalized === 'open' || normalized === 'for assignment' || normalized === 'pending payment') return 'is-pending';
-    if (normalized === 'maintenance') return 'is-inactive';
+    if (['pending', 'open', 'for assignment', 'pending payment', 'pending approval', 'cancellation requested'].includes(normalized)) return 'is-pending';
+    if (normalized.includes('maintenance')) return 'is-inactive';
     return '';
 }
 
@@ -135,9 +163,11 @@ function createSummaryCard(label, value) {
 }
 
 function setTableEmptyState(tbody, columnCount, message) {
+    if (!tbody) return;
     const row = document.createElement('tr');
     const cell = document.createElement('td');
     cell.colSpan = columnCount;
+    cell.className = 'portal-subtle';
     cell.textContent = message;
     row.appendChild(cell);
     tbody.replaceChildren(row);
@@ -149,20 +179,59 @@ function setPortalView(viewName) {
     document.querySelectorAll('.portal-view').forEach(section => {
         section.hidden = section !== view;
     });
-    document.querySelectorAll('.portal-nav [data-view-target]').forEach(link => {
-        const active = link.dataset.viewTarget === viewName;
+    document.querySelectorAll('.portal-nav [data-route]').forEach(link => {
+        const activeView = viewName === 'booking-detail' ? 'bookings' : viewName === 'vehicle-new' ? 'vehicles' : viewName;
+        const active = routeView(link.dataset.route) === activeView;
         link.classList.toggle('is-active', active);
         if (active) link.setAttribute('aria-current', 'page');
         else link.removeAttribute('aria-current');
     });
-    document.querySelector('.portal-main')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function routeView(route) {
+    const path = String(route || '');
+    if (requiredDashboardRole === 'affiliate') {
+        if (path === '/affiliate/vehicles/new') return 'vehicle-new';
+        return path.split('/')[2] || 'dashboard';
+    }
+    if (/^\/customer\/bookings\/[^/]+/.test(path)) return 'booking-detail';
+    return path.split('/')[2] || 'dashboard';
+}
+
+function currentPortalRoute() {
+    if (isLocalDashboard && window.location.hash.startsWith('#/')) {
+        return `${portalPrefix}${window.location.hash.slice(1)}`;
+    }
+    if (window.location.pathname === '/affiliate-dashboard' || window.location.pathname.endsWith('/affiliate-dashboard.html')) {
+        return '/affiliate/dashboard';
+    }
+    if (window.location.pathname === '/customer-dashboard' || window.location.pathname.endsWith('/customer-dashboard.html')) {
+        return '/customer/dashboard';
+    }
+    return window.location.pathname;
+}
+
+function portalHref(route) {
+    if (!isLocalDashboard) return route;
+    const suffix = route.slice(portalPrefix.length) || '/dashboard';
+    return `${window.location.pathname}#${suffix}`;
+}
+
+function navigateToRoute(route, replace = false) {
+    const href = portalHref(route);
+    if (replace) window.history.replaceState({}, '', href);
+    else window.history.pushState({}, '', href);
+    loadPortalRoute();
 }
 
 function bindPortalNavigation() {
-    document.querySelectorAll('[data-view-target]').forEach(control => {
+    document.querySelectorAll('[data-route]').forEach(control => {
         control.addEventListener('click', event => {
+            const route = control.dataset.route;
+            if (!route) return;
             event.preventDefault();
-            setPortalView(control.dataset.viewTarget);
+            navigateToRoute(route);
         });
     });
     document.querySelectorAll('[data-logout]').forEach(button => {
@@ -173,13 +242,40 @@ function bindPortalNavigation() {
     });
 }
 
+function toLocalPhoneNumber(value) {
+    return String(value || '').replace(/^(?:\+63|63|0)\s*/, '').replace(/\D/g, '');
+}
+
+function toInternationalPhoneNumber(value) {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (!digits) return '';
+    const local = digits.replace(/^(?:63|0)/, '');
+    return `+63${local}`;
+}
+
 function populatePortalProfile(user) {
     const fullname = user.fullname || '';
-    document.getElementById('portalUserName').textContent = fullname || (user.role === 'affiliate' ? 'Affiliate' : 'Customer');
-    document.getElementById('portalUserInitials').textContent = fullname.trim().charAt(0).toUpperCase() || 'U';
-    document.getElementById('profileFullname').value = fullname;
-    document.getElementById('profileEmail').value = user.email || '';
-    document.getElementById('profileMobile').value = user.mobile || '';
+    const userName = document.getElementById('portalUserName');
+    const initials = document.getElementById('portalUserInitials');
+    if (userName) userName.textContent = fullname || (user.role === 'affiliate' ? 'Affiliate' : 'Customer');
+    if (initials) initials.textContent = fullname.trim().charAt(0).toUpperCase() || 'U';
+    const values = {
+        profileFullname: fullname,
+        profileEmail: user.email || '',
+        profileMobile: toLocalPhoneNumber(user.mobile),
+        profileBusinessName: user.businessName || '',
+        profileRegion: user.region || '',
+        profileAddress: user.address || '',
+        payoutBankName: user.payoutBankName || '',
+        payoutAccountName: user.payoutAccountName || '',
+        payoutAccountNumber: user.payoutAccountNumber || '',
+        payoutGcashNumber: toLocalPhoneNumber(user.payoutGcashNumber)
+    };
+    Object.entries(values).forEach(([id, value]) => {
+        const field = document.getElementById(id);
+        if (field) field.value = value;
+    });
+    renderUserDocuments(user.documents || []);
 }
 
 async function savePortalProfile(event) {
@@ -189,8 +285,17 @@ async function savePortalProfile(event) {
 
     const body = {
         fullname: document.getElementById('profileFullname').value.trim(),
-        mobile: document.getElementById('profileMobile').value.trim()
+        mobile: toInternationalPhoneNumber(document.getElementById('profileMobile').value)
     };
+    if (requiredDashboardRole === 'affiliate') {
+        body.businessName = document.getElementById('profileBusinessName').value.trim();
+        body.region = document.getElementById('profileRegion').value.trim();
+        body.address = document.getElementById('profileAddress').value.trim();
+        body.payoutBankName = document.getElementById('payoutBankName').value.trim();
+        body.payoutAccountName = document.getElementById('payoutAccountName').value.trim();
+        body.payoutAccountNumber = document.getElementById('payoutAccountNumber').value.trim();
+        body.payoutGcashNumber = toInternationalPhoneNumber(document.getElementById('payoutGcashNumber').value);
+    }
 
     try {
         const { response, data } = await dashboardApiRequest('/users/me', {
@@ -202,7 +307,7 @@ async function savePortalProfile(event) {
             showPortalNotice(data.error || 'Unable to save your profile.', 'error');
             return;
         }
-        portalUser = data.user;
+        portalUser = { ...portalUser, ...data.user };
         localStorage.setItem('currentUser', JSON.stringify(portalUser));
         populatePortalProfile(portalUser);
         showPortalNotice('Your profile has been updated.');
@@ -212,292 +317,874 @@ async function savePortalProfile(event) {
     }
 }
 
-function renderCustomerBookings(bookings) {
-    const summary = document.getElementById('customerSummary');
-    const list = document.getElementById('customerBookingsList');
-    const today = new Date().toISOString().slice(0, 10);
-    const upcoming = bookings.filter(booking =>
-        booking.pickup_date && booking.pickup_date !== '—' &&
-        booking.pickup_date >= today &&
-        !String(booking.status || '').toLowerCase().includes('cancel')
-    ).length;
-    const awaiting = bookings.filter(booking => ['open', 'quoted', 'pending payment'].includes(String(booking.status || '').toLowerCase())).length;
-    const completed = bookings.filter(booking => String(booking.status || '').toLowerCase() === 'completed').length;
-    summary.replaceChildren(
-        createSummaryCard('Total bookings', bookings.length),
-        createSummaryCard('Upcoming trips', upcoming),
-        createSummaryCard('Awaiting response', awaiting),
-        createSummaryCard('Completed', completed)
-    );
-    list.replaceChildren();
-
-    if (!bookings.length) {
-        const empty = document.createElement('div');
-        empty.className = 'portal-empty-state';
-        const icon = document.createElement('i');
-        icon.className = 'fa-regular fa-calendar';
-        icon.setAttribute('aria-hidden', 'true');
-        const title = document.createElement('strong');
-        title.textContent = 'No bookings found';
-        const description = document.createElement('p');
-        description.textContent = `Bookings associated with ${portalUser.email} will appear here. Public booking forms remain available without an account.`;
-        empty.append(icon, title, description);
-        list.appendChild(empty);
+async function changePortalPassword(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!form.reportValidity()) return;
+    const formData = new FormData(form);
+    const newPassword = String(formData.get('newPassword') || '');
+    if (newPassword !== String(formData.get('confirmPassword') || '')) {
+        showPortalNotice('New passwords do not match.', 'error');
         return;
     }
-
-    bookings.forEach(booking => {
-        const card = document.createElement('article');
-        card.className = 'portal-booking-card';
-        const heading = document.createElement('div');
-        heading.className = 'portal-booking-heading';
-        const titleGroup = document.createElement('div');
-        const title = document.createElement('h2');
-        title.textContent = `Booking ${booking.ref || ''}`;
-        const subtitle = document.createElement('p');
-        subtitle.className = 'portal-booking-subtitle';
-        subtitle.textContent = [booking.rentalType, booking.serviceOption]
-            .filter(value => value && value !== '—')
-            .join(' · ') || 'Rental booking';
-        titleGroup.append(title, subtitle);
-        heading.append(titleGroup, createStatusBadge(booking.status));
-
-        const details = document.createElement('dl');
-        details.className = 'portal-booking-details';
-        const fields = [
-            ['Pickup', `${formatDate(booking.pickup_date)}${booking.pickup_time && booking.pickup_time !== '—' ? ` · ${booking.pickup_time}` : ''}`],
-            ['Pickup location', booking.pickup_location_address || booking.pickup_address || '—'],
-            ['Return', `${formatDate(booking.return_date)}${booking.return_time && booking.return_time !== '—' ? ` · ${booking.return_time}` : ''}`],
-            ['Return location', booking.return_location_address || booking.return_address || '—'],
-            ['Vehicle type', booking.vehicleType || '—'],
-            ['Passengers', booking.passengers || '—'],
-            ['Area', booking.area || '—'],
-            ['Trip details', booking.itinerary || '—']
-        ];
-        fields.forEach(([label, value]) => {
-            const item = document.createElement('div');
-            const term = document.createElement('dt');
-            term.textContent = label;
-            const description = document.createElement('dd');
-            description.textContent = value;
-            item.append(term, description);
-            details.appendChild(item);
+    try {
+        const { response, data } = await dashboardApiRequest('/users/me/password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                currentPassword: String(formData.get('currentPassword') || ''),
+                newPassword
+            })
         });
-        card.append(heading, details);
-        list.appendChild(card);
+        if (!response.ok) {
+            showPortalNotice(data.error || 'Unable to update your password.', 'error');
+            return;
+        }
+        form.reset();
+        showPortalNotice('Your password has been updated.');
+    } catch (error) {
+        console.error('Password update failed:', error);
+        showPortalNotice('Unable to connect to the account service. Please try again.', 'error');
+    }
+}
+
+function renderUserDocuments(documents) {
+    const list = document.getElementById('customerDocumentsList');
+    if (!list) return;
+    list.replaceChildren();
+    if (!documents.length) {
+        list.textContent = 'No renter documents uploaded yet.';
+        return;
+    }
+    documents.forEach(documentInfo => {
+        const row = document.createElement('div');
+        row.className = 'portal-document-item';
+        const name = document.createElement('span');
+        name.textContent = documentInfo.originalName || 'Renter document';
+        const actions = document.createElement('span');
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.textContent = 'View';
+        open.addEventListener('click', () => openPrivateFile(`/users/me/documents/${encodeURIComponent(documentInfo.filename)}`));
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', () => deleteUserDocument(documentInfo.filename));
+        actions.append(open, document.createTextNode(' · '), remove);
+        row.append(name, actions);
+        list.appendChild(row);
     });
 }
 
-async function loadCustomerBookings() {
-    const list = document.getElementById('customerBookingsList');
-    list.replaceChildren();
-    const loading = document.createElement('div');
-    loading.className = 'portal-empty-state';
-    loading.textContent = 'Loading your bookings…';
-    list.appendChild(loading);
-
+async function openPrivateFile(path) {
     try {
-        const { response, data } = await dashboardApiRequest('/customer/bookings');
+        const response = await dashboardApiFileRequest(path);
         if (!response.ok) {
-            showPortalNotice(data.error || 'Unable to load your bookings.', 'error');
-            showCustomerBookingsError('Your bookings could not be loaded.');
+            showPortalNotice('Unable to open this document.', 'error');
             return;
         }
-        if (!Array.isArray(data.bookings)) throw new Error('Booking response is not a list.');
-        renderCustomerBookings(data.bookings);
+        const objectUrl = URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
     } catch (error) {
-        console.error('Customer bookings failed to load:', error);
-        showPortalNotice('Unable to connect to the booking service. Please try again.', 'error');
-        showCustomerBookingsError('Your bookings could not be loaded.');
+        console.error('Private document access failed:', error);
+        showPortalNotice('Unable to connect to the document service.', 'error');
     }
 }
 
-function showCustomerBookingsError(message) {
-    const list = document.getElementById('customerBookingsList');
-    const state = document.createElement('div');
-    state.className = 'portal-empty-state';
-    state.textContent = message;
-    list.replaceChildren(state);
+async function deleteUserDocument(filename) {
+    if (!window.confirm('Remove this document from your account?')) return;
+    try {
+        const { response, data } = await dashboardApiRequest(`/users/me/documents/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+        if (!response.ok) {
+            showPortalNotice(data.error || 'Unable to remove the document.', 'error');
+            return;
+        }
+        await refreshPortalUser();
+        showPortalNotice('Document removed.');
+    } catch (error) {
+        console.error('Document removal failed:', error);
+        showPortalNotice('Unable to connect to the document service.', 'error');
+    }
 }
 
-function appendTableCell(row, value) {
+async function refreshPortalUser() {
+    const { response, data } = await dashboardApiRequest('/users/me');
+    if (!response.ok) throw new Error(data.error || 'Unable to refresh your account.');
+    portalUser = data.user;
+    localStorage.setItem('currentUser', JSON.stringify(portalUser));
+    populatePortalProfile(portalUser);
+}
+
+async function uploadCustomerDocuments(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    if (!formData.get('license')?.size && !formData.get('validId')?.size) {
+        showPortalNotice('Choose a Driver’s License or Valid ID to upload.', 'error');
+        return;
+    }
+    try {
+        const { response, data } = await dashboardApiRequest('/users/me/documents', { method: 'POST', body: formData });
+        if (!response.ok) {
+            showPortalNotice(data.error || 'Unable to upload documents.', 'error');
+            return;
+        }
+        form.reset();
+        await refreshPortalUser();
+        showPortalNotice('Renter documents uploaded securely.');
+    } catch (error) {
+        console.error('Renter document upload failed:', error);
+        showPortalNotice('Unable to connect to the document service.', 'error');
+    }
+}
+
+function isCancelledOrCompleted(booking) {
+    const status = String(booking.status || '').toLowerCase();
+    return status.includes('cancel') || status === 'completed';
+}
+
+function isUpcomingBooking(booking) {
+    return !isCancelledOrCompleted(booking) &&
+        (!booking.pickup_date || booking.pickup_date === '—' || booking.pickup_date >= new Date().toISOString().slice(0, 10));
+}
+
+function isPastBooking(booking) {
+    return isCancelledOrCompleted(booking) ||
+        (booking.return_date && booking.return_date !== '—' && booking.return_date < new Date().toISOString().slice(0, 10));
+}
+
+function createCustomerBookingCard(booking) {
+    const card = document.createElement('article');
+    card.className = 'portal-booking-card';
+    const heading = document.createElement('div');
+    heading.className = 'portal-booking-heading';
+    const titleGroup = document.createElement('div');
+    const title = document.createElement('h2');
+    title.textContent = `Booking ${booking.ref || ''}`;
+    const subtitle = document.createElement('p');
+    subtitle.className = 'portal-booking-subtitle';
+    subtitle.textContent = [booking.vehicle?.make, booking.vehicle?.model, booking.vehicleType, booking.rentalType]
+        .filter(Boolean)
+        .join(' · ') || 'Rental booking';
+    titleGroup.append(title, subtitle);
+    const status = booking.cancellationRequestedAt ? 'Cancellation Requested' : booking.status;
+    heading.append(titleGroup, createStatusBadge(status));
+
+    const details = document.createElement('dl');
+    details.className = 'portal-booking-details';
+    const fields = [
+        ['Pickup', `${formatDate(booking.pickup_date)}${booking.pickup_time && booking.pickup_time !== '—' ? ` · ${booking.pickup_time}` : ''}`],
+        ['Pickup area', booking.pickup_address || booking.area || '—'],
+        ['Return', `${formatDate(booking.return_date)}${booking.return_time && booking.return_time !== '—' ? ` · ${booking.return_time}` : ''}`],
+        ['Status', status || 'Unknown']
+    ];
+    fields.forEach(([label, value]) => {
+        const item = document.createElement('div');
+        const term = document.createElement('dt');
+        term.textContent = label;
+        const description = document.createElement('dd');
+        description.textContent = value;
+        item.append(term, description);
+        details.appendChild(item);
+    });
+    const open = document.createElement('a');
+    const route = `/customer/bookings/${encodeURIComponent(booking.ref)}`;
+    open.className = 'portal-button portal-button-secondary portal-card-link';
+    open.href = portalHref(route);
+    open.dataset.route = route;
+    open.textContent = 'View Details';
+    open.addEventListener('click', event => {
+        event.preventDefault();
+        navigateToRoute(route);
+    });
+    card.append(heading, details, open);
+    return card;
+}
+
+function renderCustomerBookings() {
+    const list = document.getElementById('customerBookingsList');
+    if (!list) return;
+    let visibleBookings = customerBookings;
+    if (currentBookingFilter === 'quoted') {
+        visibleBookings = customerBookings.filter(booking => String(booking.status).toLowerCase() === 'quoted');
+    } else if (currentBookingFilter === 'past') {
+        visibleBookings = customerBookings.filter(isPastBooking);
+    } else {
+        visibleBookings = customerBookings.filter(booking =>
+            isUpcomingBooking(booking) && String(booking.status).toLowerCase() !== 'quoted'
+        );
+    }
+
+    list.replaceChildren();
+    if (!visibleBookings.length) {
+        const empty = document.createElement('div');
+        empty.className = 'portal-empty-state';
+        empty.textContent = currentBookingFilter === 'quoted'
+            ? 'There are no pending quotes.'
+            : currentBookingFilter === 'past'
+                ? 'Your past and cancelled trips will appear here.'
+                : 'No upcoming bookings yet. Browse the fleet to book a vehicle.';
+        list.appendChild(empty);
+        return;
+    }
+    visibleBookings.forEach(booking => list.appendChild(createCustomerBookingCard(booking)));
+}
+
+function renderCustomerDashboard() {
+    const summary = document.getElementById('customerSummary');
+    const activeBookingSlot = document.getElementById('customerActiveBooking');
+    const recentTrips = document.getElementById('customerRecentTrips');
+    if (!summary || !activeBookingSlot || !recentTrips) return;
+    const upcoming = customerBookings.filter(isUpcomingBooking);
+    const quoted = customerBookings.filter(booking => String(booking.status).toLowerCase() === 'quoted').length;
+    const completed = customerBookings.filter(booking => String(booking.status).toLowerCase() === 'completed').length;
+    summary.replaceChildren(
+        createSummaryCard('Total bookings', customerBookings.length),
+        createSummaryCard('Upcoming / active', upcoming.length),
+        createSummaryCard('Pending quotes', quoted),
+        createSummaryCard('Past trips', completed)
+    );
+
+    const active = upcoming.sort((left, right) => String(left.pickup_date).localeCompare(String(right.pickup_date)))[0];
+    activeBookingSlot.replaceChildren();
+    if (active) {
+        const card = document.createElement('article');
+        card.className = 'portal-active-booking-card';
+        const titleGroup = document.createElement('div');
+        const title = document.createElement('h2');
+        title.textContent = `Next trip · ${active.ref}`;
+        const vehicle = document.createElement('p');
+        vehicle.textContent = active.vehicle
+            ? `${active.vehicle.make} ${active.vehicle.model} · ${active.vehicle.type || active.vehicleType}`
+            : active.vehicleType || 'Vehicle details pending';
+        const status = createStatusBadge(active.cancellationRequestedAt ? 'Cancellation Requested' : active.status);
+        titleGroup.append(title, vehicle);
+        const details = document.createElement('dl');
+        details.className = 'portal-booking-details';
+        [['Pickup', `${formatDate(active.pickup_date)} · ${active.pickup_time || '—'}`], ['Area', active.area || '—']]
+            .forEach(([label, value]) => {
+                const item = document.createElement('div');
+                const term = document.createElement('dt');
+                term.textContent = label;
+                const description = document.createElement('dd');
+                description.textContent = value;
+                item.append(term, description);
+                details.appendChild(item);
+            });
+        const open = document.createElement('a');
+        const route = `/customer/bookings/${encodeURIComponent(active.ref)}`;
+        open.className = 'portal-button portal-button-secondary';
+        open.href = portalHref(route);
+        open.textContent = 'View Booking';
+        open.addEventListener('click', event => {
+            event.preventDefault();
+            navigateToRoute(route);
+        });
+        card.append(titleGroup, status, details, open);
+        activeBookingSlot.appendChild(card);
+    } else {
+        const empty = document.createElement('div');
+        empty.className = 'portal-empty-state';
+        empty.textContent = 'You have no upcoming bookings.';
+        activeBookingSlot.appendChild(empty);
+    }
+
+    recentTrips.replaceChildren();
+    const recent = [...customerBookings].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))).slice(0, 3);
+    if (!recent.length) {
+        recentTrips.textContent = 'Your trips will appear here after you submit a booking request.';
+        return;
+    }
+    recent.forEach(booking => recentTrips.appendChild(createCustomerBookingCard(booking)));
+}
+
+async function loadCustomerBookings() {
+    const { response, data } = await dashboardApiRequest('/customer/bookings');
+    if (!response.ok) throw new Error(data.error || 'Unable to load your bookings.');
+    if (!Array.isArray(data.bookings)) throw new Error('The booking service returned invalid data.');
+    customerBookings = data.bookings;
+    renderCustomerBookings();
+    renderCustomerDashboard();
+}
+
+async function loadCustomerVehicles() {
+    const { response, data } = await dashboardApiRequest('/customer/vehicles');
+    if (!response.ok) throw new Error(data.error || 'Unable to load available vehicles.');
+    if (!Array.isArray(data.vehicles)) throw new Error('The fleet service returned invalid data.');
+    customerVehicles = data.vehicles;
+    renderCustomerVehicleCards();
+}
+
+function renderCustomerVehicleCards() {
+    const container = document.getElementById('availableVehicleCards');
+    if (!container) return;
+    container.replaceChildren();
+    if (!customerVehicles.length) {
+        const empty = document.createElement('div');
+        empty.className = 'portal-empty-state';
+        empty.textContent = 'There are no available approved vehicles right now.';
+        container.appendChild(empty);
+        return;
+    }
+    customerVehicles.forEach(vehicle => {
+        const card = document.createElement('article');
+        card.className = `portal-vehicle-card${selectedVehicleId === vehicle.id ? ' is-selected' : ''}`;
+        const title = document.createElement('h2');
+        title.textContent = `${vehicle.make} ${vehicle.model}`.trim();
+        const details = document.createElement('p');
+        details.textContent = [vehicle.year, vehicle.type, vehicle.seats ? `${vehicle.seats} seats` : '', vehicle.transmission, vehicle.fuelType]
+            .filter(Boolean)
+            .join(' · ');
+        const rate = document.createElement('strong');
+        rate.textContent = `${formatMoney(vehicle.dailyRate)} / day`;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `portal-button ${selectedVehicleId === vehicle.id ? 'portal-button-primary' : 'portal-button-secondary'}`;
+        button.setAttribute('aria-pressed', String(selectedVehicleId === vehicle.id));
+        button.textContent = selectedVehicleId === vehicle.id ? 'Selected' : 'Select Vehicle';
+        button.addEventListener('click', () => selectCustomerVehicle(vehicle.id));
+        card.append(title, details, rate, button);
+        container.appendChild(card);
+    });
+}
+
+function selectCustomerVehicle(vehicleId) {
+    selectedVehicleId = vehicleId;
+    const vehicle = customerVehicles.find(item => item.id === vehicleId);
+    const hiddenInput = document.getElementById('selectedVehicleId');
+    if (hiddenInput) hiddenInput.value = vehicleId;
+    const message = document.getElementById('selectedVehicleMessage');
+    if (message) message.textContent = vehicle ? `Selected: ${vehicle.make} ${vehicle.model} · ${formatMoney(vehicle.dailyRate)} / day` : 'Select a vehicle above to continue.';
+    renderCustomerVehicleCards();
+}
+
+function updateRentalTypeFields() {
+    const withDriver = document.getElementById('customerRentalType')?.value === 'with-driver';
+    const returnDate = document.getElementById('customerReturnDate');
+    const returnTime = document.getElementById('customerReturnTime');
+    if (returnDate) {
+        returnDate.required = !withDriver;
+        returnDate.disabled = withDriver;
+        if (withDriver) returnDate.value = '';
+    }
+    if (returnTime) {
+        returnTime.required = !withDriver;
+        returnTime.disabled = withDriver;
+        if (withDriver) returnTime.value = '';
+    }
+    document.getElementById('returnRequiredMark')?.classList.toggle('is-hidden', withDriver);
+    document.getElementById('returnTimeRequiredMark')?.classList.toggle('is-hidden', withDriver);
+}
+
+async function submitCustomerBooking(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!selectedVehicleId) {
+        showPortalNotice('Select an available vehicle before submitting your booking.', 'error');
+        return;
+    }
+    if (!form.reportValidity()) return;
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+    payload.passengers = payload.passengers || '';
+    try {
+        const { response, data } = await dashboardApiRequest('/customer/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            showPortalNotice(data.error || 'Unable to submit your booking.', 'error');
+            return;
+        }
+        form.reset();
+        selectedVehicleId = '';
+        showPortalNotice('Booking request submitted. Admin will review availability and send your quote.');
+        await loadCustomerBookings();
+        if (data.booking?.ref) navigateToRoute(`/customer/bookings/${encodeURIComponent(data.booking.ref)}`);
+    } catch (error) {
+        console.error('Customer booking submission failed:', error);
+        showPortalNotice('Unable to connect to the booking service. Please try again.', 'error');
+    }
+}
+
+function appendDetailField(container, label, value) {
+    const item = document.createElement('div');
+    const term = document.createElement('dt');
+    term.textContent = label;
+    const description = document.createElement('dd');
+    description.textContent = value || '—';
+    item.append(term, description);
+    container.appendChild(item);
+}
+
+function getCustomerQuoteBreakdown(quote) {
+    const breakdown = quote?.breakdownDetails || {};
+    const rows = [];
+    const add = (label, amount, zeroLabel = '') => {
+        const value = Number(amount);
+        if (Number.isFinite(value) && value > 0) rows.push([label, formatMoney(value)]);
+        else if (value === 0 && zeroLabel) rows.push([label, zeroLabel]);
+    };
+    if (String(quote?.rentalType || '').toLowerCase().includes('driver')) {
+        const fuelCost = Number(breakdown.consumption) > 0
+            ? (Number(breakdown.distance || 0) / Number(breakdown.consumption)) * Number(breakdown.fuelPrice || 0)
+            : 0;
+        add(`Rental rate (${formatMoney(breakdown.unitBase || 0)} × ${breakdown.driverDays || 0} day/s)`, Number(breakdown.unitBase || 0) * Number(breakdown.driverDays || 0));
+        if (Number(breakdown.driverOtHours) > 0) {
+            add(`Overtime (${formatMoney(breakdown.overtime || 0)} × ${breakdown.driverOtHours} hr/s)`, Number(breakdown.overtime || 0) * Number(breakdown.driverOtHours));
+        }
+        add('Calculated fuel cost', fuelCost);
+        add('Toll fees', breakdown.tollFees);
+        add('Parking fees', breakdown.parkingFees);
+        add("Driver's fee", breakdown.driverFee);
+        add('Meals', breakdown.meals);
+        add('Lodging / accommodation', breakdown.lodging);
+        add('Miscellaneous expenses', breakdown.misc);
+    } else {
+        add(`Rental rate (${formatMoney(breakdown.unitBase || 0)} × ${breakdown.days || 0} day/s)`, Number(breakdown.unitBase || 0) * Number(breakdown.days || 0));
+        if (Number(breakdown.selfOtHours) > 0) {
+            add(`Overtime (${formatMoney(breakdown.overtime || 0)} × ${breakdown.selfOtHours} hr/s)`, Number(breakdown.overtime || 0) * Number(breakdown.selfOtHours));
+        }
+        add('Delivery fee', breakdown.delivery, 'Free');
+        add('Return fee', breakdown.return, 'Free');
+        add('Child seat fee', breakdown.childSeat);
+    }
+    return rows;
+}
+
+function renderCustomerBookingDetails(booking) {
+    const container = document.getElementById('customerBookingDetails');
+    if (!container) return;
+    document.getElementById('customerBookingTitle').textContent = `Booking ${booking.ref}`;
+    container.replaceChildren();
+
+    const card = document.createElement('section');
+    card.className = 'portal-card portal-booking-detail-card';
+    const heading = document.createElement('div');
+    heading.className = 'portal-card-heading';
+    const title = document.createElement('h2');
+    title.textContent = booking.vehicle
+        ? `${booking.vehicle.make} ${booking.vehicle.model}`.trim()
+        : booking.vehicleType || 'Vehicle request';
+    heading.append(title, createStatusBadge(booking.cancellationRequestedAt ? 'Cancellation Requested' : booking.status));
+    const details = document.createElement('dl');
+    details.className = 'portal-booking-details';
+    [
+        ['Booking Ref', booking.ref],
+        ['Pickup date & time', `${formatDate(booking.pickup_date)} · ${booking.pickup_time || '—'}`],
+        ['Pickup area', booking.pickup_address || booking.area],
+        ['Pickup address', booking.pickup_location_address || '—'],
+        ['Return date & time', `${formatDate(booking.return_date)} · ${booking.return_time || '—'}`],
+        ['Return area', booking.return_address || '—'],
+        ['Return address', booking.return_location_address || '—'],
+        ['Rental type', booking.rentalType],
+        ['Vehicle', title.textContent],
+        ['Passengers', booking.passengers],
+        ['Itinerary', booking.itinerary]
+    ].forEach(([label, value]) => appendDetailField(details, label, value));
+    card.append(heading, details);
+
+    const quoteCard = document.createElement('section');
+    quoteCard.className = 'portal-card portal-booking-detail-card portal-spaced-form';
+    const quoteHeading = document.createElement('h2');
+    quoteHeading.textContent = 'Pricing';
+    quoteCard.appendChild(quoteHeading);
+    if (booking.quote) {
+        const total = document.createElement('p');
+        total.className = 'portal-quote-total';
+        total.textContent = `Quoted total: ${formatMoney(booking.quote.totalAmount)}`;
+        quoteCard.appendChild(total);
+        const lineItems = getCustomerQuoteBreakdown(booking.quote);
+        if (lineItems.length) {
+            const inputList = document.createElement('dl');
+            inputList.className = 'portal-booking-details portal-quote-inputs';
+            lineItems.forEach(([label, value]) => appendDetailField(inputList, label, value));
+            quoteCard.appendChild(inputList);
+        }
+        const inclusions = (booking.quote.inclusionsList || []).join(', ');
+        const exclusions = (booking.quote.exclusionsList || []).join(', ');
+        if (inclusions || exclusions) {
+            const lists = document.createElement('dl');
+            lists.className = 'portal-booking-details';
+            if (inclusions) appendDetailField(lists, 'Inclusions', inclusions);
+            if (exclusions) appendDetailField(lists, 'Exclusions', exclusions);
+            quoteCard.appendChild(lists);
+        }
+    } else {
+        const note = document.createElement('p');
+        note.className = 'portal-muted-note';
+        note.textContent = 'Your quote has not been prepared yet.';
+        quoteCard.appendChild(note);
+    }
+    container.append(card, quoteCard);
+
+    const status = String(booking.status || '').toLowerCase();
+    document.getElementById('approveCustomerQuote').hidden = status !== 'quoted' || !booking.quote;
+    document.getElementById('requestCustomerCancellation').hidden =
+        isCancelledOrCompleted(booking) || Boolean(booking.cancellationRequestedAt);
+    document.getElementById('paymentProofForm').hidden =
+        !['customer approved', 'pending payment'].includes(status);
+    const proofForm = document.getElementById('paymentProofForm');
+    proofForm.querySelector('.payment-proof-note')?.remove();
+    if (Array.isArray(booking.paymentProofs) && booking.paymentProofs.length) {
+        const proofNote = document.createElement('p');
+        proofNote.className = 'portal-muted-note payment-proof-note';
+        proofNote.textContent = `Payment proof uploaded: ${booking.paymentProofs.map(proof => proof.originalName || 'file').join(', ')}`;
+        proofForm.prepend(proofNote);
+    }
+}
+
+async function loadCustomerBookingDetails(ref) {
+    const container = document.getElementById('customerBookingDetails');
+    container.replaceChildren();
+    const loading = document.createElement('div');
+    loading.className = 'portal-empty-state';
+    loading.textContent = 'Loading booking details…';
+    container.appendChild(loading);
+    try {
+        const { response, data } = await dashboardApiRequest(`/customer/bookings/${encodeURIComponent(ref)}`);
+        if (!response.ok) throw new Error(data.error || 'Booking could not be found.');
+        currentCustomerBooking = data.booking;
+        renderCustomerBookingDetails(data.booking);
+    } catch (error) {
+        console.error('Customer booking details failed to load:', error);
+        container.replaceChildren();
+        const message = document.createElement('div');
+        message.className = 'portal-empty-state';
+        message.textContent = error.message || 'Booking details could not be loaded.';
+        container.appendChild(message);
+    }
+}
+
+async function updateCustomerBooking(action) {
+    if (!currentCustomerBooking) return;
+    if (action === 'request-cancellation' && !window.confirm('Send a cancellation request to Admin?')) return;
+    try {
+        const { response, data } = await dashboardApiRequest(`/customer/bookings/${encodeURIComponent(currentCustomerBooking.ref)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action })
+        });
+        if (!response.ok) {
+            showPortalNotice(data.error || 'Unable to update this booking.', 'error');
+            return;
+        }
+        showPortalNotice(action === 'approve-quote' ? 'Quote approved. Admin will confirm the booking.' : 'Cancellation request sent to Admin.');
+        await loadCustomerBookings();
+        await loadCustomerBookingDetails(currentCustomerBooking.ref);
+    } catch (error) {
+        console.error('Customer booking action failed:', error);
+        showPortalNotice('Unable to connect to the booking service.', 'error');
+    }
+}
+
+async function uploadPaymentProof(event) {
+    event.preventDefault();
+    if (!currentCustomerBooking) return;
+    const form = event.currentTarget;
+    if (!form.reportValidity()) return;
+    try {
+        const { response, data } = await dashboardApiRequest(
+            `/customer/bookings/${encodeURIComponent(currentCustomerBooking.ref)}/payment-proof`,
+            { method: 'POST', body: new FormData(form) }
+        );
+        if (!response.ok) {
+            showPortalNotice(data.error || 'Unable to upload payment proof.', 'error');
+            return;
+        }
+        form.reset();
+        showPortalNotice('Payment proof uploaded securely.');
+        await loadCustomerBookings();
+        await loadCustomerBookingDetails(currentCustomerBooking.ref);
+    } catch (error) {
+        console.error('Payment proof upload failed:', error);
+        showPortalNotice('Unable to connect to the payment upload service.', 'error');
+    }
+}
+
+function appendCell(row, value) {
     const cell = document.createElement('td');
     cell.textContent = value || '—';
     row.appendChild(cell);
     return cell;
 }
 
-function renderAffiliateVehicles() {
+function renderAffiliateVehicleRows() {
     const tbody = document.getElementById('affiliateVehiclesBody');
+    if (!tbody) return;
     tbody.replaceChildren();
-    if (!affiliateVehicles.length) {
-        setTableEmptyState(tbody, 4, 'You do not have any approved vehicles yet.');
+    const rows = [
+        ...affiliateVehicles.map(vehicle => ({
+            ...vehicle,
+            displayStatus: String(vehicle.status).toLowerCase() === 'maintenance'
+                ? 'In Maintenance'
+                : 'Approved / Active',
+            reviewNote: ''
+        })),
+        ...affiliateRequests
+            .filter(request => request.status !== 'Approved')
+            .map(request => ({
+                ...request,
+                displayStatus: request.status === 'Pending' ? 'Pending Approval' : request.status
+            }))
+    ];
+    if (!rows.length) {
+        setTableEmptyState(tbody, 6, 'No vehicles or submissions yet. Submit a vehicle to get started.');
         return;
     }
-    affiliateVehicles.forEach(vehicle => {
+    rows.forEach(vehicle => {
         const row = document.createElement('tr');
-        const vehicleCell = document.createElement('td');
-        const name = document.createElement('strong');
-        name.textContent = `${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'Vehicle';
-        const plate = document.createElement('small');
-        plate.textContent = vehicle.plate || '—';
-        vehicleCell.append(name, document.createElement('br'), plate);
-        row.appendChild(vehicleCell);
-        appendTableCell(row, [vehicle.year, vehicle.type, vehicle.color].filter(Boolean).join(' · ') || '—');
-        const statusCell = document.createElement('td');
-        statusCell.appendChild(createStatusBadge(vehicle.status));
-        row.appendChild(statusCell);
-        appendTableCell(row, formatMoney(vehicle.dailyRate));
+        appendCell(row, `${vehicle.make || ''} ${vehicle.model || ''}`.trim());
+        appendCell(row, vehicle.plate);
+        appendCell(row, [vehicle.year, vehicle.type, vehicle.seats ? `${vehicle.seats} seats` : '', vehicle.transmission, vehicle.fuelType]
+            .filter(Boolean)
+            .join(' · '));
+        const status = row.insertCell();
+        status.appendChild(createStatusBadge(vehicle.displayStatus || vehicle.status));
+        appendCell(row, vehicle.dailyRate === undefined ? '—' : formatMoney(vehicle.dailyRate));
+        appendCell(row, vehicle.reviewNote || '—');
+        tbody.appendChild(row);
+    });
+}
+
+function renderAffiliateBookingsRows(targetId, bookings) {
+    const tbody = document.getElementById(targetId);
+    if (!tbody) return;
+    tbody.replaceChildren();
+    if (!bookings.length) {
+        setTableEmptyState(tbody, 6, 'Assigned vehicle bookings will appear here. Earnings begin after a saved quote and completed trip.');
+        return;
+    }
+    bookings.forEach(booking => {
+        const row = document.createElement('tr');
+        appendCell(row, booking.ref);
+        appendCell(row, `${formatDate(booking.pickup_date)} – ${formatDate(booking.return_date)}`);
+        appendCell(row, [booking.pickup_address || booking.area, booking.return_address].filter(Boolean).join(' → '));
+        appendCell(row, `${booking.vehicle?.make || ''} ${booking.vehicle?.model || ''} · ${booking.vehicle?.plate || ''}`);
+        row.insertCell().appendChild(createStatusBadge(booking.status));
+        appendCell(row, String(booking.status).toLowerCase() === 'completed' && booking.hasFinalQuote
+            ? formatMoney(booking.affiliateShare)
+            : '—');
         tbody.appendChild(row);
     });
 }
 
 function renderAffiliateRequests() {
-    const tbody = document.getElementById('affiliateRequestsBody');
-    tbody.replaceChildren();
+    const list = document.getElementById('affiliateRecentRequests');
+    if (!list) return;
+    list.replaceChildren();
     if (!affiliateRequests.length) {
-        setTableEmptyState(tbody, 4, 'You have not submitted any vehicles for approval.');
+        list.textContent = 'No vehicle submissions yet.';
         return;
     }
-    affiliateRequests.forEach(request => {
+    affiliateRequests.slice(-3).reverse().forEach(request => {
+        const item = document.createElement('div');
+        item.className = 'portal-compact-item';
+        const text = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = `${request.make || ''} ${request.model || ''}`.trim() || request.plate || 'Vehicle';
+        const subtitle = document.createElement('small');
+        subtitle.textContent = `${formatDateTime(request.submittedAt)}${request.reviewNote ? ` · ${request.reviewNote}` : ''}`;
+        text.append(title, subtitle);
+        item.append(text, createStatusBadge(request.status === 'Pending' ? 'Pending Approval' : request.status));
+        list.appendChild(item);
+    });
+}
+
+function renderAffiliateEarnings() {
+    const summary = document.getElementById('affiliateEarningsSummary');
+    const tbody = document.getElementById('affiliatePayoutsBody');
+    const earningRows = document.getElementById('affiliateEarningsRows');
+    if (!summary || !affiliateEarnings) return;
+    const earnings = affiliateEarnings;
+    summary.replaceChildren(
+        createSummaryCard('Total completed-trip earnings', formatMoney(earnings.totalEarnings)),
+        createSummaryCard('Payout balance', formatMoney(earnings.payoutBalance)),
+        createSummaryCard('Available to request', formatMoney(earnings.availableToRequest)),
+        createSummaryCard('Affiliate share', `${earnings.sharePercent}%`)
+    );
+    if (earningRows) {
+        earningRows.replaceChildren();
+        const completedBookings = affiliateBookings.filter(booking =>
+            String(booking.status).toLowerCase() === 'completed'
+        );
+        if (!completedBookings.length) {
+            setTableEmptyState(earningRows, 4, 'Completed trip earnings will appear here after Admin marks an assigned booking complete and saves its quote.');
+        } else {
+            completedBookings.forEach(booking => {
+                const row = document.createElement('tr');
+                appendCell(row, booking.ref);
+                appendCell(row, `${formatDate(booking.pickup_date)} – ${formatDate(booking.return_date)}`);
+                appendCell(row, `${booking.vehicle?.make || ''} ${booking.vehicle?.model || ''} · ${booking.vehicle?.plate || ''}`);
+                appendCell(row, booking.hasFinalQuote ? formatMoney(booking.affiliateShare) : 'Awaiting saved quote');
+                earningRows.appendChild(row);
+            });
+        }
+    }
+    if (!tbody) return;
+    tbody.replaceChildren();
+    if (!earnings.requests.length) {
+        setTableEmptyState(tbody, 4, 'No payout requests yet.');
+        return;
+    }
+    earnings.requests.slice().reverse().forEach(request => {
         const row = document.createElement('tr');
-        const vehicleCell = document.createElement('td');
-        const name = document.createElement('strong');
-        name.textContent = `${request.make || ''} ${request.model || ''}`.trim() || 'Vehicle';
-        const plate = document.createElement('small');
-        plate.textContent = request.plate || '—';
-        vehicleCell.append(name, document.createElement('br'), plate);
-        row.appendChild(vehicleCell);
-        appendTableCell(row, formatDateTime(request.submittedAt));
-        const statusCell = document.createElement('td');
-        statusCell.appendChild(createStatusBadge(request.status));
-        row.appendChild(statusCell);
-        appendTableCell(row, request.reviewNote || '—');
+        appendCell(row, formatDateTime(request.requestedAt));
+        appendCell(row, formatMoney(request.amount));
+        const status = row.insertCell();
+        status.appendChild(createStatusBadge(request.status));
+        appendCell(row, request.reviewNote || (request.paidAt ? `Paid ${formatDateTime(request.paidAt)}` : '—'));
         tbody.appendChild(row);
     });
 }
 
-function renderAffiliateOverview() {
-    const summary = document.getElementById('affiliateSummary');
-    const pending = affiliateRequests.filter(request => request.status === 'Pending').length;
-    const available = affiliateVehicles.filter(vehicle => vehicle.status === 'Available').length;
-    summary.replaceChildren(
-        createSummaryCard('Approved vehicles', affiliateVehicles.length),
-        createSummaryCard('Available', available),
-        createSummaryCard('Pending review', pending),
-        createSummaryCard('Reviewed requests', affiliateRequests.length - pending)
-    );
-
-    const recentRequests = document.getElementById('affiliateRecentRequests');
-    const recentVehicles = document.getElementById('affiliateRecentVehicles');
-    recentRequests.replaceChildren();
-    recentVehicles.replaceChildren();
-    if (!affiliateRequests.length) {
-        recentRequests.textContent = 'No vehicle requests yet.';
-    } else {
-        affiliateRequests.slice(-3).reverse().forEach(request => {
-            const item = document.createElement('div');
-            item.className = 'portal-compact-item';
-            const text = document.createElement('div');
-            const title = document.createElement('strong');
-            title.textContent = `${request.make || ''} ${request.model || ''}`.trim() || request.plate || 'Vehicle';
-            const subtitle = document.createElement('small');
-            subtitle.textContent = formatDateTime(request.submittedAt);
-            text.append(title, subtitle);
-            item.append(text, createStatusBadge(request.status));
-            recentRequests.appendChild(item);
-        });
-    }
-    if (!affiliateVehicles.length) {
-        recentVehicles.textContent = 'No approved vehicles yet.';
-    } else {
-        affiliateVehicles.slice(-3).reverse().forEach(vehicle => {
-            const item = document.createElement('div');
-            item.className = 'portal-compact-item';
-            const text = document.createElement('div');
-            const title = document.createElement('strong');
-            title.textContent = `${vehicle.make || ''} ${vehicle.model || ''}`.trim() || vehicle.plate || 'Vehicle';
-            const subtitle = document.createElement('small');
-            subtitle.textContent = vehicle.plate || '—';
-            text.append(title, subtitle);
-            item.append(text, createStatusBadge(vehicle.status));
-            recentVehicles.appendChild(item);
-        });
-    }
-}
-
 async function loadAffiliateData() {
-    try {
-        const [vehiclesResult, requestsResult] = await Promise.all([
-            dashboardApiRequest('/vehicles'),
-            dashboardApiRequest('/vehicle-approval-requests')
-        ]);
-        if (!vehiclesResult.response.ok) {
-            throw new Error(vehiclesResult.data.error || 'Unable to load your vehicles.');
-        }
-        if (!requestsResult.response.ok) {
-            throw new Error(requestsResult.data.error || 'Unable to load your vehicle requests.');
-        }
-        if (!Array.isArray(vehiclesResult.data.vehicles) || !Array.isArray(requestsResult.data.requests)) {
-            throw new Error('The affiliate dashboard returned invalid vehicle data.');
-        }
-        affiliateVehicles = vehiclesResult.data.vehicles;
-        affiliateRequests = requestsResult.data.requests;
-        renderAffiliateVehicles();
-        renderAffiliateRequests();
-        renderAffiliateOverview();
-    } catch (error) {
-        console.error('Affiliate dashboard data failed to load:', error);
-        showPortalNotice(error.message || 'Unable to load affiliate data. Please try again.', 'error');
-        setTableEmptyState(document.getElementById('affiliateVehiclesBody'), 4, 'Vehicle data could not be loaded.');
-        setTableEmptyState(document.getElementById('affiliateRequestsBody'), 4, 'Approval requests could not be loaded.');
+    const results = await Promise.all([
+        dashboardApiRequest('/affiliate/dashboard'),
+        dashboardApiRequest('/vehicles'),
+        dashboardApiRequest('/vehicle-approval-requests'),
+        dashboardApiRequest('/affiliate/bookings'),
+        dashboardApiRequest('/affiliate/earnings')
+    ]);
+    const [dashboardResult, vehiclesResult, requestsResult, bookingsResult, earningsResult] = results;
+    for (const result of results) {
+        if (!result.response.ok) throw new Error(result.data.error || 'Unable to load affiliate data.');
     }
+    affiliateVehicles = vehiclesResult.data.vehicles;
+    affiliateRequests = requestsResult.data.requests;
+    affiliateBookings = bookingsResult.data.bookings;
+    affiliateEarnings = earningsResult.data.earnings;
+    const summary = dashboardResult.data.summary;
+    document.getElementById('affiliateSummary').replaceChildren(
+        createSummaryCard('Active vehicles', summary.activeVehicles),
+        createSummaryCard('Pending vehicle approvals', summary.pendingVehicleApprovals),
+        createSummaryCard('Bookings completed', summary.completedBookings),
+        createSummaryCard('Payout balance', formatMoney(summary.payoutBalance))
+    );
+    renderAffiliateVehicleRows();
+    renderAffiliateBookingsRows('affiliateBookingsBody', affiliateBookings);
+    renderAffiliateBookingsRows('affiliateRecentBookingsBody', dashboardResult.data.recentBookings);
+    renderAffiliateRequests();
+    renderAffiliateEarnings();
 }
 
 async function submitVehicleRequest(event) {
     event.preventDefault();
     const form = event.currentTarget;
     if (!form.reportValidity()) return;
-
-    const formData = new FormData(form);
-    const payload = {
-        plate: String(formData.get('plate') || '').trim(),
-        make: String(formData.get('make') || '').trim(),
-        model: String(formData.get('model') || '').trim(),
-        year: Number(formData.get('year')),
-        type: String(formData.get('type') || ''),
-        color: String(formData.get('color') || '').trim(),
-        seats: Number(formData.get('seats')),
-        transmission: String(formData.get('transmission') || ''),
-        fuelType: String(formData.get('fuelType') || ''),
-        dailyRate: Number(formData.get('dailyRate'))
-    };
-
     try {
         const { response, data } = await dashboardApiRequest('/vehicle-approval-requests', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: new FormData(form)
         });
         if (!response.ok) {
             showPortalNotice(data.error || 'Unable to submit this vehicle.', 'error');
             return;
         }
         form.reset();
-        showPortalNotice('Vehicle submitted for approval.');
+        showPortalNotice('Vehicle and documents submitted to Admin for approval.');
         await loadAffiliateData();
+        navigateToRoute('/affiliate/vehicles');
     } catch (error) {
         console.error('Vehicle submission failed:', error);
-        showPortalNotice('Unable to connect to the vehicle approval service. Please try again.', 'error');
+        showPortalNotice(error.message || 'Unable to connect to the vehicle approval service.', 'error');
+    }
+}
+
+async function requestAffiliatePayout() {
+    if (!window.confirm('Submit all available completed-trip earnings for payout review?')) return;
+    try {
+        const { response, data } = await dashboardApiRequest('/affiliate/payout-requests', { method: 'POST' });
+        if (!response.ok) {
+            showPortalNotice(data.error || 'Unable to submit a payout request.', 'error');
+            return;
+        }
+        showPortalNotice('Payout request submitted to Admin for review.');
+        await loadAffiliateData();
+    } catch (error) {
+        console.error('Payout request failed:', error);
+        showPortalNotice('Unable to connect to the payout service.', 'error');
+    }
+}
+
+function bindPortalEvents() {
+    bindPortalNavigation();
+    document.getElementById('profileForm')?.addEventListener('submit', savePortalProfile);
+    document.getElementById('passwordForm')?.addEventListener('submit', changePortalPassword);
+    document.getElementById('vehicleRequestForm')?.addEventListener('submit', submitVehicleRequest);
+    document.getElementById('refreshCustomerBookings')?.addEventListener('click', () => {
+        loadCustomerBookings().catch(error => {
+            console.error('Customer booking refresh failed:', error);
+            showPortalNotice('Unable to refresh your bookings.', 'error');
+        });
+    });
+    document.getElementById('customerBookingForm')?.addEventListener('submit', submitCustomerBooking);
+    document.getElementById('customerRentalType')?.addEventListener('change', updateRentalTypeFields);
+    document.getElementById('customerDocumentsForm')?.addEventListener('submit', uploadCustomerDocuments);
+    document.getElementById('paymentProofForm')?.addEventListener('submit', uploadPaymentProof);
+    document.getElementById('approveCustomerQuote')?.addEventListener('click', () => updateCustomerBooking('approve-quote'));
+    document.getElementById('requestCustomerCancellation')?.addEventListener('click', () => updateCustomerBooking('request-cancellation'));
+    document.getElementById('requestAffiliatePayout')?.addEventListener('click', requestAffiliatePayout);
+    document.querySelectorAll('[data-booking-filter]').forEach(button => {
+        button.addEventListener('click', () => {
+            currentBookingFilter = button.dataset.bookingFilter;
+            document.querySelectorAll('[data-booking-filter]').forEach(tab => {
+                const active = tab === button;
+                tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', String(active));
+            });
+            renderCustomerBookings();
+        });
+    });
+    window.addEventListener('popstate', loadPortalRoute);
+    window.addEventListener('hashchange', loadPortalRoute);
+}
+
+async function loadPortalRoute() {
+    const route = currentPortalRoute();
+    const isRoleRoute = route === portalPrefix || route.startsWith(`${portalPrefix}/`);
+    if (!isRoleRoute) {
+        navigateToRoute(`${portalPrefix}/dashboard`, true);
+        return;
+    }
+    let viewName = routeView(route);
+    if (requiredDashboardRole === 'affiliate' && !['dashboard', 'vehicles', 'vehicle-new', 'bookings', 'earnings', 'settings'].includes(viewName)) {
+        navigateToRoute('/affiliate/dashboard', true);
+        return;
+    }
+    if (requiredDashboardRole === 'customer' && !['dashboard', 'bookings', 'booking-detail', 'book', 'profile'].includes(viewName)) {
+        navigateToRoute('/customer/dashboard', true);
+        return;
+    }
+    if (requiredDashboardRole === 'affiliate' && viewName === 'vehicles' && route.endsWith('/new')) viewName = 'vehicle-new';
+    setPortalView(viewName);
+    try {
+        if (requiredDashboardRole === 'customer') {
+            await loadCustomerBookings();
+            if (viewName === 'book' && !customerVehicles.length) await loadCustomerVehicles();
+            if (viewName === 'booking-detail') {
+                const ref = decodeURIComponent(route.split('/')[3] || '');
+                if (!ref) throw new Error('Booking reference is missing.');
+                await loadCustomerBookingDetails(ref);
+            }
+        } else {
+            await loadAffiliateData();
+        }
+    } catch (error) {
+        console.error('Portal view data failed to load:', error);
+        showPortalNotice(error.message || 'Unable to load portal data. Please try again.', 'error');
     }
 }
 
 async function initializePortalDashboard() {
-    bindPortalNavigation();
-    document.getElementById('profileForm')?.addEventListener('submit', savePortalProfile);
-    document.getElementById('vehicleRequestForm')?.addEventListener('submit', submitVehicleRequest);
-    document.getElementById('refreshCustomerBookings')?.addEventListener('click', loadCustomerBookings);
-
+    bindPortalEvents();
+    updateRentalTypeFields();
     if (!localStorage.getItem('authToken')) {
         window.location.replace(getPortalLoginPath());
         return;
@@ -515,15 +1202,9 @@ async function initializePortalDashboard() {
                 window.location.replace(getPortalLoginPath());
                 return;
             }
-            if (data.role === 'driver') {
-                clearPortalAuthentication();
-                showPortalAccessMessage('Driver accounts are for booking assignments only and cannot access dashboards.');
-                return;
-            }
             showPortalAccessMessage(data.error || 'Your account is not authorized to use this dashboard.');
             return;
         }
-
         portalUser = data.user;
         if (portalUser.role !== requiredDashboardRole) {
             const ownDashboard = window.getDashboardPath(portalUser.role);
@@ -535,17 +1216,15 @@ async function initializePortalDashboard() {
             showPortalAccessMessage('This account role cannot access dashboards.');
             return;
         }
-
         populatePortalProfile(portalUser);
         document.getElementById('portalAccessMessage').hidden = true;
         document.getElementById('portalApp').hidden = false;
-        setPortalView(document.querySelector('.portal-nav .is-active')?.dataset.viewTarget || 'overview');
-
-        if (requiredDashboardRole === 'customer') {
-            await loadCustomerBookings();
-        } else if (requiredDashboardRole === 'affiliate') {
-            await loadAffiliateData();
+        const route = currentPortalRoute();
+        if (route === portalPrefix || route === `${portalPrefix}/`) {
+            navigateToRoute(`${portalPrefix}/dashboard`, true);
+            return;
         }
+        await loadPortalRoute();
     } catch (error) {
         console.error('Dashboard access verification failed:', error);
         showPortalAccessMessage('We could not verify your account with the server. Check your connection and try again.');

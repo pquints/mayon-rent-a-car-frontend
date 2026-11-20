@@ -7,9 +7,14 @@
     root.getDashboardPath = api.getDashboardPath;
 }(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     const DASHBOARD_PATHS = Object.freeze({
-        admin: '/dashboard',
-        affiliate: '/affiliate-dashboard',
-        customer: '/customer-dashboard'
+        admin: '/admin',
+        affiliate: '/affiliate/dashboard',
+        customer: '/customer/dashboard'
+    });
+    const LOCAL_DASHBOARD_FILES = Object.freeze({
+        admin: 'dashboard.html',
+        affiliate: 'affiliate-dashboard.html',
+        customer: 'customer-dashboard.html'
     });
 
     function getDashboardPath(role) {
@@ -19,8 +24,8 @@
         if (!path) return null;
 
         if (typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)) {
-            const directory = window.location.pathname.slice(0, window.location.pathname.lastIndexOf('/') + 1);
-            return `${directory}${path.slice(1)}.html`;
+            const filename = LOCAL_DASHBOARD_FILES[role];
+            return filename ? `/Public/${filename}` : null;
         }
 
         return path;

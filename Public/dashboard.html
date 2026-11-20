@@ -14,7 +14,7 @@
         }
     </script>
     <title>Mayon Rent a Car - Login Portal</title>
-    <link rel="stylesheet" href="dashboard-style.css?v=20261121-01">
+    <link rel="stylesheet" href="dashboard-style.css?v=20261121-02">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/svg+xml" href="images/Mayon.svg?v=20260713">
     <link rel="shortcut icon" href="images/Mayon.svg?v=20260713">
@@ -204,7 +204,7 @@
                     <span class="nav-text">Manage Bookings</span>
                 </a>
                 
-                <a href="#" class="nav-item" aria-label="Finance" title="Finance">
+                <a href="#" class="nav-item" aria-label="Finance" title="Finance" onclick="openAffiliatePayouts(); return false;">
                     <i class="fa-solid fa-wallet"></i>
                     <span class="nav-text">Finance</span>
                 </a>
@@ -625,6 +625,7 @@
                                 <th>Vehicle Type</th>
                                 <th>Status</th>
                                 <th>Submitted</th>
+                                <th>Documents</th>
                                 <th>Review Note</th>
                                 <th class="vehicle-actions-heading">Actions</th>
                             </tr>
@@ -675,6 +676,7 @@
                             <option value="Cancelled - Lost">Cancelled - Lost</option>
                         </select>
                     </div>
+                    <p id="customerCancellationRequestNotice" class="booking-cancellation-notice" hidden></p>
                     <div class="dashboard-form-field">
                         <label for="fpContact">Contact number</label>
                         <input type="text" id="fpContact" class="dashboard-form-input">
@@ -716,6 +718,12 @@
                             <option value="Sedan">Sedan</option>
                             <option value="MPV">MPV</option>
                             <option value="Electric MPV">Electric MPV</option>
+                        </select>
+                    </div>
+                    <div class="dashboard-form-field">
+                        <label for="fpAssignedVehicle">Assigned fleet vehicle</label>
+                        <select id="fpAssignedVehicle" class="dashboard-form-input">
+                            <option value="">Not assigned</option>
                         </select>
                     </div>
                     <div class="dashboard-form-field">
@@ -780,6 +788,11 @@
                     <label for="fpDetails">Itinerary / trip details</label>
                     <textarea id="fpDetails" rows="4" class="dashboard-form-input"></textarea>
                 </div>
+
+                <section id="bookingPaymentProofs" class="booking-payment-proofs" hidden>
+                    <h3>Customer Payment Proofs</h3>
+                    <div id="bookingPaymentProofList"></div>
+                </section>
 
                 <!-- Saved Quote Display Section -->
                 <div id="missingSavedQuoteNotice" role="status" style="display: none; margin-top: 20px; padding: 15px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; color: #92400e;">
@@ -1108,6 +1121,24 @@
                 </div>
             </div>
 
+            <section id="financeManagementView" class="dashboard-extra-view dashboard-page-panel" style="display: none;" aria-labelledby="financeManagementTitle">
+                <header class="dashboard-page-header">
+                    <div>
+                        <p class="dashboard-page-eyebrow">Finance</p>
+                        <h2 id="financeManagementTitle">Affiliate Payout Requests</h2>
+                        <p>Review affiliate payout details and confirm payments after they are sent.</p>
+                    </div>
+                    <button type="button" class="btn-secondary" id="refreshAffiliatePayouts">Refresh</button>
+                </header>
+                <div id="affiliatePayoutManagementMessage" class="dashboard-view-message" role="status" hidden></div>
+                <div class="report-table-wrap dashboard-table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Affiliate</th><th>Requested</th><th>Amount</th><th>Payment Destination</th><th>Status</th><th>Review Note</th><th>Actions</th></tr></thead>
+                        <tbody id="affiliatePayoutManagementBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
             <section id="operationalReportsView" class="dashboard-extra-view dashboard-page-panel" style="display: none;" aria-labelledby="operationalReportsTitle">
                 <div class="dashboard-extra-header dashboard-page-header">
                     <div>
@@ -1257,7 +1288,7 @@
         });
     </script>
     <script src="auth-utils.js?v=20261118-02"></script>
-    <script src="dashboard.js?v=20261121-01"></script>
+    <script src="dashboard.js?v=20261121-02"></script>
     
     <!-- USER FORM -->
     <div id="userModal" class="user-modal-overlay" style="display: none;">

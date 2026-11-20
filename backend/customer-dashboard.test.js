@@ -30,7 +30,7 @@ const bookings = [
 ];
 
 const result = getCustomerBookings(bookings, user);
-assert.deepEqual(result.map(booking => booking.ref), ['LEGACY-MATCH', 'ID-MATCH']);
+assert.deepEqual(result.map(booking => booking.ref), ['ID-MATCH']);
 assert.equal(Object.hasOwn(result[0], 'contact_no'), false);
 assert.equal(Object.hasOwn(result[0], 'email'), false);
 assert.deepEqual(getCustomerBookings(bookings, {}), []);

@@ -10,6 +10,26 @@
       "destination": "/Public/dashboard"
     },
     {
+      "source": "/admin",
+      "destination": "/Public/dashboard"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/Public/dashboard"
+    },
+    {
+      "source": "/manage-bookings",
+      "destination": "/Public/dashboard"
+    },
+    {
+      "source": "/finance",
+      "destination": "/Public/dashboard"
+    },
+    {
+      "source": "/fleet-approvals",
+      "destination": "/Public/dashboard"
+    },
+    {
       "source": "/dashboard.html",
       "destination": "/Public/dashboard"
     },
@@ -22,11 +42,59 @@
       "destination": "/Public/customer-dashboard"
     },
     {
+      "source": "/customer",
+      "destination": "/Public/customer-dashboard"
+    },
+    {
+      "source": "/customer/account-dashboard.css",
+      "destination": "/Public/account-dashboard.css"
+    },
+    {
+      "source": "/customer/account-dashboard.js",
+      "destination": "/Public/account-dashboard.js"
+    },
+    {
+      "source": "/customer/auth-utils.js",
+      "destination": "/Public/auth-utils.js"
+    },
+    {
+      "source": "/customer/images/:path*",
+      "destination": "/Public/images/:path*"
+    },
+    {
+      "source": "/customer/:path*",
+      "destination": "/Public/customer-dashboard"
+    },
+    {
       "source": "/affiliate-dashboard",
       "destination": "/Public/affiliate-dashboard"
     },
     {
       "source": "/affiliate-dashboard.html",
+      "destination": "/Public/affiliate-dashboard"
+    },
+    {
+      "source": "/affiliate",
+      "destination": "/Public/affiliate-dashboard"
+    },
+    {
+      "source": "/affiliate/account-dashboard.css",
+      "destination": "/Public/account-dashboard.css"
+    },
+    {
+      "source": "/affiliate/account-dashboard.js",
+      "destination": "/Public/account-dashboard.js"
+    },
+    {
+      "source": "/affiliate/auth-utils.js",
+      "destination": "/Public/auth-utils.js"
+    },
+    {
+      "source": "/affiliate/images/:path*",
+      "destination": "/Public/images/:path*"
+    },
+    {
+      "source": "/affiliate/:path*",
       "destination": "/Public/affiliate-dashboard"
     },
     {
