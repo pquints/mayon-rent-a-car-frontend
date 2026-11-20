@@ -1511,6 +1511,7 @@ function renderPagination(bookingsList) {
 
     // Previous button
     const prevBtn = document.createElement('button');
+    prevBtn.type = 'button';
     prevBtn.innerHTML = '« Previous';
     prevBtn.style.cssText = `
         padding: 8px 12px;
@@ -1537,6 +1538,7 @@ function renderPagination(bookingsList) {
 
     // Next button
     const nextBtn = document.createElement('button');
+    nextBtn.type = 'button';
     nextBtn.innerHTML = 'Next »';
     nextBtn.style.cssText = `
         padding: 8px 12px;
@@ -1628,6 +1630,7 @@ function renderPaginationFiltered(filteredList) {
 
     // Previous button
     const prevBtn = document.createElement('button');
+    prevBtn.type = 'button';
     prevBtn.innerHTML = '« Previous';
     prevBtn.style.cssText = `
         padding: 8px 12px;
@@ -1655,6 +1658,7 @@ function renderPaginationFiltered(filteredList) {
 
     // Next button
     const nextBtn = document.createElement('button');
+    nextBtn.type = 'button';
     nextBtn.innerHTML = 'Next »';
     nextBtn.style.cssText = `
         padding: 8px 12px;
@@ -2416,11 +2420,11 @@ function handleRentalTypeChange() {
     const rentalType = document.getElementById("fpRentalType").value;
     
     if (rentalType === "with-driver") {
-        document.getElementById("qqWithDriverSection").style.display = "block";
+        document.getElementById("qqWithDriverSection").style.display = "grid";
         document.getElementById("qqSelfDriveSection").style.display = "none";
     } else {
         document.getElementById("qqWithDriverSection").style.display = "none";
-        document.getElementById("qqSelfDriveSection").style.display = "block";
+        document.getElementById("qqSelfDriveSection").style.display = "grid";
     }
     
     // Recalculate with the new rental type
@@ -2440,11 +2444,11 @@ function openQuickQuote(refNum) {
     drawer.style.display = "block"; 
 
     if (currentQuotingType === "with-driver" || currentQuotingType === "with driver") {
-        document.getElementById("qqWithDriverSection").style.display = "block";
+        document.getElementById("qqWithDriverSection").style.display = "grid";
         document.getElementById("qqSelfDriveSection").style.display = "none";
     } else {
         document.getElementById("qqWithDriverSection").style.display = "none";
-        document.getElementById("qqSelfDriveSection").style.display = "block";
+        document.getElementById("qqSelfDriveSection").style.display = "grid";
     }
 
     calculateTotalQuote();
@@ -3506,9 +3510,17 @@ function openActivityLog() {
 function renderReportTable(bodyId, rows, emptyMessage) {
     const tbody = document.getElementById(bodyId);
     if (!tbody) return;
+    const columnLabels = Array.from(
+        tbody.closest('table')?.querySelectorAll('thead th') || [],
+        header => header.textContent.trim()
+    );
     tbody.innerHTML = rows.length
-        ? rows.map(row => `<tr><td>${escapeUserMarkup(row.label)}</td><td>${Number(row.count).toLocaleString('en-PH')}</td></tr>`).join('')
-        : `<tr><td colspan="2" class="users-empty-state">${emptyMessage}</td></tr>`;
+        ? rows.map(row => `
+            <tr>
+                <td data-label="${escapeUserMarkup(columnLabels[0] || 'Category')}">${escapeUserMarkup(row.label)}</td>
+                <td data-label="${escapeUserMarkup(columnLabels[1] || 'Count')}">${Number(row.count).toLocaleString('en-PH')}</td>
+            </tr>`).join('')
+        : `<tr><td colspan="2" class="dashboard-empty-state">${emptyMessage}</td></tr>`;
 }
 
 function renderOperationalReport(report) {
@@ -3584,13 +3596,13 @@ function renderActivityLog(events) {
         const action = String(event.action || '').replace(/_/g, ' ');
         return `
             <tr>
-                <td>${escapeUserMarkup(when)}</td>
-                <td>${escapeUserMarkup(event.actor || 'Unknown')}</td>
-                <td>${escapeUserMarkup(action)}</td>
-                <td>${escapeUserMarkup(`${event.entityType || ''} ${event.entityId || ''}`.trim())}</td>
-                <td>${escapeUserMarkup([event.summary, formatActivityDetails(event.details)].filter(Boolean).join(' · '))}</td>
+                <td data-label="When">${escapeUserMarkup(when)}</td>
+                <td data-label="Who">${escapeUserMarkup(event.actor || 'Unknown')}</td>
+                <td data-label="Action">${escapeUserMarkup(action)}</td>
+                <td data-label="Record">${escapeUserMarkup(`${event.entityType || ''} ${event.entityId || ''}`.trim())}</td>
+                <td data-label="Details">${escapeUserMarkup([event.summary, formatActivityDetails(event.details)].filter(Boolean).join(' · '))}</td>
             </tr>`;
-    }).join('') : '<tr><td colspan="5" class="users-empty-state">No activity recorded yet.</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="dashboard-empty-state">No activity recorded yet.</td></tr>';
 }
 
 async function loadActivityLog() {
@@ -3938,13 +3950,13 @@ function renderUserDocumentList() {
     const existingItems = _existingUserDocuments.map(doc => `
         <li>
             <span>${doc.originalName || doc.filename}</span>
-            <button type="button" onclick="removeExistingUserDocument('${doc.filename}')" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+            <button type="button" class="icon-button document-remove-button" onclick="removeExistingUserDocument('${doc.filename}')" title="Remove document" aria-label="Remove document"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
         </li>`).join('');
 
     const newItems = _selectedUserDocuments.map((file, index) => `
         <li>
             <span>${file.name}</span>
-            <button type="button" onclick="removeSelectedUserDocument(${index})" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+            <button type="button" class="icon-button document-remove-button" onclick="removeSelectedUserDocument(${index})" title="Remove document" aria-label="Remove document"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
         </li>`).join('');
 
     list.innerHTML = existingItems + newItems;
@@ -4385,11 +4397,11 @@ function renderVehiclesTable() {
     if (pagination) {
         const buttons = [];
         if (pageCount > 1) {
-            buttons.push(`<button type="button" data-vehicle-page="${_vehiclePage - 1}" ${_vehiclePage === 1 ? 'disabled' : ''} aria-label="Previous page"><i class="fa-solid fa-chevron-left"></i></button>`);
+            buttons.push(`<button type="button" class="dashboard-pagination-button btn-secondary" data-vehicle-page="${_vehiclePage - 1}" ${_vehiclePage === 1 ? 'disabled' : ''} aria-label="Previous page"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>`);
             for (let page = 1; page <= pageCount; page += 1) {
-                buttons.push(`<button type="button" data-vehicle-page="${page}" class="${page === _vehiclePage ? 'is-current' : ''}" aria-current="${page === _vehiclePage ? 'page' : 'false'}">${page}</button>`);
+                buttons.push(`<button type="button" class="dashboard-pagination-button btn-secondary${page === _vehiclePage ? ' is-current' : ''}" data-vehicle-page="${page}" aria-current="${page === _vehiclePage ? 'page' : 'false'}">${page}</button>`);
             }
-            buttons.push(`<button type="button" data-vehicle-page="${_vehiclePage + 1}" ${_vehiclePage === pageCount ? 'disabled' : ''} aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></button>`);
+            buttons.push(`<button type="button" class="dashboard-pagination-button btn-secondary" data-vehicle-page="${_vehiclePage + 1}" ${_vehiclePage === pageCount ? 'disabled' : ''} aria-label="Next page"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>`);
         }
         pagination.innerHTML = buttons.join('');
     }
@@ -4487,6 +4499,7 @@ async function handleSaveVehicle(e) {
     const make = document.getElementById('vehicleMake').value.trim();
     const model = document.getElementById('vehicleModel').value.trim();
     const year = Number(document.getElementById('vehicleYear').value);
+    const dailyRate = Number(document.getElementById('vehicleDailyRate').value);
     const type = document.getElementById('vehicleType').value;
     const color = document.getElementById('vehicleColor').value.trim();
     const seats = Number(document.getElementById('vehicleSeats').value);
@@ -4506,7 +4519,7 @@ async function handleSaveVehicle(e) {
             method,
             headers: getAuthHeaders(),
             body: JSON.stringify({
-                plate, make, model, year, type, color, seats, transmission, fuelType, status
+                plate, make, model, year, dailyRate, type, color, seats, transmission, fuelType, status
             })
         });
         
@@ -4573,6 +4586,7 @@ async function editVehicle(vehicleId) {
         document.getElementById('vehicleMake').value = vehicle.make;
         document.getElementById('vehicleModel').value = vehicle.model;
         document.getElementById('vehicleYear').value = vehicle.year;
+        document.getElementById('vehicleDailyRate').value = vehicle.dailyRate || '';
         document.getElementById('vehicleType').value = vehicle.type;
         document.getElementById('vehicleColor').value = vehicle.color;
         document.getElementById('vehicleSeats').value = vehicle.seats;
