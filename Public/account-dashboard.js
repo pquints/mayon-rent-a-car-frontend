@@ -9,6 +9,20 @@ let affiliateVehicles = [];
 let affiliateRequests = [];
 let affiliateBookings = [];
 let affiliateEarnings = null;
+let affiliateVehicleSelectedFiles = { documents: [], exteriorPhotos: [], interiorPhotos: [] };
+let affiliateVehicleExistingFiles = { documents: [], exteriorPhotos: [], interiorPhotos: [] };
+const affiliateVehicleUploadLimit = 10;
+const affiliateVehicleUploadMaxBytes = 5 * 1024 * 1024;
+const affiliateVehicleUploadTypes = {
+    documents: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+    exteriorPhotos: ['image/jpeg', 'image/png', 'image/webp'],
+    interiorPhotos: ['image/jpeg', 'image/png', 'image/webp']
+};
+const affiliateVehicleUploadInputIds = {
+    documents: 'affiliateVehicleDocumentsInput',
+    exteriorPhotos: 'affiliateVehicleExteriorPhotosInput',
+    interiorPhotos: 'affiliateVehicleInteriorPhotosInput'
+};
 let customerBookings = [];
 let customerVehicles = [];
 let currentCustomerBooking = null;
@@ -139,7 +153,7 @@ function getStatusClass(status) {
     if (normalized.includes('cancel') || normalized === 'rejected') return 'is-cancelled';
     if (['approved', 'customer approved', 'confirmed', 'completed', 'ongoing', 'deposited', 'available', 'approved / active'].includes(normalized)) return 'is-confirmed';
     if (normalized === 'quoted') return 'is-quoted';
-    if (['pending', 'open', 'for assignment', 'pending payment', 'pending approval', 'cancellation requested'].includes(normalized)) return 'is-pending';
+    if (normalized.includes('pending') || ['open', 'for assignment', 'cancellation requested'].includes(normalized)) return 'is-pending';
     if (normalized.includes('maintenance')) return 'is-inactive';
     return '';
 }
@@ -180,7 +194,7 @@ function setPortalView(viewName) {
         section.hidden = section !== view;
     });
     document.querySelectorAll('.portal-nav [data-route]').forEach(link => {
-        const activeView = viewName === 'booking-detail' ? 'bookings' : viewName === 'vehicle-new' ? 'vehicles' : viewName;
+        const activeView = ['booking-detail', 'vehicle-new'].includes(viewName) ? (viewName === 'booking-detail' ? 'bookings' : 'vehicles') : viewName;
         const active = routeView(link.dataset.route) === activeView;
         link.classList.toggle('is-active', active);
         if (active) link.setAttribute('aria-current', 'page');
@@ -192,7 +206,7 @@ function setPortalView(viewName) {
 function routeView(route) {
     const path = String(route || '');
     if (requiredDashboardRole === 'affiliate') {
-        if (path === '/affiliate/vehicles/new') return 'vehicle-new';
+        if (path === '/affiliate/vehicles/new' || /^\/affiliate\/vehicles\/[^/]+\/edit$/.test(path)) return 'vehicle-new';
         return path.split('/')[2] || 'dashboard';
     }
     if (/^\/customer\/bookings\/[^/]+/.test(path)) return 'booking-detail';
@@ -915,13 +929,218 @@ function appendCell(row, value) {
     return cell;
 }
 
+function setAffiliateVehicleTab(tabName, focusTab = false) {
+    document.querySelectorAll('#affiliateVehicleTabs [data-vehicle-tab]').forEach(tab => {
+        const active = tab.dataset.vehicleTab === tabName;
+        tab.setAttribute('aria-selected', String(active));
+        tab.tabIndex = active ? 0 : -1;
+        if (active && focusTab) tab.focus();
+    });
+    document.querySelectorAll('#vehicleRequestForm [data-vehicle-tab-panel]').forEach(panel => {
+        panel.hidden = panel.dataset.vehicleTabPanel !== tabName;
+    });
+}
+
+function normalizeAffiliateVehicleFiles(files) {
+    return (Array.isArray(files) ? files : [])
+        .map(file => typeof file === 'string' ? { filename: file, originalName: file } : file)
+        .filter(file => file && typeof file.filename === 'string');
+}
+
+function renderAffiliateVehicleUploads() {
+    Object.keys(affiliateVehicleUploadTypes).forEach(kind => {
+        const titleCase = kind[0].toUpperCase() + kind.slice(1);
+        const list = document.getElementById(`affiliate${titleCase}List`);
+        const count = document.getElementById(`affiliate${titleCase}Count`);
+        if (!list) return;
+
+        const existing = affiliateVehicleExistingFiles[kind] || [];
+        const selected = affiliateVehicleSelectedFiles[kind] || [];
+        if (count) count.textContent = `${existing.length + selected.length}/${affiliateVehicleUploadLimit}`;
+        list.replaceChildren();
+
+        existing.forEach(file => {
+            const row = document.createElement('li');
+            const name = document.createElement('span');
+            name.textContent = file.originalName || file.originalname || file.filename;
+            const open = document.createElement('button');
+            open.type = 'button';
+            open.textContent = 'View';
+            open.dataset.viewVehicleFile = file.category || kind;
+            open.dataset.filename = file.filename;
+            row.append(name, open);
+            list.appendChild(row);
+        });
+
+        selected.forEach((file, index) => {
+            const row = document.createElement('li');
+            const name = document.createElement('span');
+            const size = file.size < 1024 * 1024
+                ? `${Math.max(1, Math.round(file.size / 1024))} KB`
+                : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+            name.textContent = `${file.name} (${size})`;
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.textContent = 'Remove';
+            remove.dataset.removeUpload = kind;
+            remove.dataset.fileIndex = String(index);
+            row.append(name, remove);
+            list.appendChild(row);
+        });
+    });
+}
+
+function resetAffiliateVehicleUploads(vehicle = null) {
+    affiliateVehicleSelectedFiles = { documents: [], exteriorPhotos: [], interiorPhotos: [] };
+    affiliateVehicleExistingFiles = {
+        documents: normalizeAffiliateVehicleFiles(vehicle?.documents),
+        exteriorPhotos: normalizeAffiliateVehicleFiles(vehicle?.exteriorPhotos),
+        interiorPhotos: normalizeAffiliateVehicleFiles(vehicle?.interiorPhotos)
+    };
+    if (vehicle?.photo && typeof vehicle.photo === 'string') {
+        affiliateVehicleExistingFiles.exteriorPhotos.unshift({
+            filename: vehicle.photo,
+            originalName: 'Vehicle photo',
+            category: 'photo'
+        });
+    }
+    Object.values(affiliateVehicleUploadInputIds).forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.value = '';
+    });
+    renderAffiliateVehicleUploads();
+}
+
+function addAffiliateVehicleFiles(kind, files) {
+    if (!affiliateVehicleUploadTypes[kind]) return;
+    const accepted = [];
+    let unsupported = false;
+    let oversized = false;
+    for (const file of files) {
+        if (!affiliateVehicleUploadTypes[kind].includes(file.type)) unsupported = true;
+        else if (file.size > affiliateVehicleUploadMaxBytes) oversized = true;
+        else accepted.push(file);
+    }
+    const remaining = Math.max(
+        0,
+        affiliateVehicleUploadLimit -
+            affiliateVehicleExistingFiles[kind].length -
+            affiliateVehicleSelectedFiles[kind].length
+    );
+    affiliateVehicleSelectedFiles[kind].push(...accepted.slice(0, remaining));
+    renderAffiliateVehicleUploads();
+
+    const messages = [];
+    if (unsupported) messages.push('Unsupported file type');
+    if (oversized) messages.push('Files must be 5 MB or smaller');
+    if (accepted.length > remaining) messages.push(`Only ${affiliateVehicleUploadLimit} files can be attached in this section`);
+    if (messages.length) showPortalNotice(`${messages.join('. ')}. Some files were not added.`, 'error');
+}
+
+function configureAffiliateVehicleForm(route) {
+    const form = document.getElementById('vehicleRequestForm');
+    if (!form) return;
+    const editMatch = route.match(/^\/affiliate\/vehicles\/([^/]+)\/edit$/);
+    const vehicleId = editMatch ? decodeURIComponent(editMatch[1]) : '';
+    const vehicle = vehicleId ? affiliateVehicles.find(item => item.id === vehicleId) : null;
+    const pendingUpdate = vehicleId && affiliateRequests.some(request =>
+        request.vehicleId === vehicleId && request.status === 'Pending'
+    );
+    if (vehicleId && (!vehicle || pendingUpdate)) {
+        showPortalNotice(pendingUpdate
+            ? 'An edit for this vehicle is already waiting for Admin approval.'
+            : 'Vehicle not found in your account.', 'error');
+        navigateToRoute('/affiliate/vehicles');
+        return;
+    }
+
+    form.reset();
+    form.querySelectorAll('[aria-invalid="true"]').forEach(control => control.removeAttribute('aria-invalid'));
+    const error = document.getElementById('affiliateVehicleFormError');
+    if (error) {
+        error.hidden = true;
+        error.textContent = '';
+    }
+    setAffiliateVehicleTab('details');
+    resetAffiliateVehicleUploads(vehicle);
+    const title = document.getElementById('affiliateVehicleFormTitle');
+    const subtitle = document.getElementById('affiliateVehicleFormSubtitle');
+    const saveButton = document.getElementById('affiliateVehicleSaveButton');
+    const idField = document.getElementById('affiliateVehicleId');
+    if (idField) idField.value = vehicle?.id || '';
+    if (title) title.textContent = vehicle ? 'Edit Vehicle' : 'Submit New Vehicle';
+    if (subtitle) {
+        subtitle.textContent = vehicle
+            ? 'Your changes will be sent to Admin for approval before updating the fleet.'
+            : 'Vehicle details and documents are sent to the Admin Fleet Approvals queue.';
+    }
+    if (saveButton) saveButton.textContent = vehicle ? 'Submit Changes for Approval' : 'Submit for Approval';
+
+    if (vehicle) {
+        const values = {
+            plate: vehicle.plate,
+            make: vehicle.make,
+            model: vehicle.model,
+            year: vehicle.year,
+            type: vehicle.type,
+            color: vehicle.color,
+            seats: vehicle.seats,
+            transmission: vehicle.transmission,
+            fuelType: vehicle.fuelType,
+            dailyRate: vehicle.dailyRate,
+            orCrExpiryDate: vehicle.orCrExpiryDate || '',
+            insuranceProvider: vehicle.insuranceProvider || '',
+            insurancePolicyNumber: vehicle.insurancePolicyNumber || '',
+            insuranceExpiryDate: vehicle.insuranceExpiryDate || '',
+            odometerReading: vehicle.odometerReading ?? '',
+            nextPmsDate: vehicle.nextPmsDate || '',
+            gpsTrackerId: vehicle.gpsTrackerId || ''
+        };
+        Object.entries(values).forEach(([name, value]) => {
+            const field = form.elements.namedItem(name);
+            if (field) field.value = value;
+        });
+    }
+}
+
+function validateAffiliateVehicleForm(form) {
+    form.querySelectorAll('[aria-invalid="true"]').forEach(control => control.removeAttribute('aria-invalid'));
+    const invalidFields = Array.from(form.querySelectorAll('input, select, textarea'))
+        .filter(control => control.willValidate && !control.validity.valid);
+    if (!invalidFields.length) return true;
+
+    invalidFields.forEach(control => control.setAttribute('aria-invalid', 'true'));
+    const invalidField = invalidFields[0];
+    const panel = invalidField.closest('[data-vehicle-tab-panel]');
+    if (panel) setAffiliateVehicleTab(panel.dataset.vehicleTabPanel);
+    const error = document.getElementById('affiliateVehicleFormError');
+    if (error) {
+        error.textContent = 'Please complete the highlighted fields before submitting.';
+        error.hidden = false;
+    }
+    invalidField.focus();
+    invalidField.reportValidity();
+    return false;
+}
+
+async function openAffiliateVehicleFile(vehicleId, category, filename) {
+    await openPrivateFile(
+        `/vehicles/${encodeURIComponent(vehicleId)}/files/${encodeURIComponent(category)}/${encodeURIComponent(filename)}`
+    );
+}
+
 function renderAffiliateVehicleRows() {
     const tbody = document.getElementById('affiliateVehiclesBody');
     if (!tbody) return;
     tbody.replaceChildren();
+    const pendingVehicleEdits = new Set(affiliateRequests
+        .filter(request => request.vehicleId && request.status === 'Pending')
+        .map(request => request.vehicleId));
     const rows = [
         ...affiliateVehicles.map(vehicle => ({
             ...vehicle,
+            isApprovedVehicle: true,
+            hasPendingEdit: pendingVehicleEdits.has(vehicle.id),
             displayStatus: String(vehicle.status).toLowerCase() === 'maintenance'
                 ? 'In Maintenance'
                 : 'Approved / Active',
@@ -931,11 +1150,13 @@ function renderAffiliateVehicleRows() {
             .filter(request => request.status !== 'Approved')
             .map(request => ({
                 ...request,
-                displayStatus: request.status === 'Pending' ? 'Pending Approval' : request.status
+                displayStatus: request.status === 'Pending'
+                    ? (request.vehicleId ? 'Update Pending Approval' : 'Pending Approval')
+                    : request.status
             }))
     ];
     if (!rows.length) {
-        setTableEmptyState(tbody, 6, 'No vehicles or submissions yet. Submit a vehicle to get started.');
+        setTableEmptyState(tbody, 7, 'No vehicles or submissions yet. Submit a vehicle to get started.');
         return;
     }
     rows.forEach(vehicle => {
@@ -949,8 +1170,31 @@ function renderAffiliateVehicleRows() {
         status.appendChild(createStatusBadge(vehicle.displayStatus || vehicle.status));
         appendCell(row, vehicle.dailyRate === undefined ? '—' : formatMoney(vehicle.dailyRate));
         appendCell(row, vehicle.reviewNote || '—');
+        const actions = row.insertCell();
+        if (vehicle.isApprovedVehicle && vehicle.hasPendingEdit) {
+            const pending = document.createElement('button');
+            pending.type = 'button';
+            pending.className = 'portal-button portal-button-secondary portal-table-action';
+            pending.textContent = 'Pending';
+            pending.disabled = true;
+            actions.appendChild(pending);
+        } else if (vehicle.isApprovedVehicle) {
+            const edit = document.createElement('button');
+            edit.type = 'button';
+            edit.className = 'portal-button portal-button-secondary portal-table-action';
+            edit.textContent = 'Edit';
+            edit.dataset.editAffiliateVehicle = vehicle.id;
+            actions.appendChild(edit);
+        } else {
+            actions.textContent = '—';
+        }
         tbody.appendChild(row);
     });
+    tbody.onclick = event => {
+        const button = event.target.closest('button[data-edit-affiliate-vehicle]');
+        if (!button) return;
+        navigateToRoute(`/affiliate/vehicles/${encodeURIComponent(button.dataset.editAffiliateVehicle)}/edit`);
+    };
 }
 
 function renderAffiliateBookingsRows(targetId, bookings) {
@@ -990,7 +1234,7 @@ function renderAffiliateRequests() {
         const title = document.createElement('strong');
         title.textContent = `${request.make || ''} ${request.model || ''}`.trim() || request.plate || 'Vehicle';
         const subtitle = document.createElement('small');
-        subtitle.textContent = `${formatDateTime(request.submittedAt)}${request.reviewNote ? ` · ${request.reviewNote}` : ''}`;
+        subtitle.textContent = `${request.isVehicleUpdate ? 'Change request · ' : ''}${formatDateTime(request.submittedAt)}${request.reviewNote ? ` · ${request.reviewNote}` : ''}`;
         text.append(title, subtitle);
         item.append(text, createStatusBadge(request.status === 'Pending' ? 'Pending Approval' : request.status));
         list.appendChild(item);
@@ -1077,23 +1321,35 @@ async function loadAffiliateData() {
 async function submitVehicleRequest(event) {
     event.preventDefault();
     const form = event.currentTarget;
-    if (!form.reportValidity()) return;
+    if (!validateAffiliateVehicleForm(form)) return;
+    const saveButton = document.getElementById('affiliateVehicleSaveButton');
+    if (saveButton) saveButton.disabled = true;
     try {
+        const formData = new FormData(form);
+        Object.entries(affiliateVehicleSelectedFiles).forEach(([kind, files]) => {
+            files.forEach(file => formData.append(kind, file));
+        });
+        const isEdit = Boolean(document.getElementById('affiliateVehicleId')?.value);
         const { response, data } = await dashboardApiRequest('/vehicle-approval-requests', {
             method: 'POST',
-            body: new FormData(form)
+            body: formData
         });
         if (!response.ok) {
             showPortalNotice(data.error || 'Unable to submit this vehicle.', 'error');
             return;
         }
         form.reset();
-        showPortalNotice('Vehicle and documents submitted to Admin for approval.');
+        resetAffiliateVehicleUploads();
+        showPortalNotice(isEdit
+            ? 'Vehicle changes submitted to Admin for approval.'
+            : 'Vehicle and documents submitted to Admin for approval.');
         await loadAffiliateData();
         navigateToRoute('/affiliate/vehicles');
     } catch (error) {
         console.error('Vehicle submission failed:', error);
         showPortalNotice(error.message || 'Unable to connect to the vehicle approval service.', 'error');
+    } finally {
+        if (saveButton) saveButton.disabled = false;
     }
 }
 
@@ -1113,11 +1369,87 @@ async function requestAffiliatePayout() {
     }
 }
 
+function bindAffiliateVehicleFormEvents() {
+    const form = document.getElementById('vehicleRequestForm');
+    if (!form) return;
+
+    form.addEventListener('submit', submitVehicleRequest);
+    form.addEventListener('input', event => {
+        const control = event.target;
+        if (control?.validity?.valid) control.removeAttribute('aria-invalid');
+        if (form.checkValidity()) {
+            const error = document.getElementById('affiliateVehicleFormError');
+            if (error) {
+                error.hidden = true;
+                error.textContent = '';
+            }
+        }
+    });
+    form.addEventListener('change', event => {
+        const control = event.target;
+        if (control?.validity?.valid) control.removeAttribute('aria-invalid');
+        if (form.checkValidity()) {
+            const error = document.getElementById('affiliateVehicleFormError');
+            if (error) {
+                error.hidden = true;
+                error.textContent = '';
+            }
+        }
+    });
+    form.addEventListener('click', event => {
+        const remove = event.target.closest('button[data-remove-upload]');
+        if (remove) {
+            const kind = remove.dataset.removeUpload;
+            affiliateVehicleSelectedFiles[kind]?.splice(Number(remove.dataset.fileIndex), 1);
+            renderAffiliateVehicleUploads();
+            return;
+        }
+        const view = event.target.closest('button[data-view-vehicle-file]');
+        if (view) {
+            const vehicleId = document.getElementById('affiliateVehicleId')?.value;
+            if (vehicleId) openAffiliateVehicleFile(vehicleId, view.dataset.viewVehicleFile, view.dataset.filename);
+        }
+    });
+
+    const tabs = Array.from(document.querySelectorAll('#affiliateVehicleTabs [data-vehicle-tab]'));
+    tabs.forEach(tab => tab.addEventListener('click', () => setAffiliateVehicleTab(tab.dataset.vehicleTab)));
+    document.getElementById('affiliateVehicleTabs')?.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const activeIndex = tabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true');
+        const nextIndex = event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+                ? tabs.length - 1
+                : (activeIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        setAffiliateVehicleTab(tabs[nextIndex].dataset.vehicleTab, true);
+    });
+
+    Object.entries(affiliateVehicleUploadInputIds).forEach(([kind, id]) => {
+        document.getElementById(id)?.addEventListener('change', event => {
+            addAffiliateVehicleFiles(kind, Array.from(event.currentTarget.files || []));
+            event.currentTarget.value = '';
+        });
+    });
+    document.querySelectorAll('#vehicleRequestForm .portal-upload-dropzone').forEach(dropzone => {
+        dropzone.addEventListener('dragover', event => {
+            event.preventDefault();
+            dropzone.classList.add('is-dragging');
+        });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-dragging'));
+        dropzone.addEventListener('drop', event => {
+            event.preventDefault();
+            dropzone.classList.remove('is-dragging');
+            addAffiliateVehicleFiles(dropzone.dataset.vehicleUploadType, Array.from(event.dataTransfer?.files || []));
+        });
+    });
+}
+
 function bindPortalEvents() {
     bindPortalNavigation();
     document.getElementById('profileForm')?.addEventListener('submit', savePortalProfile);
     document.getElementById('passwordForm')?.addEventListener('submit', changePortalPassword);
-    document.getElementById('vehicleRequestForm')?.addEventListener('submit', submitVehicleRequest);
+    bindAffiliateVehicleFormEvents();
     document.getElementById('refreshCustomerBookings')?.addEventListener('click', () => {
         loadCustomerBookings().catch(error => {
             console.error('Customer booking refresh failed:', error);
@@ -1175,6 +1507,7 @@ async function loadPortalRoute() {
             }
         } else {
             await loadAffiliateData();
+            if (viewName === 'vehicle-new') configureAffiliateVehicleForm(route);
         }
     } catch (error) {
         console.error('Portal view data failed to load:', error);

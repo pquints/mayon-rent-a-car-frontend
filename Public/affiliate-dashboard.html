@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0f172a">
     <title>Affiliate Portal | Mayon Rent a Car</title>
-    <link rel="stylesheet" href="account-dashboard.css?v=20261121-02">
+    <link rel="stylesheet" href="account-dashboard.css?v=20261123-02">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/svg+xml" href="images/Mayon.svg">
 </head>
@@ -67,31 +67,87 @@
                     <a class="portal-button portal-button-primary" href="/affiliate/vehicles/new" data-route="/affiliate/vehicles/new"><i class="fa-solid fa-plus" aria-hidden="true"></i> Submit New Vehicle</a>
                 </header>
                 <div class="portal-table-wrap">
-                    <table class="portal-table"><thead><tr><th>Vehicle</th><th>Plate</th><th>Details</th><th>Status</th><th>Daily Rate</th><th>Review Note</th></tr></thead><tbody id="affiliateVehiclesBody"></tbody></table>
+                    <table class="portal-table portal-vehicles-table"><thead><tr><th>Vehicle</th><th>Plate</th><th>Details</th><th>Status</th><th>Daily Rate</th><th>Review Note</th><th>Actions</th></tr></thead><tbody id="affiliateVehiclesBody"></tbody></table>
                 </div>
             </section>
 
             <section class="portal-view" data-view="vehicle-new" hidden>
                 <header class="portal-page-header">
-                    <div><p class="portal-eyebrow">Fleet</p><h1>Submit New Vehicle</h1><p>Vehicle details and documents are sent to the Admin Fleet Approvals queue.</p></div>
-                    <a class="portal-button portal-button-secondary" href="/affiliate/vehicles" data-route="/affiliate/vehicles">Cancel</a>
-                </header>
-                <form id="vehicleRequestForm" class="portal-card portal-request-form">
-                    <div class="portal-form-grid portal-vehicle-form-grid">
-                        <label class="portal-field"><span>Plate number <b class="required-mark">*</b></span><input name="plate" maxlength="100" required></label>
-                        <label class="portal-field"><span>Make <b class="required-mark">*</b></span><input name="make" maxlength="100" required></label>
-                        <label class="portal-field"><span>Model <b class="required-mark">*</b></span><input name="model" maxlength="100" required></label>
-                        <label class="portal-field"><span>Year <b class="required-mark">*</b></span><input name="year" type="number" min="1900" required></label>
-                        <label class="portal-field"><span>Type <b class="required-mark">*</b></span><select name="type" required><option value="">Select type</option><option>Sedan</option><option>SUV</option><option>MPV</option><option>Electric MPV</option><option>Van</option></select></label>
-                        <label class="portal-field"><span>Seats <b class="required-mark">*</b></span><input name="seats" type="number" min="1" max="100" required></label>
-                        <label class="portal-field"><span>Transmission <b class="required-mark">*</b></span><select name="transmission" required><option value="">Select transmission</option><option>Manual</option><option>Automatic</option></select></label>
-                        <label class="portal-field"><span>Fuel type <b class="required-mark">*</b></span><select name="fuelType" required><option value="">Select fuel type</option><option>Gasoline</option><option>Diesel</option><option>Electric</option><option>Hybrid</option></select></label>
-                        <label class="portal-field"><span>Color <b class="required-mark">*</b></span><input name="color" maxlength="100" required></label>
-                        <label class="portal-field"><span>Proposed daily rate (₱) <b class="required-mark">*</b></span><input name="dailyRate" type="number" min="0" step="0.01" required></label>
-                        <label class="portal-field"><span>Vehicle photo</span><input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
-                        <label class="portal-field"><span>OR/CR and supporting documents</span><input name="documents" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple></label>
+                    <div><p class="portal-eyebrow">Fleet</p><h1 id="affiliateVehicleFormTitle">Submit New Vehicle</h1><p id="affiliateVehicleFormSubtitle">Vehicle details and documents are sent to the Admin Fleet Approvals queue.</p></div>
+                    <div class="portal-page-actions">
+                        <a class="portal-button portal-button-secondary" href="/affiliate/vehicles" data-route="/affiliate/vehicles">Cancel</a>
+                        <button id="affiliateVehicleSaveButton" type="submit" form="vehicleRequestForm" class="portal-button portal-button-primary">Submit for Approval</button>
                     </div>
-                    <div class="portal-form-actions"><button type="submit" class="portal-button portal-button-primary">Submit for Approval</button></div>
+                </header>
+                <form id="vehicleRequestForm" class="portal-card portal-request-form" novalidate>
+                    <div id="affiliateVehicleTabs" class="portal-form-tabs" role="tablist" aria-label="Vehicle information">
+                        <button type="button" class="portal-form-tab" id="affiliateVehicleTabDetails" role="tab" aria-selected="true" aria-controls="affiliateVehiclePanelDetails" data-vehicle-tab="details">Vehicle Details</button>
+                        <button type="button" class="portal-form-tab" id="affiliateVehicleTabDocuments" role="tab" aria-selected="false" aria-controls="affiliateVehiclePanelDocuments" data-vehicle-tab="documents" tabindex="-1">Documents &amp; Registration</button>
+                        <button type="button" class="portal-form-tab" id="affiliateVehicleTabPhotos" role="tab" aria-selected="false" aria-controls="affiliateVehiclePanelPhotos" data-vehicle-tab="photos" tabindex="-1">Photos &amp; Gallery</button>
+                        <button type="button" class="portal-form-tab" id="affiliateVehicleTabMaintenance" role="tab" aria-selected="false" aria-controls="affiliateVehiclePanelMaintenance" data-vehicle-tab="maintenance" tabindex="-1">Maintenance &amp; GPS</button>
+                    </div>
+                    <section id="affiliateVehiclePanelDetails" class="portal-form-tab-panel" role="tabpanel" aria-labelledby="affiliateVehicleTabDetails" data-vehicle-tab-panel="details">
+                        <div class="portal-form-grid portal-vehicle-form-grid">
+                            <label class="portal-field"><span>Plate number <b class="required-mark">*</b></span><input name="plate" maxlength="100" required></label>
+                            <label class="portal-field"><span>Make <b class="required-mark">*</b></span><input name="make" maxlength="100" required></label>
+                            <label class="portal-field"><span>Model <b class="required-mark">*</b></span><input name="model" maxlength="100" required></label>
+                            <label class="portal-field"><span>Year <b class="required-mark">*</b></span><input name="year" type="number" min="1900" required></label>
+                            <label class="portal-field"><span>Vehicle type <b class="required-mark">*</b></span><select name="type" required><option value="">Select vehicle type</option><option>Sedan</option><option>SUV</option><option>MPV</option><option>Electric MPV</option><option>Van</option></select></label>
+                            <label class="portal-field"><span>Color <b class="required-mark">*</b></span><input name="color" maxlength="100" required></label>
+                            <label class="portal-field"><span>Seats <b class="required-mark">*</b></span><input name="seats" type="number" min="1" max="100" required></label>
+                            <label class="portal-field"><span>Transmission <b class="required-mark">*</b></span><select name="transmission" required><option value="">Select transmission</option><option>Manual</option><option>Automatic</option></select></label>
+                            <label class="portal-field"><span>Fuel type <b class="required-mark">*</b></span><select name="fuelType" required><option value="">Select fuel type</option><option>Gasoline</option><option>Diesel</option><option>Electric</option><option>Hybrid</option></select></label>
+                            <label class="portal-field"><span>Proposed daily rate (₱) <b class="required-mark">*</b></span><input name="dailyRate" type="number" min="0" step="0.01" required></label>
+                        </div>
+                    </section>
+                    <section id="affiliateVehiclePanelDocuments" class="portal-form-tab-panel" role="tabpanel" aria-labelledby="affiliateVehicleTabDocuments" data-vehicle-tab-panel="documents" hidden>
+                        <div class="portal-form-grid portal-vehicle-form-grid">
+                            <label class="portal-field"><span>OR/CR expiration date</span><input name="orCrExpiryDate" type="date"></label>
+                            <label class="portal-field"><span>Insurance provider</span><input name="insuranceProvider" maxlength="120"></label>
+                            <label class="portal-field"><span>Insurance policy number</span><input name="insurancePolicyNumber" maxlength="100"></label>
+                            <label class="portal-field"><span>Insurance expiration date</span><input name="insuranceExpiryDate" type="date"></label>
+                        </div>
+                        <div class="portal-upload-box">
+                            <div class="portal-upload-heading"><strong>Vehicle Documents</strong><span id="affiliateDocumentsCount" aria-live="polite">0/10</span></div>
+                            <p>Upload OR/CR, insurance, or other vehicle documents · JPG, PNG, WEBP, or PDF · up to 10 files</p>
+                            <label class="portal-upload-dropzone" data-vehicle-upload-type="documents" for="affiliateVehicleDocumentsInput">
+                                <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i><span><strong>Drop files here</strong> or browse</span>
+                                <input id="affiliateVehicleDocumentsInput" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple>
+                            </label>
+                            <ul id="affiliateVehicleDocumentsList" class="portal-upload-list" aria-live="polite"></ul>
+                        </div>
+                    </section>
+                    <section id="affiliateVehiclePanelPhotos" class="portal-form-tab-panel" role="tabpanel" aria-labelledby="affiliateVehicleTabPhotos" data-vehicle-tab-panel="photos" hidden>
+                        <div class="portal-gallery-grid">
+                            <div class="portal-upload-box">
+                                <div class="portal-upload-heading"><strong>Exterior Photos</strong><span id="affiliateExteriorPhotosCount" aria-live="polite">0/10</span></div>
+                                <p>Upload exterior views · JPG, PNG, or WEBP</p>
+                                <label class="portal-upload-dropzone" data-vehicle-upload-type="exteriorPhotos" for="affiliateVehicleExteriorPhotosInput">
+                                    <i class="fa-solid fa-camera" aria-hidden="true"></i><span><strong>Drop photos here</strong> or browse</span>
+                                    <input id="affiliateVehicleExteriorPhotosInput" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+                                </label>
+                                <ul id="affiliateVehicleExteriorPhotosList" class="portal-upload-list" aria-live="polite"></ul>
+                            </div>
+                            <div class="portal-upload-box">
+                                <div class="portal-upload-heading"><strong>Interior Photos</strong><span id="affiliateInteriorPhotosCount" aria-live="polite">0/10</span></div>
+                                <p>Upload interior views · JPG, PNG, or WEBP</p>
+                                <label class="portal-upload-dropzone" data-vehicle-upload-type="interiorPhotos" for="affiliateVehicleInteriorPhotosInput">
+                                    <i class="fa-solid fa-camera" aria-hidden="true"></i><span><strong>Drop photos here</strong> or browse</span>
+                                    <input id="affiliateVehicleInteriorPhotosInput" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+                                </label>
+                                <ul id="affiliateVehicleInteriorPhotosList" class="portal-upload-list" aria-live="polite"></ul>
+                            </div>
+                        </div>
+                    </section>
+                    <section id="affiliateVehiclePanelMaintenance" class="portal-form-tab-panel" role="tabpanel" aria-labelledby="affiliateVehicleTabMaintenance" data-vehicle-tab-panel="maintenance" hidden>
+                        <div class="portal-form-grid portal-vehicle-form-grid">
+                            <label class="portal-field"><span>Current odometer reading (km)</span><input name="odometerReading" type="number" min="0" step="1"></label>
+                            <label class="portal-field"><span>Next PMS schedule</span><input name="nextPmsDate" type="date"></label>
+                            <label class="portal-field"><span>GPS tracker ID</span><input name="gpsTrackerId" maxlength="100"></label>
+                        </div>
+                    </section>
+                    <input type="hidden" name="vehicleId" id="affiliateVehicleId">
+                    <div id="affiliateVehicleFormError" class="portal-form-error" role="alert" hidden></div>
                 </form>
             </section>
 
@@ -141,6 +197,6 @@
         </main>
     </div>
     <script src="auth-utils.js?v=20261121-02"></script>
-    <script src="account-dashboard.js?v=20261121-02"></script>
+    <script src="account-dashboard.js?v=20261123-02"></script>
 </body>
 </html>

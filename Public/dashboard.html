@@ -14,7 +14,7 @@
         }
     </script>
     <title>Mayon Rent a Car - Login Portal</title>
-    <link rel="stylesheet" href="dashboard-style.css?v=20261121-02">
+    <link rel="stylesheet" href="dashboard-style.css?v=20261123-01">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/svg+xml" href="images/Mayon.svg?v=20260713">
     <link rel="shortcut icon" href="images/Mayon.svg?v=20260713">
@@ -820,7 +820,7 @@
             </div>
             <!-- VEHICLE EDIT FULL PAGE VIEW -->
             <div id="vehicleEditView" class="dashboard-page-panel dashboard-page-panel--spaced" style="display: none;">
-                <form id="vehicleForm">
+                <form id="vehicleForm" novalidate>
                     <header class="dashboard-page-header">
                         <div>
                             <p class="dashboard-page-eyebrow">Fleet management</p>
@@ -833,70 +833,163 @@
                         </div>
                     </header>
 
-                    <div class="vehicle-form-grid">
-                        <div class="dashboard-form-field">
-                            <label for="vehiclePlate">Plate Number <span class="required-mark" aria-hidden="true">*</span></label>
-                            <input type="text" id="vehiclePlate" placeholder="e.g. AAA-0001" required>
-                        </div>
-                        <div class="dashboard-form-field">
-                            <label for="vehicleMake">Make <span class="required-mark" aria-hidden="true">*</span></label>
-                            <input type="text" id="vehicleMake" placeholder="e.g. Toyota" required>
-                        </div>
-                        <div class="dashboard-form-field">
-                            <label for="vehicleModel">Model <span class="required-mark" aria-hidden="true">*</span></label>
-                            <input type="text" id="vehicleModel" placeholder="e.g. Innova" required>
-                        </div>
-                        <div class="dashboard-form-field">
-                            <label for="vehicleYear">Year <span class="required-mark" aria-hidden="true">*</span></label>
-                            <input type="number" id="vehicleYear" placeholder="2024" required>
-                        </div>
-                        <div class="dashboard-form-field">
-                            <label for="vehicleType">Vehicle Type <span class="required-mark" aria-hidden="true">*</span></label>
-                            <select id="vehicleType" required>
-                                <option value="">Select vehicle type</option>
-                                <option value="Sedan">Sedan</option>
-                                <option value="SUV">SUV</option>
-                                <option value="MPV">MPV</option>
-                                <option value="Electric MPV">Electric MPV</option>
-                                <option value="Van">Van</option>
-                            </select>
-                        </div>
-                        <div class="dashboard-form-field">
-                            <label for="vehicleColor">Color <span class="required-mark" aria-hidden="true">*</span></label>
-                            <input type="text" id="vehicleColor" placeholder="e.g. White" required>
-                        </div>
-                        <div class="dashboard-form-field">
-                            <label for="vehicleSeats">Seats <span class="required-mark" aria-hidden="true">*</span></label>
-                            <input type="number" id="vehicleSeats" placeholder="5" required>
-                        </div>
-                        <div class="dashboard-form-field">
-                            <label for="vehicleTransmission">Transmission <span class="required-mark" aria-hidden="true">*</span></label>
-                            <select id="vehicleTransmission" required>
-                                <option value="">Select transmission</option>
-                                <option value="Manual">Manual</option>
-                                <option value="Automatic">Automatic</option>
-                            </select>
-                        </div>
-                        <div class="dashboard-form-field">
-                            <label for="vehicleFuelType">Fuel Type <span class="required-mark" aria-hidden="true">*</span></label>
-                            <select id="vehicleFuelType" required>
-                                <option value="">Select fuel type</option>
-                                <option value="Gasoline">Gasoline</option>
-                                <option value="Diesel">Diesel</option>
-                                <option value="Electric">Electric</option>
-                                <option value="Hybrid">Hybrid</option>
-                            </select>
-                        </div>
-                        <div id="vehicleStatusField" class="dashboard-form-field">
-                            <label for="vehicleStatus">Status <span class="required-mark" aria-hidden="true">*</span></label>
-                            <select id="vehicleStatus" required>
-                                <option value="">Select status</option>
-                                <option value="Available">Available</option>
-                                <option value="Maintenance">Maintenance</option>
-                                <option value="Rented">Rented</option>
-                            </select>
-                        </div>
+                    <div id="vehicleFormTabs" class="user-modal-tabs" role="tablist" aria-label="Vehicle information">
+                        <button type="button" class="user-modal-tab" id="vehicleTabDetails" role="tab" aria-selected="true" aria-controls="vehicleTabPanelDetails" data-vehicle-tab="details">Vehicle Details</button>
+                        <button type="button" class="user-modal-tab" id="vehicleTabDocuments" role="tab" aria-selected="false" aria-controls="vehicleTabPanelDocuments" data-vehicle-tab="documents" tabindex="-1">Documents &amp; Registration</button>
+                        <button type="button" class="user-modal-tab" id="vehicleTabPhotos" role="tab" aria-selected="false" aria-controls="vehicleTabPanelPhotos" data-vehicle-tab="photos" tabindex="-1">Photos &amp; Gallery</button>
+                        <button type="button" class="user-modal-tab" id="vehicleTabMaintenance" role="tab" aria-selected="false" aria-controls="vehicleTabPanelMaintenance" data-vehicle-tab="maintenance" tabindex="-1">Maintenance &amp; GPS</button>
                     </div>
+
+                    <section id="vehicleTabPanelDetails" class="user-modal-tab-panel vehicle-form-tab-panel" role="tabpanel" aria-labelledby="vehicleTabDetails" data-vehicle-tab-panel="details">
+                        <div class="vehicle-form-grid">
+                            <div class="dashboard-form-field">
+                                <label for="vehiclePlate">Plate Number <span class="required-mark" aria-hidden="true">*</span></label>
+                                <input type="text" id="vehiclePlate" placeholder="e.g. AAA-0001" required>
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleMake">Make <span class="required-mark" aria-hidden="true">*</span></label>
+                                <input type="text" id="vehicleMake" placeholder="e.g. Toyota" required>
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleModel">Model <span class="required-mark" aria-hidden="true">*</span></label>
+                                <input type="text" id="vehicleModel" placeholder="e.g. Innova" required>
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleYear">Year <span class="required-mark" aria-hidden="true">*</span></label>
+                                <input type="number" id="vehicleYear" placeholder="2024" min="1900" required>
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleType">Vehicle Type <span class="required-mark" aria-hidden="true">*</span></label>
+                                <select id="vehicleType" required>
+                                    <option value="">Select vehicle type</option>
+                                    <option value="Sedan">Sedan</option>
+                                    <option value="SUV">SUV</option>
+                                    <option value="MPV">MPV</option>
+                                    <option value="Electric MPV">Electric MPV</option>
+                                    <option value="Van">Van</option>
+                                </select>
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleColor">Color <span class="required-mark" aria-hidden="true">*</span></label>
+                                <input type="text" id="vehicleColor" placeholder="e.g. White" required>
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleSeats">Seats <span class="required-mark" aria-hidden="true">*</span></label>
+                                <input type="number" id="vehicleSeats" placeholder="5" min="1" max="100" required>
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleTransmission">Transmission <span class="required-mark" aria-hidden="true">*</span></label>
+                                <select id="vehicleTransmission" required>
+                                    <option value="">Select transmission</option>
+                                    <option value="Manual">Manual</option>
+                                    <option value="Automatic">Automatic</option>
+                                </select>
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleFuelType">Fuel Type <span class="required-mark" aria-hidden="true">*</span></label>
+                                <select id="vehicleFuelType" required>
+                                    <option value="">Select fuel type</option>
+                                    <option value="Gasoline">Gasoline</option>
+                                    <option value="Diesel">Diesel</option>
+                                    <option value="Electric">Electric</option>
+                                    <option value="Hybrid">Hybrid</option>
+                                </select>
+                            </div>
+                            <div id="vehicleStatusField" class="dashboard-form-field">
+                                <label for="vehicleStatus">Status <span class="required-mark" aria-hidden="true">*</span></label>
+                                <select id="vehicleStatus" required>
+                                    <option value="">Select status</option>
+                                    <option value="Available">Available</option>
+                                    <option value="Maintenance">Maintenance</option>
+                                    <option value="Rented">Rented</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="vehicleTabPanelDocuments" class="user-modal-tab-panel vehicle-form-tab-panel" role="tabpanel" aria-labelledby="vehicleTabDocuments" data-vehicle-tab-panel="documents" hidden>
+                        <div class="vehicle-form-grid">
+                            <div class="dashboard-form-field">
+                                <label for="vehicleOrCrExpiryDate">OR/CR Expiration Date</label>
+                                <input type="date" id="vehicleOrCrExpiryDate">
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleInsuranceProvider">Insurance Provider</label>
+                                <input type="text" id="vehicleInsuranceProvider" maxlength="120" placeholder="Insurance company">
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleInsurancePolicyNumber">Insurance Policy Number</label>
+                                <input type="text" id="vehicleInsurancePolicyNumber" maxlength="100">
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleInsuranceExpiryDate">Insurance Expiration Date</label>
+                                <input type="date" id="vehicleInsuranceExpiryDate">
+                            </div>
+                        </div>
+                        <div class="doc-upload-box vehicle-upload-box">
+                            <div class="doc-upload-box-header">
+                                <strong>Vehicle Documents</strong>
+                                <span id="vehicleDocumentsCount" aria-live="polite">0/10</span>
+                            </div>
+                            <p class="doc-upload-hint">Upload OR/CR, insurance, or other vehicle documents · JPG, PNG, WEBP, or PDF · up to 10 files</p>
+                            <label class="vehicle-upload-dropzone" data-vehicle-upload-type="documents" for="vehicleDocumentsInput">
+                                <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
+                                <span><strong>Drop files here</strong> or browse</span>
+                                <input type="file" id="vehicleDocumentsInput" accept="image/jpeg,image/png,image/webp,application/pdf" multiple>
+                            </label>
+                            <ul class="doc-upload-list" id="vehicleDocumentsList" aria-live="polite"></ul>
+                        </div>
+                    </section>
+
+                    <section id="vehicleTabPanelPhotos" class="user-modal-tab-panel vehicle-form-tab-panel" role="tabpanel" aria-labelledby="vehicleTabPhotos" data-vehicle-tab-panel="photos" hidden>
+                        <div class="vehicle-gallery-upload-grid">
+                            <div class="doc-upload-box vehicle-upload-box">
+                                <div class="doc-upload-box-header">
+                                    <strong>Exterior Photos</strong>
+                                    <span id="vehicleExteriorPhotosCount" aria-live="polite">0/10</span>
+                                </div>
+                                <p class="doc-upload-hint">Upload exterior views · JPG, PNG, or WEBP</p>
+                                <label class="vehicle-upload-dropzone" data-vehicle-upload-type="exteriorPhotos" for="vehicleExteriorPhotosInput">
+                                    <i class="fa-solid fa-camera" aria-hidden="true"></i>
+                                    <span><strong>Drop photos here</strong> or browse</span>
+                                    <input type="file" id="vehicleExteriorPhotosInput" accept="image/jpeg,image/png,image/webp" multiple>
+                                </label>
+                                <ul class="doc-upload-list" id="vehicleExteriorPhotosList" aria-live="polite"></ul>
+                            </div>
+                            <div class="doc-upload-box vehicle-upload-box">
+                                <div class="doc-upload-box-header">
+                                    <strong>Interior Photos</strong>
+                                    <span id="vehicleInteriorPhotosCount" aria-live="polite">0/10</span>
+                                </div>
+                                <p class="doc-upload-hint">Upload interior views · JPG, PNG, or WEBP</p>
+                                <label class="vehicle-upload-dropzone" data-vehicle-upload-type="interiorPhotos" for="vehicleInteriorPhotosInput">
+                                    <i class="fa-solid fa-camera" aria-hidden="true"></i>
+                                    <span><strong>Drop photos here</strong> or browse</span>
+                                    <input type="file" id="vehicleInteriorPhotosInput" accept="image/jpeg,image/png,image/webp" multiple>
+                                </label>
+                                <ul class="doc-upload-list" id="vehicleInteriorPhotosList" aria-live="polite"></ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="vehicleTabPanelMaintenance" class="user-modal-tab-panel vehicle-form-tab-panel" role="tabpanel" aria-labelledby="vehicleTabMaintenance" data-vehicle-tab-panel="maintenance" hidden>
+                        <div class="vehicle-form-grid">
+                            <div class="dashboard-form-field">
+                                <label for="vehicleOdometerReading">Current Odometer Reading (km)</label>
+                                <input type="number" id="vehicleOdometerReading" min="0" step="1" placeholder="e.g. 42500">
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleNextPmsDate">Next PMS Schedule</label>
+                                <input type="date" id="vehicleNextPmsDate">
+                            </div>
+                            <div class="dashboard-form-field">
+                                <label for="vehicleGpsTrackerId">GPS Tracker ID</label>
+                                <input type="text" id="vehicleGpsTrackerId" maxlength="100" placeholder="Optional tracker identifier">
+                            </div>
+                        </div>
+                    </section>
+
+                    <div id="vehicleFormError" class="dashboard-view-message" role="alert" hidden></div>
                     <input type="hidden" id="vehicleEditId">
                 </form>
             </div>
@@ -1288,7 +1381,7 @@
         });
     </script>
     <script src="auth-utils.js?v=20261118-02"></script>
-    <script src="dashboard.js?v=20261121-02"></script>
+    <script src="dashboard.js?v=20261123-02"></script>
     
     <!-- USER FORM -->
     <div id="userModal" class="user-modal-overlay" style="display: none;">

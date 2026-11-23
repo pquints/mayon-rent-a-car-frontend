@@ -14,7 +14,12 @@ const { sendBookingNotification } = require('./notifications');
 const { autoCancelPastQuotedBookings } = require('./booking-cleanup');
 const { appendActivityEvent, getRecentActivity } = require('./activity-log');
 const { buildOperationalReport, isValidReportDate } = require('./operational-reports');
-const { normalizeVehicleSubmission, createApprovedVehicle } = require('./vehicle-approvals');
+const {
+    normalizeVehicleSubmission,
+    normalizeVehicleMetadata,
+    createApprovedVehicle,
+    updateApprovedVehicle
+} = require('./vehicle-approvals');
 const { getCustomerBookings } = require('./customer-dashboard');
 const {
     AFFILIATE_SHARE_PERCENT,
@@ -155,7 +160,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const USER_PHOTOS_DIR = path.join(UPLOADS_DIR, 'user-photos');
 const USER_DOCUMENTS_DIR = path.join(UPLOADS_DIR, 'user-documents');
-[UPLOADS_DIR, USER_PHOTOS_DIR, USER_DOCUMENTS_DIR].forEach((dir) => {
+const VEHICLE_PHOTOS_DIR = path.join(UPLOADS_DIR, 'vehicle-photos');
+const VEHICLE_DOCUMENTS_DIR = path.join(UPLOADS_DIR, 'vehicle-documents');
+[UPLOADS_DIR, USER_PHOTOS_DIR, USER_DOCUMENTS_DIR, VEHICLE_PHOTOS_DIR, VEHICLE_DOCUMENTS_DIR].forEach((dir) => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
@@ -193,6 +200,59 @@ const handleUserUploads = (req, res, next) => {
         next();
     });
 };
+
+const vehicleUploadStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, file.fieldname === 'documents' ? VEHICLE_DOCUMENTS_DIR : VEHICLE_PHOTOS_DIR);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        cb(null, `${crypto.randomUUID()}${ALLOWED_UPLOAD_EXTENSIONS.includes(ext) ? ext : ''}`);
+    }
+});
+
+const vehicleUpload = multer({
+    storage: vehicleUploadStorage,
+    limits: { fileSize: 5 * 1024 * 1024, files: 31 },
+    fileFilter: (req, file, cb) => {
+        const isPhoto = ['photo', 'exteriorPhotos', 'interiorPhotos'].includes(file.fieldname);
+        const allowedTypes = isPhoto ? ALLOWED_PHOTO_TYPES : ALLOWED_DOCUMENT_TYPES;
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (!allowedTypes.includes(file.mimetype) || !ALLOWED_UPLOAD_EXTENSIONS.includes(ext) ||
+            (isPhoto && ext === '.pdf')) {
+            return cb(new Error('Unsupported vehicle file type. Photos must be JPG, PNG, or WEBP; documents may also be PDF.'));
+        }
+        cb(null, true);
+    }
+});
+
+const handleVehicleUploads = (req, res, next) => {
+    vehicleUpload.fields([
+        { name: 'photo', maxCount: 1 },
+        { name: 'documents', maxCount: 10 },
+        { name: 'exteriorPhotos', maxCount: 10 },
+        { name: 'interiorPhotos', maxCount: 10 }
+    ])(req, res, (err) => {
+        if (err) {
+            Object.values(req.files || {}).flat().forEach(file => {
+                if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+            });
+            return res.status(400).json({ success: false, error: err.message || 'Vehicle file upload failed' });
+        }
+        next();
+    });
+};
+
+function serializeVehicleUploads(files = []) {
+    return files.map(file => ({
+        filename: path.basename(file.path),
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        storage: 'vehicle',
+        uploadedAt: new Date().toISOString()
+    }));
+}
 
 // ========================================================
 // EMAIL CONFIGURATION (NODEMAILER + GMAIL)
@@ -1998,6 +2058,37 @@ app.get('/api/vehicles', verifyToken, (req, res) => {
     }
 });
 
+app.get('/api/vehicles/:id/files/:category/:filename', verifyToken, (req, res) => {
+    if (!['admin', 'affiliate'].includes(req.user.role)) {
+        return res.status(403).json({ success: false, error: 'Vehicle file access required.' });
+    }
+    const vehicle = getVehicles().find(item => item.id === req.params.id);
+    if (!vehicle || (req.user.role === 'affiliate' && vehicle.affiliateId !== req.user.id)) {
+        return res.status(404).json({ success: false, error: 'Vehicle file not found.' });
+    }
+
+    const { category } = req.params;
+    const filename = path.basename(req.params.filename);
+    let filePath;
+    if (category === 'photo') {
+        if (vehicle.photo !== filename) return res.status(404).json({ success: false, error: 'Vehicle file not found.' });
+        filePath = path.join(vehicle.photoStorage === 'vehicle' ? VEHICLE_PHOTOS_DIR : USER_PHOTOS_DIR, filename);
+    } else if (['documents', 'exteriorPhotos', 'interiorPhotos'].includes(category)) {
+        const file = Array.isArray(vehicle[category]) && vehicle[category].find(item => item.filename === filename);
+        if (!file) return res.status(404).json({ success: false, error: 'Vehicle file not found.' });
+        const directory = category === 'documents'
+            ? (file.storage === 'vehicle' ? VEHICLE_DOCUMENTS_DIR : USER_DOCUMENTS_DIR)
+            : VEHICLE_PHOTOS_DIR;
+        filePath = path.join(directory, filename);
+    } else {
+        return res.status(400).json({ success: false, error: 'Invalid vehicle file category.' });
+    }
+
+    if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, error: 'Vehicle file not found.' });
+    res.set('Cache-Control', 'private, no-store');
+    res.sendFile(filePath);
+});
+
 app.get('/api/vehicle-approval-requests', verifyToken, (req, res) => {
     try {
         if (!['admin', 'affiliate'].includes(req.user.role)) {
@@ -2019,20 +2110,30 @@ app.get('/api/vehicle-approval-requests/:id/files/:type/:filename', verifyToken,
     if (!request || (req.user.role !== 'admin' && request.affiliateId !== req.user.id)) {
         return res.status(404).json({ success: false, error: 'Vehicle document not found.' });
     }
-    if (!['photo', 'documents'].includes(req.params.type)) {
+    const type = req.params.type;
+    if (!['photo', 'documents', 'exteriorPhotos', 'interiorPhotos'].includes(type)) {
         return res.status(400).json({ success: false, error: 'Invalid file type.' });
     }
     const filename = path.basename(req.params.filename);
-    const isOwnedFile = req.params.type === 'photo'
-        ? request.photo === filename
-        : Array.isArray(request.documents) && request.documents.some(document => document.filename === filename);
-    if (!isOwnedFile) return res.status(404).json({ success: false, error: 'Vehicle document not found.' });
-    const filePath = path.join(req.params.type === 'photo' ? USER_PHOTOS_DIR : USER_DOCUMENTS_DIR, filename);
+    let fileRecord;
+    let filePath;
+    if (type === 'photo') {
+        if (request.photo !== filename) return res.status(404).json({ success: false, error: 'Vehicle document not found.' });
+        filePath = path.join(request.photoStorage === 'vehicle' ? VEHICLE_PHOTOS_DIR : USER_PHOTOS_DIR, filename);
+    } else {
+        fileRecord = Array.isArray(request[type]) && request[type].find(file => file.filename === filename);
+        if (!fileRecord) return res.status(404).json({ success: false, error: 'Vehicle document not found.' });
+        const isVehicleStorage = fileRecord.storage === 'vehicle';
+        const directory = type === 'documents'
+            ? (isVehicleStorage ? VEHICLE_DOCUMENTS_DIR : USER_DOCUMENTS_DIR)
+            : VEHICLE_PHOTOS_DIR;
+        filePath = path.join(directory, filename);
+    }
     if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, error: 'Vehicle document not found.' });
     res.sendFile(filePath);
 });
 
-app.post('/api/vehicle-approval-requests', verifyToken, verifyAffiliate, handleUserUploads, (req, res) => {
+app.post('/api/vehicle-approval-requests', verifyToken, verifyAffiliate, handleVehicleUploads, (req, res) => {
     const removeUploadedFiles = () => {
         Object.values(req.files || {}).flat().forEach(file => {
             if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
@@ -2043,21 +2144,46 @@ app.post('/api/vehicle-approval-requests', verifyToken, verifyAffiliate, handleU
             user.id === req.user.id && user.role === 'affiliate' && user.active !== false
         );
         if (!affiliate) {
+            removeUploadedFiles();
             return res.status(403).json({ success: false, error: 'An active affiliate account is required.' });
         }
 
+        const requestedVehicleId = String(req.body.vehicleId || '').trim();
+        const vehicles = getVehicles();
+        const vehicleToEdit = requestedVehicleId
+            ? vehicles.find(vehicle => vehicle.id === requestedVehicleId && vehicle.affiliateId === affiliate.id)
+            : null;
+        if (requestedVehicleId && !vehicleToEdit) {
+            removeUploadedFiles();
+            return res.status(404).json({ success: false, error: 'Vehicle not found in your account.' });
+        }
+
         let vehicleDetails;
+        let vehicleMetadata;
         try {
             vehicleDetails = normalizeVehicleSubmission(req.body);
+            vehicleMetadata = normalizeVehicleMetadata(req.body);
         } catch (error) {
             removeUploadedFiles();
             return res.status(400).json({ success: false, error: error.message });
         }
+        if (!Object.hasOwn(vehicleDetails, 'dailyRate')) {
+            removeUploadedFiles();
+            return res.status(400).json({ success: false, error: 'Proposed daily rate is required.' });
+        }
 
         const requests = getVehicleApprovalRequests();
-        const vehicles = getVehicles();
+        if (requestedVehicleId && requests.some(request =>
+            request.vehicleId === requestedVehicleId && request.status === 'Pending'
+        )) {
+            removeUploadedFiles();
+            return res.status(409).json({ success: false, error: 'An edit for this vehicle is already waiting for Admin approval.' });
+        }
         const normalizedPlate = vehicleDetails.plate.toUpperCase();
-        const plateInUse = vehicles.some(vehicle => String(vehicle.plate || '').trim().toUpperCase() === normalizedPlate);
+        const plateInUse = vehicles.some(vehicle =>
+            vehicle.id !== vehicleToEdit?.id &&
+            String(vehicle.plate || '').trim().toUpperCase() === normalizedPlate
+        );
         const platePending = requests.some(request =>
             request.status === 'Pending' &&
             String(request.plate || '').trim().toUpperCase() === normalizedPlate
@@ -2071,19 +2197,21 @@ app.post('/api/vehicle-approval-requests', verifyToken, verifyAffiliate, handleU
         const request = {
             id: `VAPR-${crypto.randomUUID()}`,
             ...vehicleDetails,
+            ...vehicleMetadata,
             affiliateId: affiliate.id,
             affiliateName: affiliate.fullname,
             photo: photo ? path.basename(photo.path) : null,
-            documents: (req.files?.documents || []).map(file => ({
-                filename: path.basename(file.path),
-                originalName: file.originalname
-            })),
+            photoStorage: photo ? 'vehicle' : null,
+            documents: serializeVehicleUploads(req.files?.documents),
+            exteriorPhotos: serializeVehicleUploads(req.files?.exteriorPhotos),
+            interiorPhotos: serializeVehicleUploads(req.files?.interiorPhotos),
             status: 'Pending',
             submittedAt: new Date().toISOString(),
             reviewedAt: null,
             reviewedBy: null,
             reviewNote: '',
-            vehicleId: null
+            vehicleId: vehicleToEdit?.id || null,
+            isVehicleUpdate: Boolean(vehicleToEdit)
         };
         requests.push(request);
         saveVehicleApprovalRequests(requests);
@@ -2091,11 +2219,17 @@ app.post('/api/vehicle-approval-requests', verifyToken, verifyAffiliate, handleU
             action: 'submitted',
             entityType: 'vehicle',
             entityId: request.id,
-            summary: 'Affiliate submitted a vehicle for approval',
-            details: { type: request.type, status: request.status }
+            summary: vehicleToEdit
+                ? 'Affiliate submitted vehicle changes for approval'
+                : 'Affiliate submitted a vehicle for approval',
+            details: { type: request.type, status: request.status, vehicleId: request.vehicleId }
         });
 
-        res.status(201).json({ success: true, message: 'Vehicle submitted for approval.', request });
+        res.status(201).json({
+            success: true,
+            message: vehicleToEdit ? 'Vehicle changes submitted for approval.' : 'Vehicle submitted for approval.',
+            request
+        });
     } catch (error) {
         removeUploadedFiles();
         console.error('[VEHICLE APPROVAL] Failed to submit request:', error);
@@ -2122,15 +2256,32 @@ app.patch('/api/vehicle-approval-requests/:id', verifyToken, verifyAdmin, (req, 
             return res.status(409).json({ success: false, error: 'This request has already been reviewed.' });
         }
 
+        const isVehicleEdit = request.isVehicleUpdate === true;
         let approvedVehicle = null;
         if (decision === 'Approved') {
             const vehicles = getVehicles();
             const normalizedPlate = String(request.plate || '').trim().toUpperCase();
-            if (vehicles.some(vehicle => String(vehicle.plate || '').trim().toUpperCase() === normalizedPlate)) {
+            const existingIndex = request.vehicleId
+                ? vehicles.findIndex(vehicle =>
+                    vehicle.id === request.vehicleId && vehicle.affiliateId === request.affiliateId
+                )
+                : -1;
+            if (request.vehicleId && existingIndex < 0) {
+                return res.status(409).json({ success: false, error: 'The affiliate vehicle for this edit could not be found.' });
+            }
+            if (vehicles.some((vehicle, index) =>
+                index !== existingIndex &&
+                String(vehicle.plate || '').trim().toUpperCase() === normalizedPlate
+            )) {
                 return res.status(409).json({ success: false, error: 'A fleet vehicle already uses this plate number.' });
             }
-            approvedVehicle = createApprovedVehicle(request, `VEH-${crypto.randomUUID()}`);
-            vehicles.push(approvedVehicle);
+            if (existingIndex >= 0) {
+                approvedVehicle = updateApprovedVehicle(vehicles[existingIndex], request);
+                vehicles[existingIndex] = approvedVehicle;
+            } else {
+                approvedVehicle = createApprovedVehicle(request, `VEH-${crypto.randomUUID()}`);
+                vehicles.push(approvedVehicle);
+            }
             saveVehicles(vehicles);
         }
 
@@ -2138,14 +2289,16 @@ app.patch('/api/vehicle-approval-requests/:id', verifyToken, verifyAdmin, (req, 
         request.reviewedAt = new Date().toISOString();
         request.reviewedBy = req.user.fullname || req.user.email;
         request.reviewNote = reviewNote.trim();
-        request.vehicleId = approvedVehicle?.id || null;
+        request.vehicleId = approvedVehicle?.id || request.vehicleId || null;
         saveVehicleApprovalRequests(requests);
 
         recordActivity(req, {
-            action: decision.toLowerCase(),
+            action: isVehicleEdit && decision === 'Approved' ? 'updated' : decision.toLowerCase(),
             entityType: 'vehicle',
             entityId: approvedVehicle?.id || request.id,
-            summary: `Affiliate vehicle ${decision.toLowerCase()}`,
+            summary: isVehicleEdit && decision === 'Approved'
+                ? 'Affiliate vehicle changes approved'
+                : `Affiliate vehicle ${decision.toLowerCase()}`,
             details: { requestId: request.id, affiliateId: request.affiliateId }
         });
 
@@ -2327,35 +2480,45 @@ app.patch('/api/affiliate/payout-requests/:id', verifyToken, verifyAdmin, (req, 
 });
 
 // CREATE NEW VEHICLE (Admin only)
-app.post('/api/vehicles', verifyToken, verifyAdmin, (req, res) => {
+app.post('/api/vehicles', verifyToken, verifyAdmin, handleVehicleUploads, (req, res) => {
+    const removeUploadedFiles = () => {
+        Object.values(req.files || {}).flat().forEach(file => {
+            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        });
+    };
     try {
-        const { plate, make, model, year, type, color, seats, transmission, fuelType, status, dailyRate } = req.body;
-
-        if (!plate || !make || !model || !year || !type || !color || !seats || !transmission || !fuelType || !status) {
-            return res.status(400).json({ success: false, error: "All fields are required" });
+        let vehicleDetails;
+        let vehicleMetadata;
+        try {
+            vehicleDetails = normalizeVehicleSubmission(req.body);
+            vehicleMetadata = normalizeVehicleMetadata(req.body);
+        } catch (error) {
+            removeUploadedFiles();
+            return res.status(400).json({ success: false, error: error.message });
+        }
+        const status = String(req.body.status || '').trim();
+        if (!['Available', 'Maintenance', 'Rented'].includes(status)) {
+            removeUploadedFiles();
+            return res.status(400).json({ success: false, error: 'Select a valid vehicle status.' });
         }
 
         const vehicles = getVehicles();
-        
-        // Check if plate already exists
-        if (vehicles.find(v => String(v.plate || '').trim().toUpperCase() === String(plate).trim().toUpperCase())) {
-            return res.status(400).json({ success: false, error: "Vehicle with this plate already exists" });
+        if (vehicles.some(vehicle => String(vehicle.plate || '').trim().toUpperCase() === vehicleDetails.plate)) {
+            removeUploadedFiles();
+            return res.status(400).json({ success: false, error: 'Vehicle with this plate already exists' });
         }
 
-        // Create new vehicle
+        const photo = req.files?.photo?.[0];
         const newVehicle = {
             id: `VEH-${Date.now()}`,
-            plate,
-            make,
-            model,
-            year: parseInt(year),
-            type,
-            color,
-            seats: parseInt(seats),
-            transmission,
-            fuelType,
+            ...vehicleDetails,
+            ...vehicleMetadata,
             status,
-            dailyRate: parseFloat(dailyRate),
+            photo: photo ? path.basename(photo.path) : null,
+            photoStorage: photo ? 'vehicle' : null,
+            documents: serializeVehicleUploads(req.files?.documents),
+            exteriorPhotos: serializeVehicleUploads(req.files?.exteriorPhotos),
+            interiorPhotos: serializeVehicleUploads(req.files?.interiorPhotos),
             created_at: new Date().toISOString(),
             lastMaintenance: new Date().toISOString()
         };
@@ -2370,49 +2533,83 @@ app.post('/api/vehicles', verifyToken, verifyAdmin, (req, res) => {
             details: { type: newVehicle.type, status: newVehicle.status }
         });
 
-        res.json({ 
-            success: true, 
-            message: "Vehicle added successfully",
+        res.status(201).json({
+            success: true,
+            message: 'Vehicle added successfully',
             vehicle: newVehicle
         });
     } catch (error) {
+        removeUploadedFiles();
         console.error(error);
-        res.status(500).json({ success: false, error: "Internal Server Error" });
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
 });
 
 // UPDATE VEHICLE (Admin only)
-app.put('/api/vehicles/:id', verifyToken, verifyAdmin, (req, res) => {
+app.put('/api/vehicles/:id', verifyToken, verifyAdmin, handleVehicleUploads, (req, res) => {
+    const removeUploadedFiles = () => {
+        Object.values(req.files || {}).flat().forEach(file => {
+            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        });
+    };
     try {
         const { id } = req.params;
-        const { plate, make, model, year, type, color, seats, transmission, fuelType, status, dailyRate, lastMaintenance } = req.body;
-
         const vehicles = getVehicles();
         const vehicleIndex = vehicles.findIndex(v => v.id === id);
 
         if (vehicleIndex === -1) {
+            removeUploadedFiles();
             return res.status(404).json({ success: false, error: "Vehicle not found" });
         }
-        const previousVehicle = { ...vehicles[vehicleIndex] };
 
-        if (plate) vehicles[vehicleIndex].plate = plate;
-        if (make) vehicles[vehicleIndex].make = make;
-        if (model) vehicles[vehicleIndex].model = model;
-        if (year) vehicles[vehicleIndex].year = parseInt(year);
-        if (type) vehicles[vehicleIndex].type = type;
-        if (color) vehicles[vehicleIndex].color = color;
-        if (seats) vehicles[vehicleIndex].seats = parseInt(seats);
-        if (transmission) vehicles[vehicleIndex].transmission = transmission;
-        if (fuelType) vehicles[vehicleIndex].fuelType = fuelType;
-        if (status) vehicles[vehicleIndex].status = status;
-        if (dailyRate) vehicles[vehicleIndex].dailyRate = parseFloat(dailyRate);
-        if (lastMaintenance) vehicles[vehicleIndex].lastMaintenance = lastMaintenance;
+        const previousVehicle = JSON.parse(JSON.stringify(vehicles[vehicleIndex]));
+        let vehicleDetails;
+        let vehicleMetadata;
+        try {
+            vehicleDetails = normalizeVehicleSubmission({ ...vehicles[vehicleIndex], ...req.body });
+            vehicleMetadata = normalizeVehicleMetadata(req.body);
+        } catch (error) {
+            removeUploadedFiles();
+            return res.status(400).json({ success: false, error: error.message });
+        }
+        const status = req.body.status === undefined ? vehicles[vehicleIndex].status : String(req.body.status).trim();
+        if (!['Available', 'Maintenance', 'Rented'].includes(status)) {
+            removeUploadedFiles();
+            return res.status(400).json({ success: false, error: 'Select a valid vehicle status.' });
+        }
+        Object.assign(vehicles[vehicleIndex], vehicleDetails, { status });
+        const metadataFields = [
+            'orCrExpiryDate', 'insuranceProvider', 'insurancePolicyNumber', 'insuranceExpiryDate',
+            'odometerReading', 'nextPmsDate', 'gpsTrackerId'
+        ];
+        if (metadataFields.some(field => Object.hasOwn(req.body, field))) {
+            Object.assign(vehicles[vehicleIndex], vehicleMetadata);
+        }
+        if (req.body.lastMaintenance) vehicles[vehicleIndex].lastMaintenance = req.body.lastMaintenance;
+
+        const photo = req.files?.photo?.[0];
+        if (photo) {
+            vehicles[vehicleIndex].photo = path.basename(photo.path);
+            vehicles[vehicleIndex].photoStorage = 'vehicle';
+        }
+        ['documents', 'exteriorPhotos', 'interiorPhotos'].forEach(field => {
+            const uploaded = serializeVehicleUploads(req.files?.[field]);
+            if (uploaded.length) {
+                vehicles[vehicleIndex][field] = [
+                    ...(Array.isArray(vehicles[vehicleIndex][field]) ? vehicles[vehicleIndex][field] : []),
+                    ...uploaded
+                ];
+            }
+        });
 
         saveVehicles(vehicles);
         const changedFields = [
-            'plate', 'make', 'model', 'year', 'type', 'color', 'seats',
-            'transmission', 'fuelType', 'status', 'dailyRate', 'lastMaintenance'
-        ].filter(field => previousVehicle[field] !== vehicles[vehicleIndex][field]);
+            'plate', 'make', 'model', 'year', 'type', 'color', 'seats', 'transmission',
+            'fuelType', 'status', 'dailyRate', 'lastMaintenance', 'orCrExpiryDate',
+            'insuranceProvider', 'insurancePolicyNumber', 'insuranceExpiryDate',
+            'odometerReading', 'nextPmsDate', 'gpsTrackerId', 'photo', 'documents',
+            'exteriorPhotos', 'interiorPhotos'
+        ].filter(field => JSON.stringify(previousVehicle[field]) !== JSON.stringify(vehicles[vehicleIndex][field]));
         if (changedFields.length) {
             recordActivity(req, {
                 action: 'updated',
@@ -2423,14 +2620,15 @@ app.put('/api/vehicles/:id', verifyToken, verifyAdmin, (req, res) => {
             });
         }
 
-        res.json({ 
-            success: true, 
-            message: "Vehicle updated successfully",
+        res.json({
+            success: true,
+            message: 'Vehicle updated successfully',
             vehicle: vehicles[vehicleIndex]
         });
     } catch (error) {
+        removeUploadedFiles();
         console.error(error);
-        res.status(500).json({ success: false, error: "Internal Server Error" });
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
 });
 

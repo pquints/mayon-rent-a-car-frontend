@@ -4033,14 +4033,14 @@ let _userPhotoPreviewUrl = null;
 let _removeExistingUserPhoto = false;
 
 function showUserFormTab(tabName, focusTab = false) {
-    document.querySelectorAll('.user-modal-tab').forEach(tab => {
+    document.querySelectorAll('#userForm .user-modal-tab').forEach(tab => {
         const isActive = tab.dataset.userTab === tabName;
         tab.setAttribute('aria-selected', String(isActive));
         tab.tabIndex = isActive ? 0 : -1;
         if (isActive && focusTab) tab.focus();
     });
 
-    document.querySelectorAll('.user-modal-tab-panel').forEach(panel => {
+    document.querySelectorAll('#userForm .user-modal-tab-panel').forEach(panel => {
         panel.hidden = panel.dataset.userTabPanel !== tabName;
     });
 }
@@ -4259,9 +4259,9 @@ document.addEventListener('DOMContentLoaded', function() {
         userForm.addEventListener('submit', handleSaveUser);
     }
 
-    const userTabs = Array.from(document.querySelectorAll('.user-modal-tab'));
+    const userTabs = Array.from(document.querySelectorAll('#userForm .user-modal-tab'));
     userTabs.forEach(tab => tab.addEventListener('click', () => showUserFormTab(tab.dataset.userTab)));
-    document.querySelector('.user-modal-tabs')?.addEventListener('keydown', event => {
+    document.querySelector('#userForm .user-modal-tabs')?.addEventListener('keydown', event => {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
         event.preventDefault();
         const activeIndex = userTabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true');
@@ -4491,6 +4491,142 @@ let _vehicles = [];
 let _vehicleApprovalRequests = [];
 let _vehiclePage = 1;
 const VEHICLES_PER_PAGE = 10;
+const VEHICLE_UPLOAD_LIMIT = 10;
+const VEHICLE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+const VEHICLE_UPLOAD_TYPES = {
+    documents: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+    exteriorPhotos: ['image/jpeg', 'image/png', 'image/webp'],
+    interiorPhotos: ['image/jpeg', 'image/png', 'image/webp']
+};
+let _selectedVehicleFiles = { documents: [], exteriorPhotos: [], interiorPhotos: [] };
+let _existingVehicleFiles = { documents: [], exteriorPhotos: [], interiorPhotos: [] };
+
+function showVehicleFormTab(tabName, focusTab = false) {
+    document.querySelectorAll('#vehicleFormTabs .user-modal-tab').forEach(tab => {
+        const isActive = tab.dataset.vehicleTab === tabName;
+        tab.setAttribute('aria-selected', String(isActive));
+        tab.tabIndex = isActive ? 0 : -1;
+        if (isActive && focusTab) tab.focus();
+    });
+
+    document.querySelectorAll('#vehicleForm [data-vehicle-tab-panel]').forEach(panel => {
+        panel.hidden = panel.dataset.vehicleTabPanel !== tabName;
+    });
+}
+
+function getVehicleFileName(file) {
+    return file.originalName || file.originalname || file.filename || 'Vehicle file';
+}
+
+function renderVehicleUploads() {
+    Object.keys(VEHICLE_UPLOAD_TYPES).forEach(kind => {
+        const list = document.getElementById(`vehicle${kind[0].toUpperCase()}${kind.slice(1)}List`);
+        const count = document.getElementById(`vehicle${kind[0].toUpperCase()}${kind.slice(1)}Count`);
+        if (!list) return;
+
+        const existing = _existingVehicleFiles[kind] || [];
+        const selected = _selectedVehicleFiles[kind] || [];
+        if (count) count.textContent = `${existing.length + selected.length}/${VEHICLE_UPLOAD_LIMIT}`;
+        list.innerHTML = [
+            ...existing.map(file => {
+                const fileKind = file.category || kind;
+                return `<li><span>${escapeUserMarkup(getVehicleFileName(file))}</span><button type="button" class="btn-secondary vehicle-upload-file-action" data-vehicle-existing-file="${escapeUserMarkup(fileKind)}" data-filename="${escapeUserMarkup(file.filename)}">View</button></li>`;
+            }),
+            ...selected.map((file, index) => {
+                const size = file.size < 1024 * 1024
+                    ? `${Math.max(1, Math.round(file.size / 1024))} KB`
+                    : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+                return `<li><span>${escapeUserMarkup(file.name)} <small>(${size})</small></span><button type="button" class="btn-secondary vehicle-upload-remove" data-vehicle-remove-file="${kind}" data-file-index="${index}" aria-label="Remove ${escapeUserMarkup(file.name)}">Remove</button></li>`;
+            })
+        ].join('');
+    });
+}
+
+function resetVehicleUploadState(vehicle = null) {
+    const normalizeFiles = files => (Array.isArray(files) ? files : [])
+        .map(file => typeof file === 'string' ? { filename: file, originalName: file } : file)
+        .filter(file => file && typeof file.filename === 'string');
+    _selectedVehicleFiles = { documents: [], exteriorPhotos: [], interiorPhotos: [] };
+    _existingVehicleFiles = {
+        documents: normalizeFiles(vehicle?.documents),
+        exteriorPhotos: normalizeFiles(vehicle?.exteriorPhotos),
+        interiorPhotos: normalizeFiles(vehicle?.interiorPhotos)
+    };
+    if (vehicle?.photo && typeof vehicle.photo === 'string') {
+        _existingVehicleFiles.exteriorPhotos.unshift({
+            filename: vehicle.photo,
+            originalName: 'Vehicle photo',
+            category: 'photo'
+        });
+    }
+
+    ['vehicleDocumentsInput', 'vehicleExteriorPhotosInput', 'vehicleInteriorPhotosInput'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.value = '';
+    });
+    renderVehicleUploads();
+}
+
+function resetVehicleFormState(vehicle = null) {
+    showVehicleFormTab('details');
+    const form = document.getElementById('vehicleForm');
+    form?.querySelectorAll('[aria-invalid="true"]').forEach(control => control.removeAttribute('aria-invalid'));
+    const error = document.getElementById('vehicleFormError');
+    if (error) {
+        error.hidden = true;
+        error.textContent = '';
+    }
+    resetVehicleUploadState(vehicle);
+}
+
+function addVehicleFiles(kind, files) {
+    if (!VEHICLE_UPLOAD_TYPES[kind]) return;
+    const accepted = [];
+    const invalidType = [];
+    const oversized = [];
+    for (const file of files) {
+        if (!VEHICLE_UPLOAD_TYPES[kind].includes(file.type)) {
+            invalidType.push(file.name);
+        } else if (file.size > VEHICLE_UPLOAD_MAX_BYTES) {
+            oversized.push(file.name);
+        } else {
+            accepted.push(file);
+        }
+    }
+
+    const remaining = Math.max(
+        0,
+        VEHICLE_UPLOAD_LIMIT - _existingVehicleFiles[kind].length - _selectedVehicleFiles[kind].length
+    );
+    _selectedVehicleFiles[kind].push(...accepted.slice(0, remaining));
+    renderVehicleUploads();
+
+    const messages = [];
+    if (invalidType.length) messages.push('Unsupported file type');
+    if (oversized.length) messages.push('Files must be 5 MB or smaller');
+    if (accepted.length > remaining) messages.push(`Only ${VEHICLE_UPLOAD_LIMIT} ${kind === 'documents' ? 'documents' : 'photos'} can be attached`);
+    if (messages.length) showNotificationToast(`${messages.join('. ')}. Some files were not added.`, 'warning');
+}
+
+async function viewVehicleFile(vehicleId, kind, filename) {
+    try {
+        const response = await fetch(
+            `${API_URL}/vehicles/${encodeURIComponent(vehicleId)}/files/${encodeURIComponent(kind)}/${encodeURIComponent(filename)}`,
+            { headers: getAuthHeaders() }
+        );
+        if (!response.ok) throw new Error('Unable to open the vehicle file.');
+        const objectUrl = URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch (error) {
+        console.error('Unable to open vehicle file:', error);
+        showNotificationToast(error.message || 'Unable to open vehicle file.', 'error');
+    }
+}
 
 async function loadVehicles() {
     if (!ensureAuth()) return;
@@ -4652,6 +4788,7 @@ function openAddVehicleModal() {
         form.reset();
         form.dataset.mode = isAffiliate ? 'request' : 'create';
     }
+    resetVehicleFormState();
     const statusField = document.getElementById('vehicleStatusField');
     const statusInput = document.getElementById('vehicleStatus');
     const saveButton = document.getElementById('vehicleSaveBtn');
@@ -4666,6 +4803,7 @@ function closeVehicleModal() {
         form.reset();
         form.dataset.mode = 'create';
     }
+    resetVehicleFormState();
 
     const title = document.getElementById('vehicleModalTitle');
     if (title) title.textContent = 'Vehicle';
@@ -4690,16 +4828,30 @@ async function handleSaveVehicle(e) {
     if (!ensureAuth()) return;
 
     const form = document.getElementById('vehicleForm');
-    if (form && typeof form.reportValidity === 'function' && !form.reportValidity()) {
+    if (!form) return;
+    form.querySelectorAll('[aria-invalid="true"]').forEach(control => control.removeAttribute('aria-invalid'));
+    const invalidFields = Array.from(form.querySelectorAll('input, select, textarea'))
+        .filter(control => control.willValidate && !control.validity.valid);
+    if (invalidFields.length) {
+        invalidFields.forEach(control => control.setAttribute('aria-invalid', 'true'));
+        const invalidField = invalidFields[0];
+        const invalidPanel = invalidField.closest('[data-vehicle-tab-panel]');
+        if (invalidPanel) showVehicleFormTab(invalidPanel.dataset.vehicleTabPanel);
+        const error = document.getElementById('vehicleFormError');
+        if (error) {
+            error.textContent = 'Please complete the highlighted fields before saving.';
+            error.hidden = false;
+        }
+        invalidField.focus();
+        invalidField.reportValidity();
         return;
     }
-    
+
     const vehicleId = document.getElementById('vehicleEditId').value;
     const plate = document.getElementById('vehiclePlate').value.trim();
     const make = document.getElementById('vehicleMake').value.trim();
     const model = document.getElementById('vehicleModel').value.trim();
     const year = Number(document.getElementById('vehicleYear').value);
-    const dailyRate = Number(document.getElementById('vehicleDailyRate').value);
     const type = document.getElementById('vehicleType').value;
     const color = document.getElementById('vehicleColor').value.trim();
     const seats = Number(document.getElementById('vehicleSeats').value);
@@ -4714,15 +4866,29 @@ async function handleSaveVehicle(e) {
         const path = isAffiliate
             ? '/vehicle-approval-requests'
             : vehicleId ? `/vehicles/${vehicleId}` : '/vehicles';
-        
+
+        const formData = new FormData();
+        Object.entries({
+            plate, make, model, year, type, color, seats, transmission, fuelType,
+            status: isAffiliate ? '' : document.getElementById('vehicleStatus').value,
+            orCrExpiryDate: document.getElementById('vehicleOrCrExpiryDate').value,
+            insuranceProvider: document.getElementById('vehicleInsuranceProvider').value.trim(),
+            insurancePolicyNumber: document.getElementById('vehicleInsurancePolicyNumber').value.trim(),
+            insuranceExpiryDate: document.getElementById('vehicleInsuranceExpiryDate').value,
+            odometerReading: document.getElementById('vehicleOdometerReading').value,
+            nextPmsDate: document.getElementById('vehicleNextPmsDate').value,
+            gpsTrackerId: document.getElementById('vehicleGpsTrackerId').value.trim()
+        }).forEach(([key, value]) => formData.append(key, value));
+        Object.entries(_selectedVehicleFiles).forEach(([kind, files]) => {
+            files.forEach(file => formData.append(kind, file));
+        });
+
         const { response, data } = await requestJson(path, {
             method,
-            headers: getAuthHeaders(),
-            body: JSON.stringify({
-                plate, make, model, year, dailyRate, type, color, seats, transmission, fuelType, status
-            })
+            headers: getAuthHeadersForUpload(),
+            body: formData
         });
-        
+
         if (!response.ok) {
             alert(data.error || 'Failed to save vehicle');
             return;
@@ -4731,7 +4897,8 @@ async function handleSaveVehicle(e) {
         alert(isAffiliate
             ? 'Vehicle submitted for approval.'
             : vehicleId ? 'Vehicle updated successfully' : 'Vehicle added successfully');
-        document.getElementById('vehicleForm')?.reset();
+        form.reset();
+        resetVehicleFormState();
         if (isAffiliate) {
             showView('vehicleApproval');
             loadVehicleApprovalRequests();
@@ -4778,21 +4945,29 @@ async function editVehicle(vehicleId) {
 
         const form = document.getElementById('vehicleForm');
         if (form) {
+            form.reset();
             form.dataset.mode = 'edit';
         }
 
+        resetVehicleFormState(vehicle);
         document.getElementById('vehicleEditId').value = vehicle.id;
         document.getElementById('vehiclePlate').value = vehicle.plate;
         document.getElementById('vehicleMake').value = vehicle.make;
         document.getElementById('vehicleModel').value = vehicle.model;
         document.getElementById('vehicleYear').value = vehicle.year;
-        document.getElementById('vehicleDailyRate').value = vehicle.dailyRate || '';
         document.getElementById('vehicleType').value = vehicle.type;
         document.getElementById('vehicleColor').value = vehicle.color;
         document.getElementById('vehicleSeats').value = vehicle.seats;
         document.getElementById('vehicleTransmission').value = vehicle.transmission;
         document.getElementById('vehicleFuelType').value = vehicle.fuelType;
         document.getElementById('vehicleStatus').value = vehicle.status;
+        document.getElementById('vehicleOrCrExpiryDate').value = vehicle.orCrExpiryDate || '';
+        document.getElementById('vehicleInsuranceProvider').value = vehicle.insuranceProvider || '';
+        document.getElementById('vehicleInsurancePolicyNumber').value = vehicle.insurancePolicyNumber || '';
+        document.getElementById('vehicleInsuranceExpiryDate').value = vehicle.insuranceExpiryDate || '';
+        document.getElementById('vehicleOdometerReading').value = vehicle.odometerReading ?? '';
+        document.getElementById('vehicleNextPmsDate').value = vehicle.nextPmsDate || '';
+        document.getElementById('vehicleGpsTrackerId').value = vehicle.gpsTrackerId || '';
     } catch (error) {
         console.error("Error loading vehicle:", error);
         alert('Failed to load vehicle details');
@@ -4877,8 +5052,8 @@ function renderVehicleApprovalRequests() {
     const subtitle = document.getElementById('vehicleApprovalSubtitle');
     if (subtitle) {
         subtitle.textContent = isAdmin
-            ? 'Review affiliate vehicle submissions before adding them to the fleet.'
-            : 'Track the review status of your submitted vehicles.';
+            ? 'Review affiliate vehicle submissions and requested updates before applying them to the fleet.'
+            : 'Track the review status of your vehicle submissions and updates.';
     }
     const filteredRequests = _vehicleApprovalRequests.filter(request => {
         const searchable = [
@@ -4897,27 +5072,33 @@ function renderVehicleApprovalRequests() {
         return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString();
     };
 
-    tbody.innerHTML = filteredRequests.length ? filteredRequests.map(request => `
-        <tr>
-            <td data-label="Affiliate Name">${escapeUserMarkup(request.affiliateName || 'Affiliate')}</td>
-            <td data-label="Vehicle"><strong>${escapeUserMarkup(request.make)} ${escapeUserMarkup(request.model)}</strong><small>${escapeUserMarkup(request.plate)} · ${escapeUserMarkup(request.year)}</small></td>
-            <td data-label="Vehicle Type">${escapeUserMarkup(request.type || '—')}</td>
-            <td data-label="Status"><span class="vehicle-status-badge ${statusClass(request.status)}">${escapeUserMarkup(request.status || 'Unknown')}</span></td>
-            <td data-label="Submitted">${escapeUserMarkup(formatDate(request.submittedAt))}</td>
-            <td data-label="Documents">
-                ${request.photo ? `<button type="button" class="btn-secondary" data-approval-file="photo" data-request-id="${escapeUserMarkup(request.id)}" data-filename="${escapeUserMarkup(request.photo)}">View photo</button>` : ''}
-                ${(request.documents || []).map((document, index) => `<button type="button" class="btn-secondary" data-approval-file="documents" data-request-id="${escapeUserMarkup(request.id)}" data-filename="${escapeUserMarkup(document.filename)}">Document ${index + 1}</button>`).join('')}
-                ${request.photo || (request.documents || []).length ? '' : '—'}
-            </td>
-            <td data-label="Review Note">${escapeUserMarkup(request.reviewNote || '—')}</td>
-            <td data-label="Actions" class="vehicle-row-actions">
-                ${isAdmin && request.status === 'Pending' ? `
-                    <button type="button" data-request-action="Approved" data-request-id="${escapeUserMarkup(request.id)}" class="btn-action btn-approve vehicle-approve-action" title="Approve vehicle" aria-label="Approve ${escapeUserMarkup(request.plate || request.make || 'vehicle')}"><i class="fa-solid fa-check" aria-hidden="true"></i></button>
-                    <button type="button" data-request-action="Rejected" data-request-id="${escapeUserMarkup(request.id)}" class="btn-action btn-delete vehicle-reject-action" title="Reject vehicle" aria-label="Reject ${escapeUserMarkup(request.plate || request.make || 'vehicle')}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
-                ` : '<span class="vehicle-action-placeholder">—</span>'}
-            </td>
-        </tr>
-    `).join('') : `<tr><td class="vehicle-empty-state" colspan="8">${search || statusFilter ? 'No requests match these filters.' : 'No vehicle approval requests yet.'}</td></tr>`;
+    tbody.innerHTML = filteredRequests.length ? filteredRequests.map(request => {
+        const files = [
+            ...(request.photo ? [{ type: 'photo', filename: request.photo, label: 'Vehicle photo' }] : []),
+            ...(request.documents || []).map((file, index) => ({ type: 'documents', filename: file.filename, label: `Document ${index + 1}` })),
+            ...(request.exteriorPhotos || []).map((file, index) => ({ type: 'exteriorPhotos', filename: file.filename, label: `Exterior ${index + 1}` })),
+            ...(request.interiorPhotos || []).map((file, index) => ({ type: 'interiorPhotos', filename: file.filename, label: `Interior ${index + 1}` }))
+        ];
+        return `
+            <tr>
+                <td data-label="Affiliate Name">${escapeUserMarkup(request.affiliateName || 'Affiliate')}</td>
+                <td data-label="Vehicle"><strong>${escapeUserMarkup(request.make)} ${escapeUserMarkup(request.model)}</strong><small>${escapeUserMarkup(request.plate)} · ${escapeUserMarkup(request.year)}${request.dailyRate !== undefined ? ` · ${formatMoney(request.dailyRate)}/day` : ''}${request.isVehicleUpdate ? ' · Update request' : ''}</small></td>
+                <td data-label="Vehicle Type">${escapeUserMarkup(request.type || '—')}</td>
+                <td data-label="Status"><span class="vehicle-status-badge ${statusClass(request.status)}">${escapeUserMarkup(request.status || 'Unknown')}</span></td>
+                <td data-label="Submitted">${escapeUserMarkup(formatDate(request.submittedAt))}</td>
+                <td data-label="Documents">
+                    ${files.map(file => `<button type="button" class="btn-secondary" data-approval-file="${file.type}" data-request-id="${escapeUserMarkup(request.id)}" data-filename="${escapeUserMarkup(file.filename)}">${file.label}</button>`).join('')}
+                    ${files.length ? '' : '—'}
+                </td>
+                <td data-label="Review Note">${escapeUserMarkup(request.reviewNote || '—')}</td>
+                <td data-label="Actions" class="vehicle-row-actions">
+                    ${isAdmin && request.status === 'Pending' ? `
+                        <button type="button" data-request-action="Approved" data-request-id="${escapeUserMarkup(request.id)}" class="btn-action btn-approve vehicle-approve-action" title="${request.isVehicleUpdate ? 'Approve vehicle changes' : 'Approve vehicle'}" aria-label="${request.isVehicleUpdate ? 'Approve changes for' : 'Approve'} ${escapeUserMarkup(request.plate || request.make || 'vehicle')}"><i class="fa-solid fa-check" aria-hidden="true"></i></button>
+                        <button type="button" data-request-action="Rejected" data-request-id="${escapeUserMarkup(request.id)}" class="btn-action btn-delete vehicle-reject-action" title="Reject vehicle" aria-label="Reject ${escapeUserMarkup(request.plate || request.make || 'vehicle')}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                    ` : '<span class="vehicle-action-placeholder">—</span>'}
+                </td>
+            </tr>`;
+    }).join('') : `<tr><td class="vehicle-empty-state" colspan="8">${search || statusFilter ? 'No requests match these filters.' : 'No vehicle approval requests yet.'}</td></tr>`;
 
     tbody.onclick = event => {
         const fileButton = event.target.closest('button[data-approval-file]');
@@ -4954,7 +5135,11 @@ async function reviewVehicleRequest(requestId, decision) {
     if (currentUser?.role !== 'admin') return;
     let reviewNote = '';
     if (decision === 'Approved') {
-        if (!confirm('Approve this vehicle and add it to the fleet?')) return;
+        const request = _vehicleApprovalRequests.find(item => item.id === requestId);
+        const prompt = request?.isVehicleUpdate
+            ? 'Approve these changes to the existing vehicle?'
+            : 'Approve this vehicle and add it to the fleet?';
+        if (!confirm(prompt)) return;
     } else {
         reviewNote = prompt('Optional reason for rejection:');
         if (reviewNote === null) return;
@@ -4987,7 +5172,78 @@ document.addEventListener('DOMContentLoaded', function() {
     const vehicleForm = document.getElementById('vehicleForm');
     if (vehicleForm) {
         vehicleForm.addEventListener('submit', handleSaveVehicle);
+        const clearInvalidField = event => {
+            const control = event.target;
+            if (control?.validity?.valid) control.removeAttribute('aria-invalid');
+            if (vehicleForm.checkValidity()) {
+                const error = document.getElementById('vehicleFormError');
+                if (error) {
+                    error.hidden = true;
+                    error.textContent = '';
+                }
+            }
+        };
+        vehicleForm.addEventListener('input', clearInvalidField);
+        vehicleForm.addEventListener('change', clearInvalidField);
+        vehicleForm.addEventListener('click', event => {
+            const removeButton = event.target.closest('button[data-vehicle-remove-file]');
+            if (removeButton) {
+                const kind = removeButton.dataset.vehicleRemoveFile;
+                const index = Number(removeButton.dataset.fileIndex);
+                if (Array.isArray(_selectedVehicleFiles[kind])) {
+                    _selectedVehicleFiles[kind].splice(index, 1);
+                    renderVehicleUploads();
+                }
+                return;
+            }
+            const viewButton = event.target.closest('button[data-vehicle-existing-file]');
+            if (viewButton) {
+                viewVehicleFile(
+                    document.getElementById('vehicleEditId').value,
+                    viewButton.dataset.vehicleExistingFile,
+                    viewButton.dataset.filename
+                );
+            }
+        });
     }
+
+    const vehicleTabs = Array.from(document.querySelectorAll('#vehicleFormTabs .user-modal-tab'));
+    vehicleTabs.forEach(tab => tab.addEventListener('click', () => showVehicleFormTab(tab.dataset.vehicleTab)));
+    document.getElementById('vehicleFormTabs')?.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const activeIndex = vehicleTabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true');
+        const nextIndex = event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+                ? vehicleTabs.length - 1
+                : (activeIndex + (event.key === 'ArrowRight' ? 1 : -1) + vehicleTabs.length) % vehicleTabs.length;
+        showVehicleFormTab(vehicleTabs[nextIndex].dataset.vehicleTab, true);
+    });
+
+    [
+        ['vehicleDocumentsInput', 'documents'],
+        ['vehicleExteriorPhotosInput', 'exteriorPhotos'],
+        ['vehicleInteriorPhotosInput', 'interiorPhotos']
+    ].forEach(([inputId, kind]) => {
+        document.getElementById(inputId)?.addEventListener('change', event => {
+            addVehicleFiles(kind, Array.from(event.currentTarget.files || []));
+            event.currentTarget.value = '';
+        });
+    });
+
+    document.querySelectorAll('.vehicle-upload-dropzone').forEach(dropzone => {
+        dropzone.addEventListener('dragover', event => {
+            event.preventDefault();
+            dropzone.classList.add('is-dragging');
+        });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-dragging'));
+        dropzone.addEventListener('drop', event => {
+            event.preventDefault();
+            dropzone.classList.remove('is-dragging');
+            addVehicleFiles(dropzone.dataset.vehicleUploadType, Array.from(event.dataTransfer?.files || []));
+        });
+    });
 
     document.getElementById('vehiclesSearch')?.addEventListener('input', () => {
         _vehiclePage = 1;
