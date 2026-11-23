@@ -6841,3 +6841,36 @@ body:has(#sidebar.collapsed) .user-modal-overlay {
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+#vehicleManagementView .vehicle-toolbar .vehicle-search,
+#vehicleManagementView .vehicle-toolbar .vehicle-filter {
+    box-sizing: border-box;
+    height: 42px;
+}
+
+#vehicleManagementView .vehicle-toolbar .vehicle-search input,
+#vehicleManagementView .vehicle-toolbar .vehicle-filter select {
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    outline: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+#vehicleManagementView .vehicle-toolbar .vehicle-search input:focus,
+#vehicleManagementView .vehicle-toolbar .vehicle-filter select:focus {
+    border: 0;
+    outline: none;
+    box-shadow: none;
+}
+
+#vehicleManagementView .vehicle-toolbar .vehicle-search:focus-within,
+#vehicleManagementView .vehicle-toolbar .vehicle-filter:focus-within {
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.12);
+}
