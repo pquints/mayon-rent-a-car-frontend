@@ -16,8 +16,7 @@ const validSubmission = {
     color: 'White',
     seats: 5,
     transmission: 'Automatic',
-    fuelType: 'Gasoline',
-    dailyRate: 2500
+    fuelType: 'Gasoline'
 };
 
 test('normalizes submitted vehicle details and plate number', () => {
@@ -30,21 +29,18 @@ test('normalizes submitted vehicle details and plate number', () => {
         color: 'White',
         seats: 5,
         transmission: 'Automatic',
-        fuelType: 'Gasoline',
-        dailyRate: 2500
+        fuelType: 'Gasoline'
     });
 });
 
 test('rejects incomplete or invalid vehicle submissions', () => {
     assert.throws(() => normalizeVehicleSubmission({ ...validSubmission, make: ' ' }), /make is required/);
     assert.throws(() => normalizeVehicleSubmission({ ...validSubmission, seats: 0 }), /Seats must be an integer/);
-    assert.throws(() => normalizeVehicleSubmission({ ...validSubmission, dailyRate: -1 }), /Daily rate must be/);
-    assert.throws(() => normalizeVehicleSubmission({ ...validSubmission, dailyRate: 'not-a-rate' }), /Daily rate must be/);
 });
 
-test('allows vehicle submissions without a daily rate when no rate is provided', () => {
-    const { dailyRate, ...submission } = validSubmission;
-    assert.equal(Object.hasOwn(normalizeVehicleSubmission(submission), 'dailyRate'), false);
+test('ignores affiliate-submitted daily rates', () => {
+    const submission = normalizeVehicleSubmission({ ...validSubmission, dailyRate: 2500 });
+    assert.equal(Object.hasOwn(submission, 'dailyRate'), false);
 });
 
 test('normalizes optional registration, insurance, and maintenance details', () => {
@@ -121,13 +117,14 @@ test('applies approved affiliate edits without changing ownership or vehicle sta
         affiliateName: 'Alex Affiliate',
         status: 'Maintenance',
         plate: 'ABC-123',
+        dailyRate: 3200,
         documents: [{ filename: 'old-orcr.pdf' }],
         exteriorPhotos: [],
         interiorPhotos: [],
         created_at: '2025-01-01T00:00:00.000Z'
     };
     const request = {
-        ...normalizeVehicleSubmission({ ...validSubmission, plate: 'XYZ-789', dailyRate: 3200 }),
+        ...normalizeVehicleSubmission({ ...validSubmission, plate: 'XYZ-789' }),
         ...normalizeVehicleMetadata({ odometerReading: '50000', gpsTrackerId: 'GPS-99' }),
         id: 'VAPR-2',
         documents: [{ filename: 'new-insurance.pdf', storage: 'vehicle' }],

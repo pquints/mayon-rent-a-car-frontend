@@ -1206,7 +1206,11 @@ app.get('/api/customer/vehicles', verifyToken, (req, res) => {
     }
 
     const vehicles = getVehicles()
-        .filter(vehicle => String(vehicle.status || '').toLowerCase() === 'available')
+        .filter(vehicle =>
+            String(vehicle.status || '').toLowerCase() === 'available' &&
+            Number.isFinite(Number(vehicle.dailyRate)) &&
+            Number(vehicle.dailyRate) > 0
+        )
         .map(vehicle => ({
             id: vehicle.id,
             make: vehicle.make || '',
@@ -1246,7 +1250,9 @@ app.post('/api/customer/bookings', bookingLimiter, verifyToken, (req, res) => {
     } = req.body;
     const vehicle = getVehicles().find(candidate =>
         candidate.id === vehicleId &&
-        String(candidate.status || '').toLowerCase() === 'available'
+        String(candidate.status || '').toLowerCase() === 'available' &&
+        Number.isFinite(Number(candidate.dailyRate)) &&
+        Number(candidate.dailyRate) > 0
     );
     if (!vehicle) return res.status(400).json({ success: false, error: 'Select an available approved vehicle.' });
     if (!isValidReportDate(pickupDate) || pickupDate < new Date().toISOString().slice(0, 10)) {
@@ -2167,11 +2173,6 @@ app.post('/api/vehicle-approval-requests', verifyToken, verifyAffiliate, handleV
             removeUploadedFiles();
             return res.status(400).json({ success: false, error: error.message });
         }
-        if (!Object.hasOwn(vehicleDetails, 'dailyRate')) {
-            removeUploadedFiles();
-            return res.status(400).json({ success: false, error: 'Proposed daily rate is required.' });
-        }
-
         const requests = getVehicleApprovalRequests();
         if (requestedVehicleId && requests.some(request =>
             request.vehicleId === requestedVehicleId && request.status === 'Pending'

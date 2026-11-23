@@ -5136,10 +5136,10 @@ async function reviewVehicleRequest(requestId, decision) {
     let reviewNote = '';
     if (decision === 'Approved') {
         const request = _vehicleApprovalRequests.find(item => item.id === requestId);
-        const prompt = request?.isVehicleUpdate
+        const promptMessage = request?.isVehicleUpdate
             ? 'Approve these changes to the existing vehicle?'
             : 'Approve this vehicle and add it to the fleet?';
-        if (!confirm(prompt)) return;
+        if (!confirm(promptMessage)) return;
     } else {
         reviewNote = prompt('Optional reason for rejection:');
         if (reviewNote === null) return;

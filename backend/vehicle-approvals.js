@@ -13,8 +13,6 @@ function normalizeVehicleSubmission(input) {
 
     const year = Number(input?.year);
     const seats = Number(input?.seats);
-    const rateInput = String(input?.dailyRate ?? '').trim();
-    const dailyRate = Number(rateInput);
     const currentYear = new Date().getFullYear();
 
     if (!Number.isInteger(year) || year < 1900 || year > currentYear + 1) {
@@ -23,15 +21,10 @@ function normalizeVehicleSubmission(input) {
     if (!Number.isInteger(seats) || seats < 1 || seats > 100) {
         throw new Error('Seats must be an integer between 1 and 100.');
     }
-    if (rateInput && (!Number.isFinite(dailyRate) || dailyRate < 0)) {
-        throw new Error('Daily rate must be a non-negative number.');
-    }
-
     return {
         ...vehicle,
         year,
-        seats,
-        ...(rateInput ? { dailyRate } : {})
+        seats
     };
 }
 
@@ -76,7 +69,7 @@ function normalizeVehicleMetadata(input) {
 
 function createApprovedVehicle(request, id, now = new Date().toISOString()) {
     const {
-        plate, make, model, year, type, color, seats, transmission, fuelType, dailyRate,
+        plate, make, model, year, type, color, seats, transmission, fuelType,
         affiliateId, affiliateName, photo, photoStorage, documents,
         exteriorPhotos, interiorPhotos, orCrExpiryDate, insuranceProvider,
         insurancePolicyNumber, insuranceExpiryDate, odometerReading, nextPmsDate, gpsTrackerId
@@ -94,7 +87,6 @@ function createApprovedVehicle(request, id, now = new Date().toISOString()) {
         transmission,
         fuelType,
         status: 'Available',
-        dailyRate,
         affiliateId,
         affiliateName,
         photo: photo || null,
@@ -119,7 +111,7 @@ function updateApprovedVehicle(vehicle, request, now = new Date().toISOString())
     const updated = { ...vehicle };
     const fields = [
         'plate', 'make', 'model', 'year', 'type', 'color', 'seats', 'transmission',
-        'fuelType', 'dailyRate', 'orCrExpiryDate', 'insuranceProvider',
+        'fuelType', 'orCrExpiryDate', 'insuranceProvider',
         'insurancePolicyNumber', 'insuranceExpiryDate', 'odometerReading',
         'nextPmsDate', 'gpsTrackerId'
     ];

@@ -1087,7 +1087,6 @@ function configureAffiliateVehicleForm(route) {
             seats: vehicle.seats,
             transmission: vehicle.transmission,
             fuelType: vehicle.fuelType,
-            dailyRate: vehicle.dailyRate,
             orCrExpiryDate: vehicle.orCrExpiryDate || '',
             insuranceProvider: vehicle.insuranceProvider || '',
             insurancePolicyNumber: vehicle.insurancePolicyNumber || '',
@@ -1143,7 +1142,9 @@ function renderAffiliateVehicleRows() {
             hasPendingEdit: pendingVehicleEdits.has(vehicle.id),
             displayStatus: String(vehicle.status).toLowerCase() === 'maintenance'
                 ? 'In Maintenance'
-                : 'Approved / Active',
+                : Number(vehicle.dailyRate) > 0
+                    ? 'Approved / Active'
+                    : 'Approved / Pending Availability',
             reviewNote: ''
         })),
         ...affiliateRequests
@@ -1156,7 +1157,7 @@ function renderAffiliateVehicleRows() {
             }))
     ];
     if (!rows.length) {
-        setTableEmptyState(tbody, 7, 'No vehicles or submissions yet. Submit a vehicle to get started.');
+        setTableEmptyState(tbody, 6, 'No vehicles or submissions yet. Submit a vehicle to get started.');
         return;
     }
     rows.forEach(vehicle => {
@@ -1168,7 +1169,6 @@ function renderAffiliateVehicleRows() {
             .join(' · '));
         const status = row.insertCell();
         status.appendChild(createStatusBadge(vehicle.displayStatus || vehicle.status));
-        appendCell(row, vehicle.dailyRate === undefined ? '—' : formatMoney(vehicle.dailyRate));
         appendCell(row, vehicle.reviewNote || '—');
         const actions = row.insertCell();
         if (vehicle.isApprovedVehicle && vehicle.hasPendingEdit) {
